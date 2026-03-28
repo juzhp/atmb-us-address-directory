@@ -1,0 +1,423 @@
+.page {
+  width: 100%;
+}
+
+.header {
+  padding: 32px 28px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.breadcrumbLink {
+  color: var(--muted);
+}
+
+.breadcrumbLink:hover {
+  color: var(--ink);
+}
+
+.breadcrumbDivider {
+  color: var(--muted);
+}
+
+.breadcrumbCurrent {
+  color: var(--ink);
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+}
+
+.lede {
+  max-width: 64ch;
+  margin: 16px 0 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.count {
+  margin-top: 10px;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.listSection {
+  padding: 0 28px 28px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(0, 1.6fr) auto;
+  gap: 20px;
+  align-items: end;
+  padding: 18px 0 20px;
+  border-bottom: 1px solid var(--line);
+  transition: background-color 160ms ease;
+}
+
+.filters:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.filterIntro {
+  display: grid;
+  gap: 6px;
+  padding-right: 12px;
+}
+
+.filterTitle {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.filterHint {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.92rem;
+}
+
+.filterControls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.filterField {
+  min-width: 0;
+}
+
+.filterLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.select,
+.submitButton,
+.resetButton {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.select {
+  width: 100%;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.select:hover {
+  border-color: var(--ink);
+}
+
+.filterActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.submitButton {
+  padding: 0 18px;
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+  cursor: pointer;
+}
+
+.submitButton:hover {
+  background: #2c2c2c;
+  border-color: #2c2c2c;
+}
+
+.resetButton {
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.resetButton:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.resetButtonDisabled {
+  color: var(--muted);
+  cursor: default;
+  border: 0;
+  background: transparent;
+}
+
+.resetButton:not(.resetButtonDisabled):hover {
+  color: var(--ink);
+}
+
+.table {
+  display: block;
+}
+
+.head,
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) 110px 90px 90px 130px 110px 120px;
+  gap: 12px;
+  align-items: center;
+}
+
+.head {
+  min-height: 52px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+}
+
+.tableBody {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.row {
+  position: relative;
+  min-height: 88px;
+  border-bottom: 1px solid var(--line);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.rowOverlay {
+  position: absolute;
+  inset: 0 132px 0 0;
+  z-index: 1;
+}
+
+.rowMain {
+  display: grid;
+  grid-column: 1 / 7;
+  grid-template-columns: minmax(0, 2.2fr) 110px 90px 90px 130px 110px;
+  gap: 12px;
+  align-items: center;
+  min-height: 88px;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.addressCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 0;
+}
+
+.locationName {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.addressText {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.detailHint {
+  color: var(--ink);
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+}
+
+.cell {
+  font-size: 0.95rem;
+}
+
+.actionCell {
+  position: relative;
+  z-index: 3;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--ink);
+  transition: color 160ms ease;
+}
+
+.action:hover {
+  color: var(--muted);
+}
+
+.empty {
+  padding: 18px 0 0;
+  color: var(--muted);
+}
+
+.mobileList {
+  display: none;
+}
+
+.mobileCard {
+  display: block;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+.mobileCardMain {
+  display: block;
+}
+
+.mobileAddress {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.mobileMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.mobileMeta strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.mobileAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--ink);
+  transition: color 160ms ease;
+}
+
+.mobileAction:hover {
+  color: var(--muted);
+}
+
+.mobileActions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.copySection {
+  padding: 0 28px 28px;
+}
+
+.copyInner {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  max-width: 80ch;
+}
+
+.copyTitle {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+}
+
+.copyText {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.9;
+}
+
+.copyText + .copyText {
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .listSection {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .copySection {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .filterIntro {
+    padding-right: 0;
+  }
+
+  .filterControls {
+    grid-template-columns: 1fr;
+  }
+
+  .filterActions {
+    justify-content: flex-start;
+  }
+
+  .table {
+    display: none;
+  }
+
+  .mobileList {
+    display: block;
+    border-top: 1px solid var(--line);
+  }
+}

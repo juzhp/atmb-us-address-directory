@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ATMB Admin</title>
+    <link rel="stylesheet" href="/assets/admin.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy-wrap">
+          <p class="eyebrow">Anytime Mailbox Operations</p>
+          <h1>USA 地址管理台</h1>
+          <p class="hero-copy">
+            抓取地址、扫描编号范围、补全 RDI/CMRA，并管理 Smarty token 额度。
+          </p>
+        </div>
+        <div class="hero-side">
+          <div class="hero-actions">
+            <button id="crawl-start-button" class="button button-primary">开始抓取</button>
+            <button id="personalize-scan-button" class="button button-secondary">扫描编号范围</button>
+            <button id="smarty-enrich-button" class="button button-secondary">补全 RDI/CMRA</button>
+            <button id="refresh-button" class="button button-ghost">刷新</button>
+          </div>
+          <p id="hero-hint" class="hero-hint">操作会按当前筛选结果执行。</p>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="stats-strip">
+          <article class="stat-card">
+            <span class="stat-label">地址总数</span>
+            <strong id="stat-total-locations" class="stat-value">0</strong>
+            <span class="stat-note">当前筛选结果</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Active 地址</span>
+            <strong id="stat-active-locations" class="stat-value">0</strong>
+            <span class="stat-note">列表实时统计</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">已补全编号范围</span>
+            <strong id="stat-personalize-count" class="stat-value">0</strong>
+            <span class="stat-note">有最小号与最大号</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">已补全 RDI/CMRA</span>
+            <strong id="stat-smarty-count" class="stat-value">0</strong>
+            <span class="stat-note">住宅</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Smarty 剩余额度</span>
+            <strong id="stat-smarty-remaining" class="stat-value">0</strong>
+            <span class="stat-note">全部 active token</span>
+          </article>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Smarty Tokens</h2>
+            <p class="table-meta">管理多个 Smarty 凭证及本地额度。</p>
+          </div>
+
+          <form id="smarty-token-form" class="filters-form">
+            <label>
+              <span>名称</span>
+              <input id="smarty-name-input" type="text" placeholder="Primary Token" />
+            </label>
+            <label>
+              <span>Auth ID</span>
+              <input id="smarty-auth-id-input" type="text" placeholder="auth-id" />
+            </label>
+            <label>
+              <span>Auth Token</span>
+              <input id="smarty-auth-token-input" type="password" placeholder="auth-token" />
+            </label>
+            <label>
+              <span>额度</span>
+              <input id="smarty-quota-input" type="number" min="0" placeholder="10000" />
+            </label>
+            <label>
+              <span>优先级</span>
+              <input id="smarty-priority-input" type="number" min="0" placeholder="100" />
+            </label>
+            <button class="button button-primary" type="submit">添加 Token</button>
+          </form>
+
+          <div class="table-wrap table-wrap-tight">
+            <table>
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>Auth ID</th>
+                  <th>额度</th>
+                  <th>已用</th>
+                  <th>剩余</th>
+                  <th>状态</th>
+                  <th>优先级</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="smarty-tokens-tbody">
+                <tr>
+                  <td colspan="8" class="empty-state">正在加载 Tokens...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel panel-status">
+          <div class="panel-heading">
+            <h2>任务状态</h2>
+            <span id="status-pill" class="pill pill-idle">Idle</span>
+          </div>
+          <dl class="status-grid">
+            <div>
+              <dt>任务类型</dt>
+              <dd id="job-type">-</dd>
+            </div>
+            <div>
+              <dt>开始时间</dt>
+              <dd id="job-started-at">-</dd>
+            </div>
+            <div>
+              <dt>结束时间</dt>
+              <dd id="job-finished-at">-</dd>
+            </div>
+            <div>
+              <dt>州页数</dt>
+              <dd id="job-total-states">0</dd>
+            </div>
+            <div>
+              <dt>已处理州页</dt>
+              <dd id="job-total-processed">0</dd>
+            </div>
+            <div>
+              <dt>发现地址</dt>
+              <dd id="job-total-discovered">0</dd>
+            </div>
+            <div>
+              <dt>新增</dt>
+              <dd id="job-total-inserted">0</dd>
+            </div>
+            <div>
+              <dt>更新</dt>
+              <dd id="job-total-updated">0</dd>
+            </div>
+            <div>
+              <dt>失败州页</dt>
+              <dd id="job-total-failed">0</dd>
+            </div>
+          </dl>
+          <div id="job-error-box" class="error-box hidden"></div>
+        </section>
+
+        <section class="panel panel-filters">
+          <div class="panel-heading">
+            <h2>筛选</h2>
+            <p class="table-meta">筛选会影响扫描编号范围和 Smarty 补全任务。</p>
+          </div>
+          <form id="filters-form" class="filters-form">
+            <label>
+              <span>搜索</span>
+              <input id="query-input" name="q" type="search" placeholder="名称、城市、地址" />
+            </label>
+            <label>
+              <span>州</span>
+              <input id="state-input" name="state" type="text" maxlength="2" placeholder="CA" />
+            </label>
+            <label>
+              <span>状态</span>
+              <select id="is-active-input" name="isActive">
+                <option value="">全部</option>
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
+              </select>
+            </label>
+            <button class="button button-secondary" type="submit">应用筛选</button>
+          </form>
+        </section>
+
+        <section class="panel panel-table">
+          <div class="panel-heading">
+            <div>
+              <h2>地址列表</h2>
+              <p class="table-meta">点击名称或地址可打开官网详情页。</p>
+            </div>
+            <p id="table-meta" class="table-meta">加载中...</p>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>地址</th>
+                  <th>州</th>
+                  <th>月费</th>
+                  <th>最小号</th>
+                  <th>最大号</th>
+                  <th>RDI</th>
+                  <th>CMRA</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="locations-tbody">
+                <tr>
+                  <td colspan="9" class="empty-state">正在加载数据...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button id="previous-page-button" class="button button-secondary">上一页</button>
+            <span id="page-indicator">第 1 页</span>
+            <button id="next-page-button" class="button button-secondary">下一页</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/assets/admin.js"></script>
+  </body>
+</html>

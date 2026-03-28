@@ -1,0 +1,38 @@
+{
+  "name": "atmb-admin-service",
+  "version": "0.1.0",
+  "description": "基于 Anytime Mailbox 的美国住宅地址筛选项目，通过街景、RDI、CMRA 辅助判断，快速找出合适的美国真实住宅地址租用。",
+  "keywords": [
+    "AnytimeMailbox",
+    "美国住宅地址",
+    "美国真实地址",
+    "RDI",
+    "CMRA",
+    "街景",
+    "住宅地址租用",
+    "virtual mailbox",
+    "residential address"
+  ],
+  "author": "juzhpcom@gmail.com",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "dev:server": "node --watch src/index.js",
+    "dev:web": "npm --prefix web run dev",
+    "build:web": "npm --prefix web run build",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:pm2": "node scripts/deploy.mjs --pm2",
+    "deploy:dry-run": "node scripts/deploy.mjs --pm2 --dry-run"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.0",
+    "fastify": "^5.2.1",
+    "got": "^14.4.6",
+    "p-queue": "^8.1.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.24.2"
+  }
+}

@@ -1,0 +1,52 @@
+:root {
+  --bg: #f4efe7;
+  --panel: rgba(255, 252, 247, 0.92);
+  --panel-strong: #fff9f1;
+  --surface: #ffffff;
+  --ink: #1d1a17;
+  --muted: #6b6258;
+  --line: rgba(36, 26, 17, 0.12);
+  --accent: #b14d1f;
+  --accent-soft: #f2d1b9;
+  --accent-deep: #7b2f0f;
+  --success: #0f7a56;
+  --shadow: 0 24px 80px rgba(77, 46, 24, 0.14);
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --max-width: 1180px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(244, 189, 148, 0.48), transparent 30%),
+    radial-gradient(circle at top right, rgba(188, 206, 193, 0.44), transparent 28%),
+    linear-gradient(180deg, #f8f2ea 0%, #f2ebe3 100%);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  background: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}

@@ -1,0 +1,272 @@
+.page {
+  width: 100%;
+}
+
+.intro {
+  padding: 36px 28px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 11ch;
+  margin: 0;
+  font-size: clamp(2.3rem, 5vw, 4.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.lede {
+  max-width: 68ch;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.section {
+  padding: 22px 28px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sectionMeta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.statesGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.stateLink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-height: 94px;
+  padding: 14px 16px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  transition: background-color 0.18s ease;
+}
+
+.stateLink:hover {
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.stateName {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.stateCode {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+}
+
+.stateCount {
+  align-self: start;
+  color: var(--muted);
+  font-size: 0.94rem;
+  white-space: nowrap;
+}
+
+.popularList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--line);
+}
+
+.popularItem {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 78px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.popularItem:nth-child(odd) {
+  border-right: 1px solid var(--line);
+  padding-right: 18px;
+}
+
+.popularItem:nth-child(even) {
+  padding-left: 18px;
+}
+
+.rank {
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.popularName {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.popularMeta {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.popularCount {
+  color: var(--ink);
+  font-size: 0.94rem;
+  white-space: nowrap;
+}
+
+.recentList {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.recentItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.recentName {
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.recentMeta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.recentCount {
+  color: var(--ink);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.iconLink {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: var(--ink);
+}
+
+.iconLink:hover {
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  padding: 12px 0 0;
+}
+
+.copyBlock {
+  max-width: 76ch;
+  color: var(--muted);
+  line-height: 1.9;
+}
+
+.copyBlock p {
+  margin: 0;
+}
+
+.copyBlock p + p {
+  margin-top: 12px;
+}
+
+@media (max-width: 1100px) {
+  .statesGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .statesGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .recentList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .popularList {
+    grid-template-columns: 1fr;
+  }
+
+  .popularItem:nth-child(odd) {
+    border-right: 0;
+    padding-right: 4px;
+  }
+
+  .popularItem:nth-child(even) {
+    padding-left: 4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .intro,
+  .section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .statesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stateLink {
+    min-height: 82px;
+    padding: 12px;
+  }
+
+  .popularItem {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 12px;
+    min-height: 72px;
+  }
+
+  .recentList {
+    grid-template-columns: 1fr;
+  }
+
+  .popularCount {
+    grid-column: 2;
+    margin-top: -6px;
+  }
+}
