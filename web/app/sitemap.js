@@ -1,4 +1,4 @@
-import { buildLocationHref, fetchPublicLocations, fetchStates } from "../lib/api.js";
+import { buildLocationHref, fetchAllPublicLocations, fetchStates } from "../lib/api.js";
 import { enrichStates } from "../lib/states.js";
 import { getSiteUrl } from "../lib/site.js";
 
@@ -14,6 +14,12 @@ export default async function sitemap() {
       lastModified: now,
       changeFrequency: "daily",
       priority: 1
+    },
+    {
+      url: `${siteUrl}/residential-addresses`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9
     },
     ...states.map((item) => ({
       url: `${siteUrl}/states/${item.slug}`,
@@ -33,23 +39,5 @@ export default async function sitemap() {
 }
 
 async function fetchAllLocations() {
-  const items = [];
-  let page = 1;
-
-  while (true) {
-    const result = await fetchPublicLocations({
-      page,
-      limit: 200
-    });
-    const batch = result.items || [];
-    items.push(...batch);
-
-    if (batch.length < 200) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  return items;
+  return fetchAllPublicLocations();
 }

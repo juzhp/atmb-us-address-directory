@@ -81,6 +81,29 @@ export async function fetchPublicLocationsByState(state) {
   });
 }
 
+export async function fetchAllPublicLocations(searchParams = {}) {
+  const items = [];
+  let page = 1;
+
+  while (true) {
+    const result = await fetchPublicLocations({
+      ...searchParams,
+      page,
+      limit: 200
+    });
+    const batch = result.items || [];
+    items.push(...batch);
+
+    if (batch.length < 200) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return items;
+}
+
 export function buildLocationHref(location) {
   return `/locations/${slugify(location.location_name || location.locationName)}-${location.id}`;
 }
