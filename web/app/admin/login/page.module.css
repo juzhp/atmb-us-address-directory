@@ -74,6 +74,12 @@
   line-height: 1.6;
 }
 
+.success {
+  margin-top: 14px;
+  color: #1f6b35;
+  line-height: 1.6;
+}
+
 .hint {
   margin-top: 14px;
   color: var(--muted);

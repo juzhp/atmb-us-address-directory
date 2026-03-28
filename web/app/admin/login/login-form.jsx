@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styles from "./page.module.css";
 
-export function LoginForm() {
+export function LoginForm({ changed = false }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,7 @@ export function LoginForm() {
           id="password"
           name="password"
           type="password"
-          defaultValue="admin"
+          defaultValue=""
           className={styles.field}
           autoComplete="current-password"
         />
@@ -75,6 +75,7 @@ export function LoginForm() {
       </button>
 
       {error ? <div className={styles.error}>{error}</div> : null}
+      {!error && changed ? <div className={styles.success}>密码已更新，请使用新密码重新登录。</div> : null}
       <div className={styles.hint}>默认账号：admin / admin</div>
     </form>
   );

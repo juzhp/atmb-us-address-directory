@@ -5,10 +5,12 @@ import {
   createUser,
   deleteExpiredSessions,
   deleteSessionByTokenHash,
+  getUserById,
   getSessionByTokenHash,
   getUserByUsername,
   getUserCount,
-  markUserLoggedIn
+  markUserLoggedIn,
+  updateUserPassword
 } from "./db.js";
 
 const scryptAsync = promisify(crypto.scrypt);
@@ -83,6 +85,33 @@ export async function loginUser(username, password) {
       role: user.role,
       mustChangePassword: user.mustChangePassword
     }
+  };
+}
+
+export async function changeUserPassword(userId, currentPassword, nextPassword) {
+  const user = getUserById(userId);
+  if (!user || user.status !== "active") {
+    return { ok: false, reason: "用户不存在。" };
+  }
+
+  const isValid = await verifyPassword(currentPassword, user.passwordHash);
+  if (!isValid) {
+    return { ok: false, reason: "当前密码不正确。" };
+  }
+
+  const passwordHash = await hashPassword(nextPassword);
+  const updated = updateUserPassword(user.id, passwordHash, false);
+
+  return {
+    ok: true,
+    user: updated
+      ? {
+          id: updated.id,
+          username: updated.username,
+          role: updated.role,
+          mustChangePassword: updated.mustChangePassword
+        }
+      : null
   };
 }
 

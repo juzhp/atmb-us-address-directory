@@ -3,6 +3,7 @@ import path from "node:path";
 import Fastify from "fastify";
 import { z } from "zod";
 import {
+  changeUserPassword,
   ensureDefaultAdmin,
   getExpiredSessionCookieHeader,
   getSessionCookieHeader,
@@ -38,6 +39,10 @@ const patchSchema = z.object({
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1)
+});
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  nextPassword: z.string().min(6)
 });
 const personalizeScanSchema = z.object({
   query: z.string().optional(),
@@ -118,6 +123,32 @@ export function buildServer() {
     logoutUser(request.auth?.token);
     reply.header("Set-Cookie", getExpiredSessionCookieHeader());
     return { ok: true };
+  });
+
+  app.post("/api/auth/password", async (request, reply) => {
+    if (!request.auth?.user) {
+      return reply.code(401).send({ message: "Authentication required." });
+    }
+
+    const parsed = changePasswordSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({
+        message: "Invalid password payload.",
+        issues: parsed.error.flatten()
+      });
+    }
+
+    const result = await changeUserPassword(
+      request.auth.user.id,
+      parsed.data.currentPassword,
+      parsed.data.nextPassword
+    );
+
+    if (!result.ok) {
+      return reply.code(400).send({ message: result.reason });
+    }
+
+    return { ok: true, user: result.user };
   });
 
   app.get("/api/public/stats", async () => {

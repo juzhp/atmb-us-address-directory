@@ -52,11 +52,14 @@
   align-items: center;
   gap: 12px;
   margin-left: 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
 }
 
 .userName {
-  color: var(--muted);
+  color: var(--ink);
   font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .navButton {
@@ -73,8 +76,31 @@
     color 160ms ease;
 }
 
+.navButtonLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
 .navButton:hover {
   border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.navButtonLink:hover {
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .navLink {
@@ -217,6 +243,11 @@
   .rightRail {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .userMeta {
+    padding-left: 0;
+    border-left: 0;
   }
 
   .footer {
