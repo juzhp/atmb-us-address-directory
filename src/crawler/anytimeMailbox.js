@@ -90,23 +90,75 @@ export async function scanLocationPersonalizeRange(detailUrl) {
   };
 }
 
-async function fetchHtml(url) {
-  return client.get(url).text();
+async function fetchHtml(url, options = {}) {
+  return client.get(url, options).text();
 }
 
 async function fetchSignupHtml(url) {
-  const html = await fetchHtml(url);
-  if (html.includes('id="f_boxid"') || html.includes("Personalize Your Address")) {
-    return html;
+  const attempts = [
+    async () => fetchHtml(url),
+    async () => fetchHtml(url, { headers: getSignupRequestHeaders(url) }),
+    async () => fetchHtmlViaCurl(url)
+  ];
+
+  if (process.platform === "win32") {
+    attempts.push(async () => fetchHtmlViaPowerShell(url));
   }
 
-  if (process.platform !== "win32") {
-    throw new Error(
-      "Signup page did not contain personalize options, and the PowerShell fallback is only available on Windows."
-    );
+  const errors = [];
+
+  for (const attempt of attempts) {
+    try {
+      const html = await attempt();
+      if (hasPersonalizeMarkup(html)) {
+        return html;
+      }
+    } catch (error) {
+      errors.push(error.message);
+    }
   }
 
-  return fetchHtmlViaPowerShell(url);
+  const platformHint =
+    process.platform === "win32"
+      ? "Checked got, browser-style got, curl, and PowerShell fallbacks."
+      : "Checked got, browser-style got, and curl fallbacks.";
+
+  throw new Error(
+    `Signup page did not contain personalize options. ${platformHint}${
+      errors.length > 0 ? ` Errors: ${errors.join(" | ")}` : ""
+    }`
+  );
+}
+
+async function fetchHtmlViaCurl(url) {
+  const args = [
+    "-L",
+    "--compressed",
+    "--silent",
+    "--show-error",
+    "--max-time",
+    String(Math.max(10, Math.ceil(config.requestTimeoutMs / 1000))),
+    "-A",
+    config.userAgent
+  ];
+
+  const headers = getSignupRequestHeaders(url);
+  for (const [name, value] of Object.entries(headers)) {
+    args.push("-H", `${name}: ${value}`);
+  }
+
+  args.push(url);
+
+  try {
+    const { stdout } = await execFileAsync("curl", args, {
+      maxBuffer: 20 * 1024 * 1024,
+      windowsHide: true
+    });
+
+    return stdout;
+  } catch (error) {
+    throw new Error(`curl fallback failed: ${error.message}`);
+  }
 }
 
 async function fetchHtmlViaPowerShell(url) {
@@ -127,6 +179,27 @@ $response = Invoke-WebRequest -UseBasicParsing '${url.replace(/'/g, "''")}'
   }
 
   return stdout;
+}
+
+function hasPersonalizeMarkup(html) {
+  return html.includes('id="f_boxid"') || html.includes("Personalize Your Address");
+}
+
+function getSignupRequestHeaders(url) {
+  const target = new URL(url);
+
+  return {
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+    Referer: `${target.origin}/`,
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Upgrade-Insecure-Requests": "1"
+  };
 }
 
 function extractStatePages(html) {
