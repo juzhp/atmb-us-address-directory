@@ -198,7 +198,15 @@ async function runPersonalizeScan(job, filters) {
       try {
         const result = await scanLocationPersonalizeRange(location.detail_url);
         updateLocationPersonalizeScan(location.id, result);
-        job.totalUpdated += 1;
+
+        const hasRange =
+          Number.isFinite(result.personalizeMin) && Number.isFinite(result.personalizeMax);
+
+        if (hasRange && !result.personalizeError) {
+          job.totalUpdated += 1;
+        } else {
+          job.totalFailed += 1;
+        }
       } catch (error) {
         updateLocationPersonalizeScan(location.id, {
           firstPlanUrl: null,
@@ -219,7 +227,15 @@ async function runPersonalizeScan(job, filters) {
 
   await Promise.all(tasks);
 
-  job.status = "success";
+  if (job.totalFailed > 0 && job.totalUpdated === 0) {
+    job.status = "failed";
+    job.error = `Personalize scan failed for all ${job.totalFailed} locations. Check personalize_error and server logs.`;
+  } else {
+    job.status = "success";
+    if (job.totalFailed > 0) {
+      job.error = `Personalize scan completed with ${job.totalFailed} failed locations. Check personalize_error for details.`;
+    }
+  }
   job.finishedAt = nowIso();
   updateJob(job);
 }

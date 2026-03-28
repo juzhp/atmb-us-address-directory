@@ -100,6 +100,12 @@ async function fetchSignupHtml(url) {
     return html;
   }
 
+  if (process.platform !== "win32") {
+    throw new Error(
+      "Signup page did not contain personalize options, and the PowerShell fallback is only available on Windows."
+    );
+  }
+
   return fetchHtmlViaPowerShell(url);
 }
 
@@ -109,14 +115,16 @@ $response = Invoke-WebRequest -UseBasicParsing '${url.replace(/'/g, "''")}'
 [Console]::Out.Write($response.Content)
 `.trim();
 
-  const { stdout } = await execFileAsync(
-    "powershell",
-    ["-NoProfile", "-Command", command],
-    {
+  let stdout;
+
+  try {
+    ({ stdout } = await execFileAsync("powershell", ["-NoProfile", "-Command", command], {
       maxBuffer: 20 * 1024 * 1024,
       windowsHide: true
-    }
-  );
+    }));
+  } catch (error) {
+    throw new Error(`PowerShell fallback failed: ${error.message}`);
+  }
 
   return stdout;
 }
