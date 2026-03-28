@@ -1,3 +1,5 @@
+const path = require("node:path");
+
 module.exports = {
   apps: [
     {
@@ -13,7 +15,7 @@ module.exports = {
     },
     {
       name: "atmb-web",
-      cwd: `${__dirname}\\web`,
+      cwd: path.join(__dirname, "web"),
       script: "npm",
       args: "run start",
       env: {
