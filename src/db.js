@@ -857,6 +857,7 @@ export function listLocationsForSmartyEnrichment(filters = {}) {
       AND city IS NOT NULL
       AND state IS NOT NULL
       AND postal_code IS NOT NULL
+      AND (rdi IS NULL OR cmra IS NULL)
       AND (@state IS NULL OR state = @state)
       AND (@isActive IS NULL OR is_active = @isActive)
       AND (@rdi IS NULL OR rdi = @rdi)
