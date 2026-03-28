@@ -615,7 +615,7 @@ export function getLatestJobByType(type) {
 export function upsertLocation(location) {
   const existing = getLocationByExternalIdStmt.get(location.externalId);
   const timestamp = nowIso();
-  const payload = {
+  const basePayload = {
     externalId: location.externalId,
     locationName: location.locationName,
     fullAddress: location.fullAddress,
@@ -630,6 +630,16 @@ export function upsertLocation(location) {
     priceText: location.priceText ?? null,
     priceType: location.priceType ?? "unknown",
     detailUrl: location.detailUrl ?? null,
+    sourceUrl: location.sourceUrl,
+    servicesJson: location.services?.length ? JSON.stringify(location.services) : null,
+    rawJson: location.raw ? JSON.stringify(location.raw) : null,
+    lastSeenAt: timestamp,
+    isActive: 1,
+    updatedAt: timestamp
+  };
+
+  const insertPayload = {
+    ...basePayload,
     firstPlanUrl: location.firstPlanUrl ?? null,
     firstPlanTerm: location.firstPlanTerm ?? null,
     firstPlanSrvplId: location.firstPlanSrvplId ?? null,
@@ -637,24 +647,25 @@ export function upsertLocation(location) {
     personalizeMax: location.personalizeMax ?? null,
     personalizeScannedAt: location.personalizeScannedAt ?? null,
     personalizeError: location.personalizeError ?? null,
-    sourceUrl: location.sourceUrl,
-    servicesJson: location.services?.length ? JSON.stringify(location.services) : null,
     rdi: existing?.rdi ?? null,
     cmra: existing?.cmra ?? null,
-    rawJson: location.raw ? JSON.stringify(location.raw) : null,
     firstSeenAt: existing?.first_seen_at ?? timestamp,
-    lastSeenAt: timestamp,
-    isActive: 1,
-    createdAt: existing ? timestamp : timestamp,
-    updatedAt: timestamp
+    createdAt: timestamp
+  };
+
+  const updatePayload = {
+    ...basePayload,
+    firstPlanUrl: location.firstPlanUrl ?? null,
+    firstPlanTerm: location.firstPlanTerm ?? null,
+    firstPlanSrvplId: location.firstPlanSrvplId ?? null
   };
 
   if (!existing) {
-    insertLocationStmt.run(payload);
+    insertLocationStmt.run(insertPayload);
     return { inserted: 1, updated: 0 };
   }
 
-  updateLocationStmt.run(payload);
+  updateLocationStmt.run(updatePayload);
   return { inserted: 0, updated: 1 };
 }
 
