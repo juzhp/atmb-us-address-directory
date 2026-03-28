@@ -494,7 +494,18 @@ function renderEnumSelect(id, field, currentValue) {
 }
 
 function renderReadonlyValue(value) {
-  return `<span class="readonly-value">${escapeHtml(value)}</span>`;
+  const className = getReadonlyValueClassName(value);
+  return `<span class="${className}">${escapeHtml(value)}</span>`;
+}
+
+function getReadonlyValueClassName(value) {
+  const normalized = String(value || "").trim();
+
+  if (normalized === "Residential" || normalized === "N") {
+    return "readonly-value readonly-value-good";
+  }
+
+  return "readonly-value";
 }
 
 function renderLocationLink(item, label) {

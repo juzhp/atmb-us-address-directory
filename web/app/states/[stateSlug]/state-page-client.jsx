@@ -114,13 +114,13 @@ export function StatePageClient({
                       <div className={styles.addressCell}>
                         <div className={styles.locationName}>{location.location_name}</div>
                         <div className={styles.addressText}>{location.full_address}</div>
-                        <div className={styles.detailHint}>进入站内详情</div>
+                        {/* <div className={styles.detailHint}>进入站内详情</div> */}
                       </div>
                       <div className={styles.cell}>
                         {location.monthly_price ? `$${location.monthly_price}/月` : ""}
                       </div>
-                      <div className={styles.cell}>{location.rdi || ""}</div>
-                      <div className={styles.cell}>{location.cmra || ""}</div>
+                      <div className={styles.cell}>{renderHighlightedValue(location.rdi, styles)}</div>
+                      <div className={styles.cell}>{renderHighlightedValue(location.cmra, styles)}</div>
                       <div className={styles.cell}>{formatDate(location.first_seen_at)}</div>
                       <div className={styles.cell}>
                         {location.personalize_min ? location.personalize_min : ""}
@@ -167,7 +167,7 @@ export function StatePageClient({
                   >
                     <div className={styles.locationName}>{location.location_name}</div>
                     <div className={styles.mobileAddress}>{location.full_address}</div>
-                    <div className={styles.detailHint}>进入站内详情</div>
+                    {/* <div className={styles.detailHint}>进入站内详情</div> */}
                     <div className={styles.mobileMeta}>
                       <div>
                         <strong>月费</strong>
@@ -175,11 +175,15 @@ export function StatePageClient({
                       </div>
                       <div>
                         <strong>RDI</strong>
-                        <span>{location.rdi || ""}</span>
+                        <span className={styles.mobileMetaValue}>
+                          {renderHighlightedValue(location.rdi, styles)}
+                        </span>
                       </div>
                       <div>
                         <strong>CMRA</strong>
-                        <span>{location.cmra || ""}</span>
+                        <span className={styles.mobileMetaValue}>
+                          {renderHighlightedValue(location.cmra, styles)}
+                        </span>
                       </div>
                       <div>
                         <strong>首次发现</strong>
@@ -268,4 +272,18 @@ function formatDate(value) {
 function buildStreetViewUrl(address) {
   const encoded = encodeURIComponent(address || "");
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encoded}`;
+}
+
+function renderHighlightedValue(value, styles) {
+  const normalized = String(value || "").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized === "Residential" || normalized === "N") {
+    return <span className={styles.valueGood}>{normalized}</span>;
+  }
+
+  return normalized;
 }

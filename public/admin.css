@@ -403,6 +403,12 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+.readonly-value-good {
+  background: color-mix(in srgb, var(--mint) 82%, white 18%);
+  color: #17603d;
+  border: 1px solid rgba(23, 96, 61, 0.18);
+}
+
 .pagination {
   display: flex;
   justify-content: space-between;

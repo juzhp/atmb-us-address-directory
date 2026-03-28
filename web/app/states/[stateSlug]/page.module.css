@@ -268,6 +268,17 @@
   font-size: 0.95rem;
 }
 
+.valueGood {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid rgba(31, 107, 53, 0.18);
+  background: #e7f5eb;
+  color: #1f6b35;
+  font-weight: 600;
+}
+
 .actionCell {
   position: relative;
   z-index: 3;
@@ -332,6 +343,12 @@
   color: var(--ink);
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.mobileMetaValue {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
 }
 
 .mobileAction {

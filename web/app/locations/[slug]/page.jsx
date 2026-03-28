@@ -235,9 +235,26 @@ function renderFieldItems(fields, styles) {
   return fields.map(([label, value]) => (
     <div key={label} className={styles.metaItem}>
       <div className={styles.metaLabel}>{label}</div>
-      <div className={styles.metaValue}>{stringifyValue(value)}</div>
+      <div className={styles.metaValue}>{renderFieldValue(label, value, styles)}</div>
     </div>
   ));
+}
+
+function renderFieldValue(label, value, styles) {
+  const normalized = stringifyValue(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (
+    (label === "RDI" && normalized === "Residential") ||
+    (label === "CMRA" && normalized === "N")
+  ) {
+    return <span className={styles.valueGood}>{normalized}</span>;
+  }
+
+  return normalized;
 }
 
 function stringifyValue(value) {

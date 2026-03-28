@@ -359,8 +359,8 @@ export function LocationsClient() {
                     <td>{formatCurrency(item.monthly_price)}</td>
                     <td>{formatRange(item.personalize_min)}</td>
                     <td>{formatRange(item.personalize_max)}</td>
-                    <td>{item.rdi || ""}</td>
-                    <td>{item.cmra || ""}</td>
+                    <td>{renderHighlightedValue(item.rdi)}</td>
+                    <td>{renderHighlightedValue(item.cmra)}</td>
                   </tr>
                 ))
               ) : (
@@ -439,4 +439,14 @@ function formatJobType(value) {
     return "Smarty 补全";
   }
   return "-";
+}
+
+function renderHighlightedValue(value) {
+  const normalized = String(value || "").trim();
+
+  if (normalized === "Residential" || normalized === "N") {
+    return <span className={styles.valueGood}>{normalized}</span>;
+  }
+
+  return normalized;
 }
