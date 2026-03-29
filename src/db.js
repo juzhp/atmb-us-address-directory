@@ -642,13 +642,6 @@ const markApiKeyUsedStmt = db.prepare(`
   WHERE id = ?
 `);
 
-const listResidentialLocationsStmt = db.prepare(`
-  SELECT *
-  FROM locations
-  WHERE rdi = 'Residential'
-  ORDER BY id ASC
-`);
-
 export function nowIso() {
   return new Date().toISOString();
 }
@@ -1069,8 +1062,28 @@ export function patchLocation(id, patch) {
   return getLocationById(id);
 }
 
-export function listResidentialLocations() {
-  return listResidentialLocationsStmt.all().map(deserializeLocationRow);
+export function listOpenLocations({ residentialOnly = false, ids = [] } = {}) {
+  const normalizedIds = [
+    ...new Set(ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))
+  ];
+  const conditions = ["is_active = 1"];
+
+  if (residentialOnly) {
+    conditions.push("TRIM(COALESCE(rdi, '')) = 'Residential'");
+  }
+
+  if (normalizedIds.length > 0) {
+    conditions.push(`id IN (${normalizedIds.map(() => "?").join(", ")})`);
+  }
+
+  const stmt = db.prepare(`
+    SELECT *
+    FROM locations
+    WHERE ${conditions.join("\n      AND ")}
+    ORDER BY id ASC
+  `);
+
+  return stmt.all(...normalizedIds).map(deserializeLocationRow);
 }
 
 export function listApiKeys() {

@@ -20,10 +20,10 @@ import {
   getApiKeyById,
   getLocationById,
   getLocationStats,
+  listOpenLocations,
   getSiteSettings,
   getSmartyTokenById,
   listApiKeys,
-  listResidentialLocations,
   listRecentStatesFromLatestLocations,
   listStates,
   listLocations,
@@ -218,8 +218,31 @@ export function buildServer() {
 
   app.get("/api/public/settings", async () => getSiteSettings());
 
+  app.get("/api/open/locations", { preHandler: requireApiKey }, async (request, reply) => {
+    const query = request.query ?? {};
+    const residentialOnly = ["1", "true", "yes"].includes(
+      String(query.residential ?? "")
+        .trim()
+        .toLowerCase()
+    );
+    const ids = parseIdsQuery(query.ids);
+
+    if (!residentialOnly && ids.length === 0) {
+      return reply.code(400).send({
+        message: "Provide residential=1 or ids=1,2,3."
+      });
+    }
+
+    return {
+      items: listOpenLocations({
+        residentialOnly,
+        ids
+      })
+    };
+  });
+
   app.get("/api/open/locations/residential", { preHandler: requireApiKey }, async () => ({
-    items: listResidentialLocations()
+    items: listOpenLocations({ residentialOnly: true })
   }));
 
   app.patch("/api/open/locations/:id", { preHandler: requireApiKey }, async (request, reply) => {
@@ -676,4 +699,16 @@ function normalizeLocationPatch(input) {
     rdi: input.rdi === "" ? null : input.rdi,
     cmra: input.cmra === "" ? null : input.cmra
   };
+}
+
+function parseIdsQuery(value) {
+  if (!value) {
+    return [];
+  }
+
+  const raw = Array.isArray(value) ? value.join(",") : String(value);
+  return raw
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((id) => Number.isInteger(id) && id > 0);
 }

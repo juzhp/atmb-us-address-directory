@@ -212,7 +212,9 @@ export function SettingsClient() {
           <div className={styles.hint}>
             可用接口：
             <br />
-            <span className={styles.codeInline}>GET /api/open/locations/residential</span>
+            <span className={styles.codeInline}>GET /api/open/locations?residential=1</span>
+            <br />
+            <span className={styles.codeInline}>GET /api/open/locations?ids=1,2,3</span>
             <br />
             <span className={styles.codeInline}>PATCH /api/open/locations/:id</span>
           </div>
