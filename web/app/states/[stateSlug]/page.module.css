@@ -213,6 +213,7 @@
   position: relative;
   min-height: 88px;
   border-bottom: 1px solid var(--line);
+  transition: opacity 160ms ease, background-color 160ms ease;
 }
 
 .row:last-child {
@@ -221,6 +222,10 @@
 
 .row:hover {
   background: rgba(0, 0, 0, 0.03);
+}
+
+.rowVisited {
+  opacity: 0.52;
 }
 
 .rowOverlay {
@@ -316,6 +321,11 @@
   display: block;
   padding: 16px 0;
   border-top: 1px solid var(--line);
+  transition: opacity 160ms ease, background-color 160ms ease;
+}
+
+.mobileCardVisited {
+  opacity: 0.52;
 }
 
 .mobileCardMain {

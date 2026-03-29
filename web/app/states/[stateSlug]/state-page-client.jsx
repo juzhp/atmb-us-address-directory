@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -13,6 +14,7 @@ export function StatePageClient({
   selectedCmra
 }) {
   const pathname = usePathname();
+  const [visitedIds, setVisitedIds] = useState(() => new Set());
   const rdiOptions = buildOptions(allItems.map((item) => item.rdi));
   const cmraOptions = buildOptions(allItems.map((item) => item.cmra));
   const hasFilters = Boolean(selectedRdi || selectedCmra);
@@ -103,124 +105,146 @@ export function StatePageClient({
               </div>
 
               <div className={styles.tableBody}>
-                {items.map((location) => (
-                  <div key={location.id} className={styles.row}>
-                    <Link
-                      href={buildLocationHref(location)}
-                      className={styles.rowOverlay}
-                      aria-label={`查看 ${location.full_address} 详情`}
-                    />
-                    <div className={styles.rowMain} aria-hidden="true">
-                      <div className={styles.addressCell}>
-                        <div className={styles.locationName}>{location.location_name}</div>
-                        <div className={styles.addressText}>{location.full_address}</div>
-                        {/* <div className={styles.detailHint}>进入站内详情</div> */}
+                {items.map((location) => {
+                  const visited = visitedIds.has(location.id);
+
+                  return (
+                    <div
+                      key={location.id}
+                      className={`${styles.row} ${visited ? styles.rowVisited : ""}`}
+                    >
+                      <Link
+                        href={buildLocationHref(location)}
+                        className={styles.rowOverlay}
+                        aria-label={`查看 ${location.full_address} 详情`}
+                        onClick={() => markVisited(location.id, setVisitedIds)}
+                      />
+                      <div className={styles.rowMain} aria-hidden="true">
+                        <div className={styles.addressCell}>
+                          <div className={styles.locationName}>{location.location_name}</div>
+                          <div className={styles.addressText}>{location.full_address}</div>
+                        </div>
+                        <div className={styles.cell}>
+                          {location.monthly_price ? `$${location.monthly_price}/月` : ""}
+                        </div>
+                        <div className={styles.cell}>
+                          {renderHighlightedValue(location.rdi, styles)}
+                        </div>
+                        <div className={styles.cell}>
+                          {renderHighlightedValue(location.cmra, styles)}
+                        </div>
+                        <div className={styles.cell}>{formatDate(location.first_seen_at)}</div>
+                        <div className={styles.cell}>
+                          {location.personalize_min ? location.personalize_min : ""}
+                        </div>
                       </div>
-                      <div className={styles.cell}>
-                        {location.monthly_price ? `$${location.monthly_price}/月` : ""}
-                      </div>
-                      <div className={styles.cell}>{renderHighlightedValue(location.rdi, styles)}</div>
-                      <div className={styles.cell}>{renderHighlightedValue(location.cmra, styles)}</div>
-                      <div className={styles.cell}>{formatDate(location.first_seen_at)}</div>
-                      <div className={styles.cell}>
-                        {location.personalize_min ? location.personalize_min : ""}
-                      </div>
-                    </div>
-                    <div className={`${styles.cell} ${styles.actionCell}`}>
-                      <div className={styles.actions}>
-                        <a
-                          href={buildStreetViewUrl(location.full_address)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={styles.action}
-                          aria-label={`查看 ${location.full_address} 街景`}
-                          title="查看街景"
-                        >
-                          查看街景
-                        </a>
-                        {location.detail_url ? (
+                      <div className={`${styles.cell} ${styles.actionCell}`}>
+                        <div className={styles.actions}>
                           <a
-                            href={location.detail_url}
+                            href={buildMapUrl(location.full_address)}
                             target="_blank"
                             rel="noreferrer"
                             className={styles.action}
-                            aria-label={`跳转到 ${location.full_address} 官网详情`}
-                            title="跳转官网"
+                            aria-label={`查看 ${location.full_address} 地图`}
+                            title="查看地图"
+                            onClick={() => markVisited(location.id, setVisitedIds)}
                           >
-                            跳转官网
+                            查看地图
                           </a>
-                        ) : null}
+                          {location.detail_url ? (
+                            <a
+                              href={location.detail_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={styles.action}
+                              aria-label={`跳转到 ${location.full_address} 官网详情`}
+                              title="跳转官网"
+                              onClick={() => markVisited(location.id, setVisitedIds)}
+                            >
+                              跳转官网
+                            </a>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             <div className={styles.mobileList}>
-              {items.map((location) => (
-                <div key={location.id} className={styles.mobileCard}>
-                  <Link
-                    href={buildLocationHref(location)}
-                    className={styles.mobileCardMain}
-                    aria-label={`查看 ${location.full_address} 详情`}
+              {items.map((location) => {
+                const visited = visitedIds.has(location.id);
+
+                return (
+                  <div
+                    key={location.id}
+                    className={`${styles.mobileCard} ${visited ? styles.mobileCardVisited : ""}`}
                   >
-                    <div className={styles.locationName}>{location.location_name}</div>
-                    <div className={styles.mobileAddress}>{location.full_address}</div>
-                    {/* <div className={styles.detailHint}>进入站内详情</div> */}
-                    <div className={styles.mobileMeta}>
-                      <div>
-                        <strong>月费</strong>
-                        <span>{location.monthly_price ? `$${location.monthly_price}/月` : ""}</span>
-                      </div>
-                      <div>
-                        <strong>RDI</strong>
-                        <span className={styles.mobileMetaValue}>
-                          {renderHighlightedValue(location.rdi, styles)}
-                        </span>
-                      </div>
-                      <div>
-                        <strong>CMRA</strong>
-                        <span className={styles.mobileMetaValue}>
-                          {renderHighlightedValue(location.cmra, styles)}
-                        </span>
-                      </div>
-                      <div>
-                        <strong>首次发现</strong>
-                        <span>{formatDate(location.first_seen_at)}</span>
-                      </div>
-                      <div>
-                        <strong>最小编号</strong>
-                        <span>{location.personalize_min ? location.personalize_min : ""}</span>
-                      </div>
-                    </div>
-                  </Link>
-                  <div className={styles.mobileActions}>
-                    <a
-                      href={buildStreetViewUrl(location.full_address)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={styles.mobileAction}
-                      aria-label={`查看 ${location.full_address} 街景`}
-                      title="查看街景"
+                    <Link
+                      href={buildLocationHref(location)}
+                      className={styles.mobileCardMain}
+                      aria-label={`查看 ${location.full_address} 详情`}
+                      onClick={() => markVisited(location.id, setVisitedIds)}
                     >
-                      查看街景
-                    </a>
-                    {location.detail_url ? (
+                      <div className={styles.locationName}>{location.location_name}</div>
+                      <div className={styles.mobileAddress}>{location.full_address}</div>
+                      <div className={styles.mobileMeta}>
+                        <div>
+                          <strong>月费</strong>
+                          <span>{location.monthly_price ? `$${location.monthly_price}/月` : ""}</span>
+                        </div>
+                        <div>
+                          <strong>RDI</strong>
+                          <span className={styles.mobileMetaValue}>
+                            {renderHighlightedValue(location.rdi, styles)}
+                          </span>
+                        </div>
+                        <div>
+                          <strong>CMRA</strong>
+                          <span className={styles.mobileMetaValue}>
+                            {renderHighlightedValue(location.cmra, styles)}
+                          </span>
+                        </div>
+                        <div>
+                          <strong>首次发现</strong>
+                          <span>{formatDate(location.first_seen_at)}</span>
+                        </div>
+                        <div>
+                          <strong>最小编号</strong>
+                          <span>{location.personalize_min ? location.personalize_min : ""}</span>
+                        </div>
+                      </div>
+                    </Link>
+                    <div className={styles.mobileActions}>
                       <a
-                        href={location.detail_url}
+                        href={buildMapUrl(location.full_address)}
                         target="_blank"
                         rel="noreferrer"
                         className={styles.mobileAction}
-                        aria-label={`跳转到 ${location.full_address} 官网详情`}
-                        title="跳转官网"
+                        aria-label={`查看 ${location.full_address} 地图`}
+                        title="查看地图"
+                        onClick={() => markVisited(location.id, setVisitedIds)}
                       >
-                        跳转官网
+                        查看地图
                       </a>
-                    ) : null}
+                      {location.detail_url ? (
+                        <a
+                          href={location.detail_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={styles.mobileAction}
+                          aria-label={`跳转到 ${location.full_address} 官网详情`}
+                          title="跳转官网"
+                          onClick={() => markVisited(location.id, setVisitedIds)}
+                        >
+                          跳转官网
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {items.length === 0 ? (
@@ -269,9 +293,17 @@ function formatDate(value) {
   });
 }
 
-function buildStreetViewUrl(address) {
+function buildMapUrl(address) {
   const encoded = encodeURIComponent(address || "");
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encoded}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+}
+
+function markVisited(id, setVisitedIds) {
+  setVisitedIds((current) => {
+    const next = new Set(current);
+    next.add(id);
+    return next;
+  });
 }
 
 function renderHighlightedValue(value, styles) {
