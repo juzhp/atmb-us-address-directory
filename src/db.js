@@ -42,6 +42,9 @@ db.exec(`
     first_seen_at TEXT NOT NULL,
     last_seen_at TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
+    address_locked INTEGER NOT NULL DEFAULT 0,
+    address_locked_at TEXT,
+    address_lock_source TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -131,6 +134,9 @@ ensureColumn("locations", "personalize_scanned_at", "TEXT");
 ensureColumn("locations", "personalize_error", "TEXT");
 ensureColumn("locations", "smarty_scanned_at", "TEXT");
 ensureColumn("locations", "smarty_error", "TEXT");
+ensureColumn("locations", "address_locked", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("locations", "address_locked_at", "TEXT");
+ensureColumn("locations", "address_lock_source", "TEXT");
 ensureColumn("crawl_jobs", "type", "TEXT NOT NULL DEFAULT 'locations'");
 ensureColumn("smarty_tokens", "priority", "INTEGER NOT NULL DEFAULT 100");
 ensureColumn("smarty_tokens", "last_used_at", "TEXT");
@@ -234,7 +240,19 @@ const updateLocationStmt = db.prepare(`
 `);
 
 const getLocationByExternalIdStmt = db.prepare(`
-  SELECT id, rdi, cmra, first_seen_at
+  SELECT
+    id,
+    rdi,
+    cmra,
+    first_seen_at,
+    address_locked,
+    full_address,
+    street,
+    street2,
+    city,
+    state,
+    postal_code,
+    detail_url
   FROM locations
   WHERE external_id = ?
 `);
@@ -697,21 +715,22 @@ export function getLatestJobByType(type) {
 export function upsertLocation(location) {
   const existing = getLocationByExternalIdStmt.get(location.externalId);
   const timestamp = nowIso();
+  const addressLocked = Boolean(existing?.address_locked);
   const basePayload = {
     externalId: location.externalId,
     locationName: location.locationName,
-    fullAddress: location.fullAddress,
-    street: location.street ?? null,
-    street2: location.street2 ?? null,
-    city: location.city ?? null,
-    state: location.state ?? null,
-    postalCode: location.postalCode ?? null,
+    fullAddress: addressLocked ? existing.full_address ?? location.fullAddress : location.fullAddress,
+    street: addressLocked ? existing.street ?? null : location.street ?? null,
+    street2: addressLocked ? existing.street2 ?? null : location.street2 ?? null,
+    city: addressLocked ? existing.city ?? null : location.city ?? null,
+    state: addressLocked ? existing.state ?? null : location.state ?? null,
+    postalCode: addressLocked ? existing.postal_code ?? null : location.postalCode ?? null,
     country: location.country ?? "US",
     monthlyPrice: location.monthlyPrice ?? null,
     currency: location.currency ?? "USD",
     priceText: location.priceText ?? null,
     priceType: location.priceType ?? "unknown",
-    detailUrl: location.detailUrl ?? null,
+    detailUrl: location.detailUrl ?? existing?.detail_url ?? null,
     sourceUrl: location.sourceUrl,
     servicesJson: location.services?.length ? JSON.stringify(location.services) : null,
     rawJson: location.raw ? JSON.stringify(location.raw) : null,
@@ -973,11 +992,26 @@ export function updateLocationSmartyEnrichment(id, result) {
   );
 }
 
-export function patchLocation(id, patch) {
+export function patchLocation(id, patch, options = {}) {
   const existing = getLocationById(id);
   if (!existing) {
     return null;
   }
+
+  const touchesAddress = [
+    "fullAddress",
+    "street",
+    "street2",
+    "city",
+    "state",
+    "postalCode"
+  ].some((key) => Object.prototype.hasOwnProperty.call(patch, key));
+  const shouldLockAddress = Boolean(options.lockAddress && touchesAddress);
+  const nextAddressLocked = shouldLockAddress ? 1 : Number(Boolean(existing.address_locked));
+  const nextAddressLockedAt =
+    shouldLockAddress ? nowIso() : existing.address_locked_at ?? null;
+  const nextAddressLockSource =
+    shouldLockAddress ? options.lockSource ?? "open_api" : existing.address_lock_source ?? null;
 
   const next = {
     location_name: toBindableValue(pickPatchValue(patch, "locationName", existing.location_name)),
@@ -1010,6 +1044,9 @@ export function patchLocation(id, patch) {
     ),
     rdi: toBindableValue(pickPatchValue(patch, "rdi", existing.rdi)),
     cmra: toBindableValue(pickPatchValue(patch, "cmra", existing.cmra)),
+    address_locked: nextAddressLocked,
+    address_locked_at: nextAddressLockedAt,
+    address_lock_source: nextAddressLockSource,
     is_active:
       patch.isActive === undefined ? Number(existing.isActive) : Number(Boolean(patch.isActive))
   };
@@ -1032,6 +1069,9 @@ export function patchLocation(id, patch) {
       personalize_max = ?,
       rdi = ?,
       cmra = ?,
+      address_locked = ?,
+      address_locked_at = ?,
+      address_lock_source = ?,
       is_active = ?,
       updated_at = ?
     WHERE id = ?
@@ -1054,6 +1094,9 @@ export function patchLocation(id, patch) {
     next.personalize_max,
     next.rdi,
     next.cmra,
+    next.address_locked,
+    next.address_locked_at,
+    next.address_lock_source,
     next.is_active,
     nowIso(),
     id
@@ -1062,7 +1105,7 @@ export function patchLocation(id, patch) {
   return getLocationById(id);
 }
 
-export function listOpenLocations({ residentialOnly = false, ids = [] } = {}) {
+export function listOpenLocations({ residentialOnly = false, rdiNullOnly = false, ids = [] } = {}) {
   const normalizedIds = [
     ...new Set(ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))
   ];
@@ -1070,6 +1113,10 @@ export function listOpenLocations({ residentialOnly = false, ids = [] } = {}) {
 
   if (residentialOnly) {
     conditions.push("TRIM(COALESCE(rdi, '')) = 'Residential'");
+  }
+
+  if (rdiNullOnly) {
+    conditions.push("rdi IS NULL");
   }
 
   if (normalizedIds.length > 0) {
@@ -1374,6 +1421,7 @@ function deserializeLocationRow(row) {
   return {
     ...row,
     isActive: Boolean(row.is_active),
+    addressLocked: Boolean(row.address_locked),
     services: safeJsonParse(row.services_json, []),
     raw: safeJsonParse(row.raw_json, null)
   };

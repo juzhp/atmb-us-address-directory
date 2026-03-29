@@ -214,6 +214,8 @@ export function SettingsClient() {
             <br />
             <span className={styles.codeInline}>GET /api/open/locations?residential=1</span>
             <br />
+            <span className={styles.codeInline}>GET /api/open/locations?rdiNull=1</span>
+            <br />
             <span className={styles.codeInline}>GET /api/open/locations?ids=1,2,3</span>
             <br />
             <span className={styles.codeInline}>PATCH /api/open/locations/:id</span>
