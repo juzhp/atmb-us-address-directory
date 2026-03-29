@@ -13,11 +13,17 @@ import {
 } from "./auth.js";
 import { config } from "./config.js";
 import {
+  authenticateApiKey,
+  createApiKey,
+  deleteApiKey,
   createSmartyToken,
+  getApiKeyById,
   getLocationById,
   getLocationStats,
   getSiteSettings,
   getSmartyTokenById,
+  listApiKeys,
+  listResidentialLocations,
   listRecentStatesFromLatestLocations,
   listStates,
   listLocations,
@@ -35,8 +41,23 @@ import {
 } from "./services/crawlService.js";
 
 const patchSchema = z.object({
-  rdi: z.union([z.enum(["Residential", "Commercial"]), z.literal("")]).optional(),
-  cmra: z.union([z.enum(["Y", "N"]), z.literal("")]).optional()
+  locationName: z.string().min(1).optional(),
+  fullAddress: z.string().min(1).optional(),
+  street: z.string().min(1).optional(),
+  street2: z.union([z.string().min(1), z.literal(""), z.null()]).optional(),
+  city: z.string().min(1).optional(),
+  state: z.string().min(1).optional(),
+  postalCode: z.string().min(1).optional(),
+  monthlyPrice: z.union([z.number(), z.null()]).optional(),
+  detailUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
+  firstPlanUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
+  firstPlanTerm: z.union([z.number().int().nonnegative(), z.null()]).optional(),
+  firstPlanSrvplId: z.union([z.number().int().nonnegative(), z.null()]).optional(),
+  personalizeMin: z.union([z.number().int().nonnegative(), z.null()]).optional(),
+  personalizeMax: z.union([z.number().int().nonnegative(), z.null()]).optional(),
+  rdi: z.union([z.enum(["Residential", "Commercial"]), z.literal(""), z.null()]).optional(),
+  cmra: z.union([z.enum(["Y", "N"]), z.literal(""), z.null()]).optional(),
+  isActive: z.boolean().optional()
 });
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -72,6 +93,9 @@ const smartyTokenUpdateSchema = z.object({
 const siteSettingsSchema = z.object({
   headCode: z.string().optional()
 });
+const apiKeyCreateSchema = z.object({
+  name: z.string().min(1)
+});
 const publicDir = path.join(process.cwd(), "public");
 
 export function buildServer() {
@@ -87,9 +111,11 @@ export function buildServer() {
   });
 
   app.decorateRequest("auth", null);
+  app.decorateRequest("apiKey", null);
 
   app.addHook("onRequest", async (request) => {
     request.auth = resolveUserFromCookie(request.headers.cookie);
+    request.apiKey = null;
   });
 
   app.get("/health", async () => ({
@@ -191,6 +217,32 @@ export function buildServer() {
   });
 
   app.get("/api/public/settings", async () => getSiteSettings());
+
+  app.get("/api/open/locations/residential", { preHandler: requireApiKey }, async () => ({
+    items: listResidentialLocations()
+  }));
+
+  app.patch("/api/open/locations/:id", { preHandler: requireApiKey }, async (request, reply) => {
+    const id = Number(request.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return reply.code(400).send({ message: "Invalid location id." });
+    }
+
+    const parsed = patchSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({
+        message: "Invalid payload.",
+        issues: parsed.error.flatten()
+      });
+    }
+
+    const existing = getLocationById(id);
+    if (!existing) {
+      return reply.code(404).send({ message: "Location not found." });
+    }
+
+    return patchLocation(id, normalizeLocationPatch(parsed.data));
+  });
 
   app.get("/", async (_request, reply) => {
     const html = await fs.readFile(path.join(publicDir, "admin.html"), "utf8");
@@ -437,6 +489,35 @@ export function buildServer() {
     return updateSiteSettings(parsed.data);
   });
 
+  app.get("/api/admin/api-keys", { preHandler: requireAdmin }, async () => listApiKeys());
+
+  app.post("/api/admin/api-keys", { preHandler: requireAdmin }, async (request, reply) => {
+    const parsed = apiKeyCreateSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({
+        message: "Invalid API key payload.",
+        issues: parsed.error.flatten()
+      });
+    }
+
+    return reply.code(201).send(createApiKey(parsed.data.name.trim()));
+  });
+
+  app.delete("/api/admin/api-keys/:id", { preHandler: requireAdmin }, async (request, reply) => {
+    const id = Number(request.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return reply.code(400).send({ message: "Invalid API key id." });
+    }
+
+    const existing = getApiKeyById(id);
+    if (!existing) {
+      return reply.code(404).send({ message: "API key not found." });
+    }
+
+    deleteApiKey(id);
+    return { ok: true };
+  });
+
   app.post("/admin/smarty/tokens", { preHandler: requireAdmin }, async (request, reply) => {
     const parsed = smartyTokenCreateSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
@@ -569,4 +650,30 @@ async function requireAdmin(request, reply) {
   if (!request.auth?.user || request.auth.user.role !== "admin") {
     return reply.code(401).send({ message: "Authentication required." });
   }
+}
+
+async function requireApiKey(request, reply) {
+  const headerValue = request.headers["x-api-key"];
+  const bearer = request.headers.authorization?.startsWith("Bearer ")
+    ? request.headers.authorization.slice(7)
+    : null;
+  const keyValue = Array.isArray(headerValue) ? headerValue[0] : headerValue || bearer;
+  const apiKey = authenticateApiKey(keyValue);
+
+  if (!apiKey) {
+    return reply.code(401).send({ message: "Invalid API key." });
+  }
+
+  request.apiKey = apiKey;
+}
+
+function normalizeLocationPatch(input) {
+  return {
+    ...input,
+    street2: input.street2 === "" ? null : input.street2,
+    detailUrl: input.detailUrl === "" ? null : input.detailUrl,
+    firstPlanUrl: input.firstPlanUrl === "" ? null : input.firstPlanUrl,
+    rdi: input.rdi === "" ? null : input.rdi,
+    cmra: input.cmra === "" ? null : input.cmra
+  };
 }

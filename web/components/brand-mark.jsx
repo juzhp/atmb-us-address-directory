@@ -1,0 +1,18 @@
+export function BrandMark({ className = "", withWordmark = true }) {
+  return (
+    <span className={className} aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none">
+        <rect x="8" y="5" width="48" height="58" rx="13" fill="#173A36" />
+        <rect x="14" y="11" width="36" height="46" rx="10" fill="#F3E5C7" />
+        <circle cx="32" cy="25" r="8" fill="#C46D2D" />
+        <path d="M32 38L25 29H39L32 38Z" fill="#C46D2D" />
+        <rect x="19" y="40" width="26" height="10" rx="5" fill="#173A36" />
+        <path
+          d="M31.3 43.2H28.9L26.2 45.8V42.1L28.9 39.5H31.3V43.2ZM35.1 43.2H32.7V39.5H35.1V43.2ZM39.8 43.2H37.4V45.8H35.1V42.1L37.4 39.5H39.8V43.2Z"
+          fill="#F6F2E8"
+        />
+      </svg>
+      {withWordmark ? <span>ATMB 美国住宅地址目录</span> : null}
+    </span>
+  );
+}

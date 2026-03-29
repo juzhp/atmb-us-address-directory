@@ -80,7 +80,10 @@ export default async function HomePage() {
                     <div className={styles.stateName}>{item.name}</div>
                     <div className={styles.stateCode}>{item.state}</div>
                   </div>
-                  <div className={styles.stateCount}>{item.count}</div>
+                  <div className={styles.stateMetrics}>
+                    <div className={styles.stateCount}>{item.count} 条</div>
+                    <div className={styles.stateResidential}>R: {item.residentialCount ?? 0}</div>
+                  </div>
                 </Link>
               ))}
             </div>

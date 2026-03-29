@@ -318,6 +318,54 @@
   gap: 10px;
 }
 
+.stack {
+  display: grid;
+  gap: 18px;
+}
+
+.apiKeyForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.apiKeyList {
+  border-top: 1px solid var(--line);
+}
+
+.apiKeyItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.apiKeyName {
+  font-weight: 600;
+}
+
+.apiKeyMeta {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+.codeInline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--line);
+  background: #f6f3ed;
+  color: var(--ink);
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.8rem;
+}
+
 .inlineInput,
 .inlineSelect {
   width: 100%;
@@ -439,7 +487,8 @@
 
   .filters,
   .filtersCompact,
-  .tokenForm {
+  .tokenForm,
+  .apiKeyForm {
     grid-template-columns: 1fr;
   }
 }

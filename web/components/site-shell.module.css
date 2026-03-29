@@ -27,11 +27,33 @@
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brandMark svg {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
+.brandMark span {
+  display: inline-block;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 .navLinks {
@@ -183,9 +205,27 @@
 }
 
 .footerBrand {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.94rem;
   font-weight: 700;
   letter-spacing: 0.06em;
+}
+
+.footerBrandMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footerBrandMark svg {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+}
+
+.footerBrandMark span {
+  color: var(--ink);
 }
 
 .footerText {
@@ -241,6 +281,11 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .brandMark span,
+  .footerBrandMark span {
+    white-space: normal;
   }
 
   .navLinks,

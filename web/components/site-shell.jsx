@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "./brand-mark.jsx";
 import styles from "./site-shell.module.css";
 
 const githubUrl = process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com";
@@ -29,7 +30,7 @@ export function SiteShell({
       <header className={styles.nav}>
         <div className={styles.leftRail}>
           <Link href="/" className={styles.brand}>
-            ATMB 美国住宅地址目录
+            <BrandMark className={styles.brandMark} />
           </Link>
           {resolvedNavLinks.length > 0 ? (
             <nav className={styles.navLinks} aria-label="Primary">
@@ -70,7 +71,9 @@ export function SiteShell({
 
       <footer className={styles.footer}>
         <div className={styles.footerLeft}>
-          <div className={styles.footerBrand}>ATMB 美国住宅地址目录</div>
+          <div className={styles.footerBrand}>
+            <BrandMark className={styles.footerBrandMark} />
+          </div>
           <div className={styles.footerText}>
             帮助你更快筛选 Anytime Mailbox 美国住宅地址、美国私人地址与真实美国地址。
           </div>

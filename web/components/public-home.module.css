@@ -93,9 +93,23 @@
 }
 
 .stateCount {
+  color: var(--ink);
+  font-size: 0.96rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stateMetrics {
   align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.stateResidential {
   color: var(--muted);
-  font-size: 0.94rem;
+  font-size: 0.78rem;
   white-space: nowrap;
 }
 
@@ -253,6 +267,14 @@
   .stateLink {
     min-height: 82px;
     padding: 12px;
+  }
+
+  .stateMetrics {
+    gap: 4px;
+  }
+
+  .stateResidential {
+    font-size: 0.74rem;
   }
 
   .popularItem {

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { config } from "./config.js";
 
@@ -105,6 +106,17 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    key_prefix TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    last_used_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -322,7 +334,10 @@ const getLocationStatsStmt = db.prepare(`
 `);
 
 const listStatesStmt = db.prepare(`
-  SELECT state, COUNT(*) AS count
+  SELECT
+    state,
+    COUNT(*) AS count,
+    SUM(CASE WHEN rdi = 'Residential' THEN 1 ELSE 0 END) AS residential_count
   FROM locations
   WHERE is_active = 1
     AND state IS NOT NULL
@@ -585,6 +600,55 @@ const upsertSettingStmt = db.prepare(`
     updated_at = excluded.updated_at
 `);
 
+const listApiKeysStmt = db.prepare(`
+  SELECT id, name, key_prefix, status, last_used_at, created_at, updated_at
+  FROM api_keys
+  ORDER BY id DESC
+`);
+
+const getApiKeyByIdStmt = db.prepare(`
+  SELECT id, name, key_prefix, status, last_used_at, created_at, updated_at
+  FROM api_keys
+  WHERE id = ?
+`);
+
+const getApiKeyByHashStmt = db.prepare(`
+  SELECT *
+  FROM api_keys
+  WHERE key_hash = ?
+`);
+
+const insertApiKeyStmt = db.prepare(`
+  INSERT INTO api_keys (
+    name,
+    key_hash,
+    key_prefix,
+    status,
+    last_used_at,
+    created_at,
+    updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+
+const deleteApiKeyStmt = db.prepare(`
+  DELETE FROM api_keys
+  WHERE id = ?
+`);
+
+const markApiKeyUsedStmt = db.prepare(`
+  UPDATE api_keys SET
+    last_used_at = ?,
+    updated_at = ?
+  WHERE id = ?
+`);
+
+const listResidentialLocationsStmt = db.prepare(`
+  SELECT *
+  FROM locations
+  WHERE rdi = 'Residential'
+  ORDER BY id ASC
+`);
+
 export function nowIso() {
   return new Date().toISOString();
 }
@@ -785,7 +849,8 @@ export function getLocationStats() {
 export function listStates() {
   return listStatesStmt.all().map((row) => ({
     state: row.state,
-    count: Number(row.count ?? 0)
+    count: Number(row.count ?? 0),
+    residentialCount: Number(row.residential_count ?? 0)
   }));
 }
 
@@ -921,22 +986,135 @@ export function patchLocation(id, patch) {
     return null;
   }
 
+  const next = {
+    location_name: pickPatchValue(patch, "locationName", existing.location_name ?? null),
+    full_address: pickPatchValue(patch, "fullAddress", existing.full_address ?? null),
+    street: pickPatchValue(patch, "street", existing.street ?? null),
+    street2: pickPatchValue(patch, "street2", existing.street2 ?? null),
+    city: pickPatchValue(patch, "city", existing.city ?? null),
+    state: pickPatchValue(patch, "state", existing.state ?? null),
+    postal_code: pickPatchValue(patch, "postalCode", existing.postal_code ?? null),
+    monthly_price: pickPatchValue(patch, "monthlyPrice", existing.monthly_price ?? null),
+    detail_url: pickPatchValue(patch, "detailUrl", existing.detail_url ?? null),
+    first_plan_url: pickPatchValue(patch, "firstPlanUrl", existing.first_plan_url ?? null),
+    first_plan_term: pickPatchValue(patch, "firstPlanTerm", existing.first_plan_term ?? null),
+    first_plan_srvpl_id: pickPatchValue(
+      patch,
+      "firstPlanSrvplId",
+      existing.first_plan_srvpl_id ?? null
+    ),
+    personalize_min: pickPatchValue(patch, "personalizeMin", existing.personalize_min ?? null),
+    personalize_max: pickPatchValue(patch, "personalizeMax", existing.personalize_max ?? null),
+    rdi: pickPatchValue(patch, "rdi", existing.rdi ?? null),
+    cmra: pickPatchValue(patch, "cmra", existing.cmra ?? null),
+    is_active:
+      patch.isActive === undefined ? Number(existing.isActive) : Number(Boolean(patch.isActive))
+  };
+
   const stmt = db.prepare(`
     UPDATE locations SET
+      location_name = ?,
+      full_address = ?,
+      street = ?,
+      street2 = ?,
+      city = ?,
+      state = ?,
+      postal_code = ?,
+      monthly_price = ?,
+      detail_url = ?,
+      first_plan_url = ?,
+      first_plan_term = ?,
+      first_plan_srvpl_id = ?,
+      personalize_min = ?,
+      personalize_max = ?,
       rdi = ?,
       cmra = ?,
+      is_active = ?,
       updated_at = ?
     WHERE id = ?
   `);
 
   stmt.run(
-    patch.rdi ?? existing.rdi ?? null,
-    patch.cmra ?? existing.cmra ?? null,
+    next.location_name,
+    next.full_address,
+    next.street,
+    next.street2,
+    next.city,
+    next.state,
+    next.postal_code,
+    next.monthly_price,
+    next.detail_url,
+    next.first_plan_url,
+    next.first_plan_term,
+    next.first_plan_srvpl_id,
+    next.personalize_min,
+    next.personalize_max,
+    next.rdi,
+    next.cmra,
+    next.is_active,
     nowIso(),
     id
   );
 
   return getLocationById(id);
+}
+
+export function listResidentialLocations() {
+  return listResidentialLocationsStmt.all().map(deserializeLocationRow);
+}
+
+export function listApiKeys() {
+  return listApiKeysStmt.all().map(deserializeApiKeyRow);
+}
+
+export function getApiKeyById(id) {
+  const row = getApiKeyByIdStmt.get(id);
+  return row ? deserializeApiKeyRow(row) : null;
+}
+
+export function createApiKey(name) {
+  const now = nowIso();
+  const rawKey = `atmb_${crypto.randomBytes(24).toString("hex")}`;
+  const keyHash = hashApiKey(rawKey);
+  const keyPrefix = rawKey.slice(0, 12);
+
+  const result = insertApiKeyStmt.run(name, keyHash, keyPrefix, "active", null, now, now);
+  const record = getApiKeyById(Number(result.lastInsertRowid));
+
+  return {
+    ...record,
+    key: rawKey
+  };
+}
+
+export function deleteApiKey(id) {
+  const existing = getApiKeyById(id);
+  if (!existing) {
+    return false;
+  }
+
+  deleteApiKeyStmt.run(id);
+  return true;
+}
+
+export function authenticateApiKey(rawKey) {
+  const normalized = rawKey?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const row = getApiKeyByHashStmt.get(hashApiKey(normalized));
+  if (!row || row.status !== "active") {
+    return null;
+  }
+
+  const now = nowIso();
+  markApiKeyUsedStmt.run(now, now, row.id);
+  return deserializeApiKeyRow({
+    ...row,
+    last_used_at: now,
+    updated_at: now
+  });
 }
 
 export function listSmartyTokens() {
@@ -1210,6 +1388,26 @@ function deserializeUserRow(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function deserializeApiKeyRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    keyPrefix: row.key_prefix,
+    status: row.status,
+    lastUsedAt: row.last_used_at ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function hashApiKey(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function pickPatchValue(patch, key, fallback) {
+  return Object.prototype.hasOwnProperty.call(patch, key) ? patch[key] : fallback;
 }
 
 function ensureColumn(tableName, columnName, columnDefinition) {
