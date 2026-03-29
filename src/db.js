@@ -101,6 +101,13 @@ db.exec(`
     created_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 ensureColumn("locations", "first_plan_url", "TEXT");
@@ -558,6 +565,24 @@ const deleteSessionByTokenHashStmt = db.prepare(`
 const deleteExpiredSessionsStmt = db.prepare(`
   DELETE FROM sessions
   WHERE expires_at <= ?
+`);
+
+const getSettingStmt = db.prepare(`
+  SELECT key, value, created_at, updated_at
+  FROM settings
+  WHERE key = ?
+`);
+
+const upsertSettingStmt = db.prepare(`
+  INSERT INTO settings (
+    key,
+    value,
+    created_at,
+    updated_at
+  ) VALUES (?, ?, ?, ?)
+  ON CONFLICT(key) DO UPDATE SET
+    value = excluded.value,
+    updated_at = excluded.updated_at
 `);
 
 export function nowIso() {
@@ -1105,6 +1130,43 @@ export function deleteSessionByTokenHash(tokenHash) {
 
 export function deleteExpiredSessions() {
   deleteExpiredSessionsStmt.run(nowIso());
+}
+
+export function getSetting(key) {
+  const row = getSettingStmt.get(key);
+  if (!row) {
+    return null;
+  }
+
+  return {
+    key: row.key,
+    value: row.value ?? "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+export function getSiteSettings() {
+  const headCodeSetting = getSetting("head_code");
+
+  return {
+    headCode: headCodeSetting?.value ?? "",
+    updatedAt: headCodeSetting?.updatedAt ?? null
+  };
+}
+
+export function updateSiteSettings(input) {
+  const now = nowIso();
+  const existing = getSetting("head_code");
+
+  upsertSettingStmt.run(
+    "head_code",
+    input.headCode ?? "",
+    existing?.createdAt ?? now,
+    now
+  );
+
+  return getSiteSettings();
 }
 
 function deserializeLocationRow(row) {

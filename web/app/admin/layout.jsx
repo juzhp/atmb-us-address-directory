@@ -6,12 +6,14 @@ import shellStyles from "../../components/site-shell.module.css";
 
 const adminLinks = [
   { href: "/admin/locations", label: "地址管理" },
-  { href: "/admin/smarty-tokens", label: "Smarty 密钥" }
+  { href: "/admin/smarty-tokens", label: "Smarty 密钥" },
+  { href: "/admin/settings", label: "设置" }
 ];
 
 const adminFooterLinks = [
   { href: "/admin/locations", label: "地址管理" },
   { href: "/admin/smarty-tokens", label: "Smarty 密钥" },
+  { href: "/admin/settings", label: "设置" },
   { href: "/admin/password", label: "修改密码" },
   { href: "/admin/login", label: "重新登录" }
 ];

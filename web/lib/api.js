@@ -47,6 +47,19 @@ export async function fetchPublicStats() {
   return response.json();
 }
 
+export async function fetchPublicSiteSettings() {
+  const serverApiOrigin = await getServerApiOrigin();
+  const response = await fetch(`${serverApiOrigin}/api/public/settings`, {
+    next: { revalidate: 60 }
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load public site settings.");
+  }
+
+  return response.json();
+}
+
 export async function fetchStates() {
   const serverApiOrigin = await getServerApiOrigin();
   const response = await fetch(`${serverApiOrigin}/api/public/states`, {

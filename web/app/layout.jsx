@@ -1,4 +1,6 @@
 import "./globals.css";
+import { fetchPublicSiteSettings } from "../lib/api.js";
+import { renderCustomHeadCode } from "../lib/head-code.js";
 import { getSiteUrl } from "../lib/site.js";
 
 export const metadata = {
@@ -12,9 +14,19 @@ export const metadata = {
   }
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  let headCode = "";
+
+  try {
+    const settings = await fetchPublicSiteSettings();
+    headCode = settings?.headCode ?? "";
+  } catch {
+    headCode = "";
+  }
+
   return (
     <html lang="zh-CN">
+      <head>{renderCustomHeadCode(headCode)}</head>
       <body>{children}</body>
     </html>
   );

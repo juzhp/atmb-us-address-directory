@@ -5,6 +5,9 @@
 }
 
 .nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -13,6 +16,7 @@
   padding: 0 28px;
   border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
 }
 
 .leftRail {

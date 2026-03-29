@@ -169,6 +169,32 @@
   padding: 0 12px;
 }
 
+.textarea {
+  width: 100%;
+  min-height: 320px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.textarea:hover,
+.textarea:focus {
+  border-color: var(--ink);
+  outline: none;
+}
+
+.formActions {
+  margin-top: 16px;
+}
+
 .select {
   cursor: pointer;
 }

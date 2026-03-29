@@ -16,6 +16,7 @@ import {
   createSmartyToken,
   getLocationById,
   getLocationStats,
+  getSiteSettings,
   getSmartyTokenById,
   listRecentStatesFromLatestLocations,
   listStates,
@@ -23,6 +24,7 @@ import {
   listSmartyTokens,
   patchLocation,
   resetSmartyTokenUsage,
+  updateSiteSettings,
   updateSmartyToken
 } from "./db.js";
 import {
@@ -66,6 +68,9 @@ const smartyTokenUpdateSchema = z.object({
   quotaLimit: z.number().int().nonnegative().optional(),
   priority: z.number().int().nonnegative().optional(),
   status: z.enum(["active", "disabled", "exhausted", "error"]).optional()
+});
+const siteSettingsSchema = z.object({
+  headCode: z.string().optional()
 });
 const publicDir = path.join(process.cwd(), "public");
 
@@ -184,6 +189,8 @@ export function buildServer() {
 
     return record;
   });
+
+  app.get("/api/public/settings", async () => getSiteSettings());
 
   app.get("/", async (_request, reply) => {
     const html = await fs.readFile(path.join(publicDir, "admin.html"), "utf8");
@@ -415,6 +422,20 @@ export function buildServer() {
   app.get("/api/admin/smarty/tokens", { preHandler: requireAdmin }, async () =>
     listSmartyTokens()
   );
+
+  app.get("/api/admin/settings", { preHandler: requireAdmin }, async () => getSiteSettings());
+
+  app.put("/api/admin/settings", { preHandler: requireAdmin }, async (request, reply) => {
+    const parsed = siteSettingsSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({
+        message: "Invalid site settings payload.",
+        issues: parsed.error.flatten()
+      });
+    }
+
+    return updateSiteSettings(parsed.data);
+  });
 
   app.post("/admin/smarty/tokens", { preHandler: requireAdmin }, async (request, reply) => {
     const parsed = smartyTokenCreateSchema.safeParse(request.body ?? {});
