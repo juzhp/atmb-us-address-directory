@@ -987,26 +987,36 @@ export function patchLocation(id, patch) {
   }
 
   const next = {
-    location_name: pickPatchValue(patch, "locationName", existing.location_name ?? null),
-    full_address: pickPatchValue(patch, "fullAddress", existing.full_address ?? null),
-    street: pickPatchValue(patch, "street", existing.street ?? null),
-    street2: pickPatchValue(patch, "street2", existing.street2 ?? null),
-    city: pickPatchValue(patch, "city", existing.city ?? null),
-    state: pickPatchValue(patch, "state", existing.state ?? null),
-    postal_code: pickPatchValue(patch, "postalCode", existing.postal_code ?? null),
-    monthly_price: pickPatchValue(patch, "monthlyPrice", existing.monthly_price ?? null),
-    detail_url: pickPatchValue(patch, "detailUrl", existing.detail_url ?? null),
-    first_plan_url: pickPatchValue(patch, "firstPlanUrl", existing.first_plan_url ?? null),
-    first_plan_term: pickPatchValue(patch, "firstPlanTerm", existing.first_plan_term ?? null),
-    first_plan_srvpl_id: pickPatchValue(
+    location_name: toBindableValue(pickPatchValue(patch, "locationName", existing.location_name)),
+    full_address: toBindableValue(pickPatchValue(patch, "fullAddress", existing.full_address)),
+    street: toBindableValue(pickPatchValue(patch, "street", existing.street)),
+    street2: toBindableValue(pickPatchValue(patch, "street2", existing.street2)),
+    city: toBindableValue(pickPatchValue(patch, "city", existing.city)),
+    state: toBindableValue(pickPatchValue(patch, "state", existing.state)),
+    postal_code: toBindableValue(pickPatchValue(patch, "postalCode", existing.postal_code)),
+    monthly_price: toBindableValue(
+      pickPatchValue(patch, "monthlyPrice", existing.monthly_price)
+    ),
+    detail_url: toBindableValue(pickPatchValue(patch, "detailUrl", existing.detail_url)),
+    first_plan_url: toBindableValue(
+      pickPatchValue(patch, "firstPlanUrl", existing.first_plan_url)
+    ),
+    first_plan_term: toBindableValue(
+      pickPatchValue(patch, "firstPlanTerm", existing.first_plan_term)
+    ),
+    first_plan_srvpl_id: toBindableValue(pickPatchValue(
       patch,
       "firstPlanSrvplId",
-      existing.first_plan_srvpl_id ?? null
+      existing.first_plan_srvpl_id
+    )),
+    personalize_min: toBindableValue(
+      pickPatchValue(patch, "personalizeMin", existing.personalize_min)
     ),
-    personalize_min: pickPatchValue(patch, "personalizeMin", existing.personalize_min ?? null),
-    personalize_max: pickPatchValue(patch, "personalizeMax", existing.personalize_max ?? null),
-    rdi: pickPatchValue(patch, "rdi", existing.rdi ?? null),
-    cmra: pickPatchValue(patch, "cmra", existing.cmra ?? null),
+    personalize_max: toBindableValue(
+      pickPatchValue(patch, "personalizeMax", existing.personalize_max)
+    ),
+    rdi: toBindableValue(pickPatchValue(patch, "rdi", existing.rdi)),
+    cmra: toBindableValue(pickPatchValue(patch, "cmra", existing.cmra)),
     is_active:
       patch.isActive === undefined ? Number(existing.isActive) : Number(Boolean(patch.isActive))
   };
@@ -1351,8 +1361,8 @@ function deserializeLocationRow(row) {
   return {
     ...row,
     isActive: Boolean(row.is_active),
-    services: row.services_json ? JSON.parse(row.services_json) : [],
-    raw: row.raw_json ? JSON.parse(row.raw_json) : null
+    services: safeJsonParse(row.services_json, []),
+    raw: safeJsonParse(row.raw_json, null)
   };
 }
 
@@ -1408,6 +1418,22 @@ function hashApiKey(value) {
 
 function pickPatchValue(patch, key, fallback) {
   return Object.prototype.hasOwnProperty.call(patch, key) ? patch[key] : fallback;
+}
+
+function safeJsonParse(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function toBindableValue(value) {
+  return value === undefined ? null : value;
 }
 
 function ensureColumn(tableName, columnName, columnDefinition) {
