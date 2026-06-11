@@ -1,0 +1,23 @@
+CREATE TABLE `system_settings` (
+	`id` integer PRIMARY KEY NOT NULL,
+	`smarty_auth_id` text DEFAULT '' NOT NULL,
+	`smarty_auth_token_encrypted` text,
+	`smarty_connection_status` text DEFAULT 'not_configured' NOT NULL,
+	`smarty_connection_message` text,
+	`smarty_last_tested_at` text,
+	`smarty_remaining_credits` integer,
+	`smarty_monthly_used` integer,
+	`smarty_credits_updated_at` text,
+	`auto_update_enabled` integer DEFAULT true NOT NULL,
+	`update_frequency_days` integer DEFAULT 1,
+	`update_hour` integer DEFAULT 8 NOT NULL,
+	`update_minute` integer DEFAULT 30 NOT NULL,
+	`head_code` text DEFAULT '' NOT NULL,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT "system_settings_singleton_check" CHECK("system_settings"."id" = 1),
+	CONSTRAINT "system_settings_smarty_status_check" CHECK("system_settings"."smarty_connection_status" IN ('not_configured', 'connected', 'failed')),
+	CONSTRAINT "system_settings_frequency_check" CHECK("system_settings"."update_frequency_days" IS NULL OR "system_settings"."update_frequency_days" IN (1, 2, 3, 4, 5, 10)),
+	CONSTRAINT "system_settings_hour_check" CHECK("system_settings"."update_hour" BETWEEN 0 AND 23),
+	CONSTRAINT "system_settings_minute_check" CHECK("system_settings"."update_minute" IN (0, 30))
+);

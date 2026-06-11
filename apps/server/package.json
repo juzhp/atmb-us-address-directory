@@ -1,0 +1,31 @@
+{
+  "name": "@atmb/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "npm run build --workspace @atmb/shared && npm run build --workspace @atmb/db",
+    "dev": "tsx src/server.ts",
+    "prebuild": "npm run build --workspace @atmb/shared && npm run build --workspace @atmb/db",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "patch:rdi-cmra": "tsx src/scripts/patch-rdi-cmra-from-admin-locations.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "npm run build --workspace @atmb/shared && npm run build --workspace @atmb/db",
+    "test": "node --import tsx --test test/**/*.test.ts"
+  },
+  "dependencies": {
+    "@atmb/db": "1.0.0",
+    "@atmb/shared": "1.0.0",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/multipart": "^10.0.0",
+    "@fastify/session": "^11.1.1",
+    "axios": "^1.17.0",
+    "cheerio": "^1.2.0",
+    "fastify": "^5.8.5",
+    "node-cron": "^4.2.1",
+    "p-queue": "^9.3.0",
+    "zod": "^4.4.3"
+  }
+}

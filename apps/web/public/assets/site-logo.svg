@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Anytime Mailbox residential address guide favicon">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a8792"/>
+      <stop offset="1" stop-color="#071a3f"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="256" y1="128" x2="256" y2="404" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e9f8fb"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="448" height="448" rx="104" fill="url(#bg)"/>
+  <path d="M256 96c-88 0-160 71-160 158 0 118 137 166 160 210 23-44 160-92 160-210 0-87-72-158-160-158Z" fill="url(#pin)" opacity=".96"/>
+  <path d="M161 255 256 176l95 79" fill="none" stroke="#057f93" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M188 254v96c0 16 13 29 29 29h78c16 0 29-13 29-29v-96" fill="none" stroke="#057f93" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M239 379v-64h34v64" fill="none" stroke="#057f93" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="256" cy="258" r="18" fill="#057f93"/>
+</svg>

@@ -1,0 +1,58 @@
+{
+  "name": "atmbnew",
+  "version": "1.0.0",
+  "description": "基于 Anytime Mailbox 的美国住宅地址筛选项目，通过街景、RDI、CMRA 辅助判断，快速找出合适的美国真实住宅地址租用。",
+  "keywords": [
+    "AnytimeMailbox",
+    "美国住宅地址",
+    "美国真实地址",
+    "RDI",
+    "CMRA",
+    "街景",
+    "住宅地址租用",
+    "virtual mailbox",
+    "residential address"
+  ],
+  "private": true,
+  "license": "MIT",
+  "author": "juzhpcom@gmail.com",
+  "type": "commonjs",
+  "main": "index.js",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "start": "npm run start:server",
+    "start:server": "npm run start --workspace @atmb/server",
+    "start:web": "npm run start --workspace @atmb/web",
+    "dev": "npm run dev:web",
+    "dev:web": "npm run dev --workspace @atmb/web",
+    "dev:server": "npm run dev --workspace @atmb/server",
+    "build": "npm run build --workspaces --if-present",
+    "build:web": "npm run build --workspace @atmb/web",
+    "build:server": "npm run build --workspace @atmb/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run build --workspace @atmb/shared && npm run build --workspace @atmb/db && node --import tsx --test fetchHtml.test.js homepage.test.js addresses-page.test.js residential-page.test.js global-scroll.test.js referral-routes.test.js public-head-code.test.js deployment-pm2.test.js && npm run test --workspaces --if-present",
+    "test:server": "npm run test --workspace @atmb/server",
+    "patch:rdi-cmra": "npm run patch:rdi-cmra --workspace @atmb/server --",
+    "db:generate": "npm run drizzle:generate --workspace @atmb/db",
+    "db:migrate": "npm run drizzle:migrate --workspace @atmb/db"
+  },
+  "dependencies": {
+    "axios": "^1.17.0",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^10.4.1",
+    "prettier": "^3.8.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
