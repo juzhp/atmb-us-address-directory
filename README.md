@@ -1,6 +1,6 @@
 # Anytime Mailbox 美国住宅地址筛选指南
 
-一个中文向的美国地址筛选项目，用于整理 Anytime Mailbox 地址数据，并结合 RDI、CMRA、价格、ZIP、邮箱编号范围和 Google Maps 街景跳转，辅助判断地址是否值得继续查看和租用。
+一个美国地址筛选项目，用于整理 Anytime Mailbox 地址数据，并结合 RDI、CMRA、价格、ZIP、邮箱编号范围和 Google Maps 街景跳转，辅助判断地址是否值得继续查看和租用。
 
 > 本项目不是 Anytime Mailbox 官方项目，也不保证任何地址一定可用。RDI、CMRA、街景、价格和邮箱编号都只是辅助判断信息，最终仍需用户自行确认。
 
@@ -158,46 +158,6 @@ sudo systemctl reload nginx
 npm run build
 pm2 restart ecosystem.config.cjs --update-env
 ```
-
-## 复制本地数据库到线上
-
-如果要完整复制本地数据，优先使用本地当前抓取库：
-
-```text
-D:\Work\atmbNew\apps\server\data\atmb.sqlite
-```
-
-上传前先停止线上服务并备份：
-
-```bash
-cd /var/www/atmbNew
-pm2 stop atmb-server atmb-web
-mkdir -p backups
-cp data/atmb.sqlite backups/atmb.sqlite.$(date +%Y%m%d%H%M%S).bak
-```
-
-本地上传：
-
-```powershell
-scp D:\Work\atmbNew\apps\server\data\atmb.sqlite root@你的服务器IP:/var/www/atmbNew/data/atmb.sqlite.new
-```
-
-线上替换：
-
-```bash
-cd /var/www/atmbNew
-mv data/atmb.sqlite.new data/atmb.sqlite
-npm run db:migrate
-pm2 restart atmb-server atmb-web --update-env
-```
-
-如果同步过街景图，也要上传：
-
-```powershell
-scp -r D:\Work\atmbNew\apps\web\public\uploads\address-images root@你的服务器IP:/var/www/atmbNew/apps/web/public/uploads/
-```
-
-注意：如果本地和线上 `SESSION_SECRET` 不一致，数据库里已保存的 Smarty Token 可能无法解密，需要在线上后台重新保存 Smarty 配置。
 
 ## 常用命令
 
