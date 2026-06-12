@@ -13,10 +13,16 @@ export function AdminLoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
+  const canSubmit = username.trim().length > 0 && password.length > 0 && !isPending;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+
+    if (!username.trim() || !password) {
+      setError('请输入账号和密码');
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -26,7 +32,7 @@ export function AdminLoginForm() {
             'Content-Type': 'application/json',
           },
           credentials: 'include',
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify({ username: username.trim(), password }),
         });
 
         if (!response.ok) {
@@ -83,7 +89,7 @@ export function AdminLoginForm() {
         </div>
       ) : null}
 
-      <button className="admin-login-button" disabled={isPending} type="submit">
+      <button className="admin-login-button" disabled={!canSubmit} type="submit">
         <span>{isPending ? '登录中' : '登录'}</span>
         <ArrowRight size={20} strokeWidth={2.3} aria-hidden="true" />
       </button>

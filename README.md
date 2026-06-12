@@ -37,7 +37,7 @@ cp .env.example .env
 
 ```env
 WEB_ORIGIN=https://你的域名
-NEXT_PUBLIC_API_BASE_URL=https://你的域名
+NEXT_PUBLIC_API_BASE_URL=
 DATABASE_URL=/var/www/atmbNew/data/atmb.sqlite
 ADMIN_PASSWORD=你的后台密码
 SESSION_SECRET=至少32位随机字符串
@@ -52,7 +52,7 @@ SESSION_SECRET=至少32位随机字符串
 | `ADMIN_USERNAME` | 默认管理员账号 |
 | `ADMIN_PASSWORD` | 默认管理员密码，生产环境必须设置 |
 | `WEB_ORIGIN` | 浏览器访问的站点域名 |
-| `NEXT_PUBLIC_API_BASE_URL` | 前端公开 API 域名，构建前必须设置 |
+| `NEXT_PUBLIC_API_BASE_URL` | 前端公开 API 域名；留空时默认同源 `/api` |
 | `API_BASE_URL` | Next.js 服务端访问 Fastify 的内部地址 |
 | `ADDRESS_IMAGE_UPLOAD_DIR` | 街景图上传保存目录 |
 | `ADDRESS_IMAGE_PUBLIC_BASE` | 街景图公开访问路径 |
@@ -152,7 +152,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-启用 HTTPS 后，请把 `.env` 中的 `WEB_ORIGIN` 和 `NEXT_PUBLIC_API_BASE_URL` 改为 `https://你的域名`，然后重新执行：
+启用 HTTPS 后，请把 `.env` 中的 `WEB_ORIGIN` 改为 `https://你的域名`。`NEXT_PUBLIC_API_BASE_URL` 可以留空，默认走同源 `/api`；如果你要请求独立 API 域名，再设置为对应地址。修改后重新执行：
 
 ```bash
 npm run build
