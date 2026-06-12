@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
 const test = require('node:test');
 
 const referralUrl = 'https://anytimemailbox.referralrock.com/l/1RENHONGLIU21/';
@@ -46,4 +47,14 @@ test('address detail redirect rejects invalid targets', async () => {
   const response = route.GET(request);
 
   assert.equal(response.status, 400);
+});
+
+test('referral nav uses a plain anchor to avoid Next RSC fetch redirects', () => {
+  const source = readFileSync('apps/web/app/_components/SiteShell.tsx', 'utf8');
+
+  assert.match(source, /<a className="site-nav-recommend" href="\/go\/get-us-residential-address">/);
+  assert.doesNotMatch(
+    source,
+    /<Link className="site-nav-recommend" href="\/go\/get-us-residential-address">/,
+  );
 });

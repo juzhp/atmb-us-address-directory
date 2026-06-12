@@ -15,7 +15,7 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
         </Link>
         <nav className="site-nav" aria-label="主导航">
           <Link className={navClass(active, 'home')} href="/">首页</Link>
-          <Link className="site-nav-recommend" href="/go/get-us-residential-address">获得美国住宅地址</Link>
+          <a className="site-nav-recommend" href="/go/get-us-residential-address">获得美国住宅地址</a>
           <Link className={navClass(active, 'addresses')} href="/addresses">所有地址</Link>
           <Link className={navClass(active, 'residential')} href="/residential-addresses">住宅地址</Link>
           <Link className={navClass(active, 'faq')} href={active === 'home' ? '#faq' : '/#faq'}>FAQ</Link>
