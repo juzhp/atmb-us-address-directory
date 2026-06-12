@@ -47,11 +47,14 @@ test('pm2 deployment guide documents build, migration, nginx, and pm2 operations
 test('admin login and browser api defaults are production safe', () => {
   const api = readFileSync('apps/web/app/lib/api.ts', 'utf8');
   const loginForm = readFileSync('apps/web/app/admin/_components/AdminLoginForm.tsx', 'utf8');
+  const nextConfig = readFileSync('apps/web/next.config.mjs', 'utf8');
 
   assert.match(api, /PUBLIC_API_BASE_URL = normalizeApiBaseUrl\(process\.env\.NEXT_PUBLIC_API_BASE_URL\) \?\? ''/);
   assert.match(api, /SERVER_API_BASE_URL/);
   assert.match(api, /http:\/\/127\.0\.0\.1:3001/);
   assert.doesNotMatch(api, /http:\/\/localhost:3001/);
+  assert.match(nextConfig, /source: '\/api\/:path\*'/);
+  assert.match(nextConfig, /destination: `\$\{apiBaseUrl\}\/api\/:path\*`/);
 
   assert.match(loginForm, /const canSubmit = username\.trim\(\)\.length > 0 && password\.length > 0 && !isPending/);
   assert.match(loginForm, /disabled=\{!canSubmit\}/);
