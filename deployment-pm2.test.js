@@ -56,6 +56,7 @@ test('admin login and browser api defaults are production safe', () => {
   assert.doesNotMatch(api, /http:\/\/localhost:3001/);
   assert.match(nextConfig, /source: '\/api\/:path\*'/);
   assert.match(nextConfig, /destination: `\$\{apiBaseUrl\}\/api\/:path\*`/);
+  assert.match(nextConfig, /loadEnv\(\{ path: path\.join\(rootDir, '\.env'\) \}\)/);
 
   assert.match(loginForm, /const canSubmit = username\.trim\(\)\.length > 0 && password\.length > 0 && !isPending/);
   assert.match(loginForm, /disabled=\{!canSubmit\}/);

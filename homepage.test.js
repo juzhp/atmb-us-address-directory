@@ -14,6 +14,7 @@ test('homepage exposes SEO content and real data integration points', () => {
   assert.match(source, /ItemList/);
   assert.match(source, /hero-residential-map-v4\.png/);
   assert.match(source, /getHomePageData/);
+  assert.match(source, /export const revalidate = 60/);
   assert.doesNotMatch(source, /'use client'|"use client"/);
   assert.doesNotMatch(source, /const featuredAddresses = \[/);
 });

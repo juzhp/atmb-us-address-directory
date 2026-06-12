@@ -25,7 +25,7 @@ import { SiteFooter, SiteHeader } from './_components/SiteShell';
 import { getHomePageData, type HomeFeaturedAddress } from './_lib/home-data';
 import { getPublicHeadCode } from './_lib/public-head-code';
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: 'Anytime Mailbox住宅地址指南 | 筛选美国真实住宅地址',

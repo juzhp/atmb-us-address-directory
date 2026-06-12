@@ -52,7 +52,10 @@ test('address detail redirect rejects invalid targets', async () => {
 test('referral nav uses a plain anchor to avoid Next RSC fetch redirects', () => {
   const source = readFileSync('apps/web/app/_components/SiteShell.tsx', 'utf8');
 
-  assert.match(source, /<a className="site-nav-recommend" href="\/go\/get-us-residential-address">/);
+  assert.match(
+    source,
+    /<a className="site-nav-recommend" href="\/go\/get-us-residential-address" rel="noreferrer" target="_blank">/,
+  );
   assert.doesNotMatch(
     source,
     /<Link className="site-nav-recommend" href="\/go\/get-us-residential-address">/,
