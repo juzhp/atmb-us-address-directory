@@ -8,8 +8,8 @@ test('pm2 ecosystem defines one web process and one server process', () => {
   assert.equal(Array.isArray(ecosystem.apps), true);
   assert.equal(ecosystem.apps.length, 2);
 
-  const server = ecosystem.apps.find((app) => app.name === 'atmb-server');
-  const web = ecosystem.apps.find((app) => app.name === 'atmb-web');
+  const server = ecosystem.apps.find((app) => app.script === 'apps/server/dist/server.js');
+  const web = ecosystem.apps.find((app) => app.script === 'npm' && app.args === 'run start:web');
 
   assert.ok(server);
   assert.ok(web);
@@ -17,6 +17,7 @@ test('pm2 ecosystem defines one web process and one server process', () => {
   assert.equal(server.exec_mode, 'fork');
   assert.equal(server.instances, 1);
   assert.equal(server.env.NODE_ENV, 'production');
+  assert.equal(server.env.ATMB_SERVER_ENTRY, '1');
   assert.equal(server.env.HOST, '127.0.0.1');
   assert.equal(server.env.PORT, '3001');
 

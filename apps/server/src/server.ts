@@ -114,11 +114,17 @@ export async function createServer(options: CreateServerOptions = {}) {
   return app;
 }
 
-const isMain = process.argv[1]
-  ? import.meta.url === pathToFileURL(process.argv[1]).href
-  : false;
+function shouldListen() {
+  if (process.env.ATMB_SERVER_ENTRY === '1') {
+    return true;
+  }
 
-if (isMain) {
+  return process.argv[1]
+    ? import.meta.url === pathToFileURL(process.argv[1]).href
+    : false;
+}
+
+if (shouldListen()) {
   const app = await createServer();
   const port = Number(process.env.PORT || 3001);
   const host = process.env.HOST || '0.0.0.0';

@@ -11,7 +11,7 @@ const uploadDir = process.env.ADDRESS_IMAGE_UPLOAD_DIR
 module.exports = {
   apps: [
     {
-      name: 'atmb-server',
+      name: 'atmbNew-server',
       cwd: rootDir,
       script: 'apps/server/dist/server.js',
       instances: 1,
@@ -19,6 +19,7 @@ module.exports = {
       autorestart: true,
       max_memory_restart: '700M',
       env: {
+        ATMB_SERVER_ENTRY: '1',
         NODE_ENV: 'production',
         HOST: process.env.HOST || '127.0.0.1',
         PORT: process.env.PORT || '3001',
@@ -33,7 +34,7 @@ module.exports = {
       },
     },
     {
-      name: 'atmb-web',
+      name: 'atmbNew-web',
       cwd: rootDir,
       script: 'npm',
       args: 'run start:web',
