@@ -34,7 +34,7 @@
     "build:server": "npm run build --workspace @atmb/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run build --workspace @atmb/shared && npm run build --workspace @atmb/db && node --import tsx --test fetchHtml.test.js homepage.test.js addresses-page.test.js residential-page.test.js global-scroll.test.js referral-routes.test.js public-head-code.test.js deployment-pm2.test.js && npm run test --workspaces --if-present",
+    "test": "npm run build --workspace @atmb/shared && npm run build --workspace @atmb/db && node --import tsx --test fetchHtml.test.js homepage.test.js addresses-page.test.js residential-page.test.js global-scroll.test.js referral-routes.test.js public-head-code.test.js deployment-pm2.test.js seo-routes.test.js && npm run test --workspaces --if-present",
     "test:server": "npm run test --workspace @atmb/server",
     "patch:rdi-cmra": "npm run patch:rdi-cmra --workspace @atmb/server --",
     "db:generate": "npm run drizzle:generate --workspace @atmb/db",

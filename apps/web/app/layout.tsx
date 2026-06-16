@@ -5,7 +5,7 @@ import { ScrollBackTop } from './_components/ScrollBackTop';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://atmb.juzhp.com'),
+  metadataBase: new URL('https://usaddres.com'),
   title: 'Anytime Mailbox住宅地址指南',
   description: '美国真实住宅地址筛选指南。',
   icons: {
