@@ -88,8 +88,19 @@ test('public address result toolbar is compact on mobile', () => {
   const css = readFileSync('apps/web/app/globals.css', 'utf8');
 
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-toolbar\s*\{[\s\S]*min-height:\s*auto/);
-  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-toolbar\s*\{[\s\S]*padding:\s*14px 16px/);
-  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-count\s*\{[\s\S]*font-size:\s*16px/);
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-toolbar\s*\{[\s\S]*padding:\s*12px 14px/);
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-count\s*\{[\s\S]*font-size:\s*15px/);
+});
+
+test('public address pages use compact list sizing', () => {
+  const css = readFileSync('apps/web/app/globals.css', 'utf8');
+
+  assert.match(css, /\.addresses-inner\s*\{[\s\S]*width:\s*min\(1440px,/);
+  assert.match(css, /\.addresses-hero h1\s*\{[\s\S]*font-size:\s*clamp\(34px,\s*2\.35vw,\s*44px\)/);
+  assert.match(css, /\.addresses-input-like,[\s\S]*?\.addresses-search-form button\s*\{[\s\S]*min-height:\s*46px/);
+  assert.match(css, /\.addresses-row\s*\{[\s\S]*min-height:\s*98px/);
+  assert.match(css, /\.addresses-row\s*\{[\s\S]*padding:\s*15px 17px/);
+  assert.match(css, /\.addresses-detail-button,[\s\S]*?\.addresses-photo-button\s*\{[\s\S]*min-height:\s*36px/);
 });
 
 test('public address pages persist clicked row state', () => {

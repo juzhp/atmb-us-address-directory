@@ -55,3 +55,18 @@ test('state mapping exposes Chinese labels and searchable text', async () => {
 
   assert.equal(states.getUsStateDisplay('XX', 'Example State').label, 'Example State (XX)');
 });
+
+test('public frontend uses compact sizing tokens', () => {
+  const css = readFileSync('apps/web/app/globals.css', 'utf8');
+
+  assert.match(css, /--site-gutter:\s*clamp\(20px,\s*3\.2vw,\s*60px\)/);
+  assert.match(css, /\.site-header-inner,[\s\S]*?\.site-footer-inner\s*\{[\s\S]*width:\s*min\(1440px,/);
+  assert.match(css, /\.site-header-inner\s*\{[\s\S]*min-height:\s*70px/);
+  assert.match(css, /\.site-nav a\s*\{[\s\S]*min-height:\s*70px/);
+  assert.match(css, /\.home-hero-copy h1\s*\{[\s\S]*font-size:\s*clamp\(36px,\s*2\.6vw,\s*50px\)/);
+  assert.match(css, /\.home-filter-form select\s*\{[\s\S]*min-height:\s*46px/);
+  assert.match(css, /\.home-filter-form > button\s*\{[\s\S]*min-height:\s*46px/);
+
+  const adminHeaderBlock = css.match(/\.admin-header-inner\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.doesNotMatch(adminHeaderBlock, /min-height:\s*70px/);
+});
