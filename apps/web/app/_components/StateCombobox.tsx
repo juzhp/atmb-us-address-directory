@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useRef, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 export interface StateComboboxOption {
   code: string;
@@ -108,13 +108,11 @@ export function StateCombobox({ label, name, options, placeholder }: StateCombob
           value={query}
         />
         {selected ? (
-          <button aria-label="清除州筛选" onClick={clearSelection} type="button">
+          <button aria-label="清除州筛选" className="home-state-clear" onClick={clearSelection} type="button">
             <X size={16} aria-hidden="true" />
           </button>
         ) : (
-          <span aria-hidden="true">
-            <ChevronDown size={18} />
-          </span>
+          <span aria-hidden="true" className="home-state-chevron" />
         )}
       </div>
       {isOpen ? (

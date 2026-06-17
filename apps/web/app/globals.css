@@ -3349,24 +3349,33 @@ a {
   box-shadow: 0 0 0 3px rgba(5, 127, 147, 0.1);
 }
 
-.home-state-control button,
-.home-state-control span {
+.home-state-control .home-state-clear,
+.home-state-control .home-state-chevron {
   position: absolute;
-  top: 50%;
+  top: 0;
   right: 10px;
+  bottom: 0;
   display: grid;
   width: 24px;
   height: 24px;
   place-items: center;
-  transform: translateY(-50%);
+  margin: auto 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: var(--home-teal-dark);
 }
 
-.home-state-control button {
+.home-state-control .home-state-clear {
   cursor: pointer;
+}
+
+.home-state-control .home-state-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23006a7b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
+  pointer-events: none;
 }
 
 .home-state-list {
@@ -3428,14 +3437,22 @@ a {
 }
 
 .home-filter-form select {
+  -webkit-appearance: none;
+  appearance: none;
   min-height: 46px;
   border: 1px solid var(--home-line-strong);
   border-radius: 6px;
-  padding: 0 15px;
-  background: #fbfdff;
+  padding: 0 39px 0 15px;
+  background-color: #fbfdff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23006a7b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px 18px;
   color: #213a5a;
+  cursor: pointer;
   font-size: 15px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .home-filter-form > button {
@@ -4834,7 +4851,16 @@ a {
 }
 
 .addresses-search-form select {
-  padding: 0 15px;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0 39px 0 15px;
+  background-color: #fbfdff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23006a7b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px 18px;
+  cursor: pointer;
+  line-height: 1.2;
 }
 
 .addresses-search-form button {

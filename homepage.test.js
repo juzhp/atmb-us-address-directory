@@ -70,3 +70,22 @@ test('public frontend uses compact sizing tokens', () => {
   const adminHeaderBlock = css.match(/\.admin-header-inner\s*\{[^}]*\}/)?.[0] ?? '';
   assert.doesNotMatch(adminHeaderBlock, /min-height:\s*70px/);
 });
+
+test('public filter selects use custom cross-platform appearance', () => {
+  const css = readFileSync('apps/web/app/globals.css', 'utf8');
+  const combobox = readFileSync('apps/web/app/_components/StateCombobox.tsx', 'utf8');
+
+  assert.match(css, /\.home-filter-form select\s*\{[\s\S]*-webkit-appearance:\s*none/);
+  assert.match(css, /\.home-filter-form select\s*\{[\s\S]*appearance:\s*none/);
+  assert.match(css, /\.home-filter-form select\s*\{[\s\S]*background-image:\s*url\("data:image\/svg\+xml/);
+  assert.match(css, /\.home-state-control \.home-state-chevron\s*\{[\s\S]*background-image:\s*url\("data:image\/svg\+xml/);
+  assert.match(css, /\.addresses-search-form select\s*\{[\s\S]*-webkit-appearance:\s*none/);
+  assert.match(css, /\.addresses-search-form select\s*\{[\s\S]*background-image:\s*url\("data:image\/svg\+xml/);
+  assert.doesNotMatch(combobox, /ChevronDown/);
+
+  const stateControlIconBlock = css.match(/\.home-state-control \.home-state-clear,[\s\S]*?\.home-state-control \.home-state-chevron\s*\{[\s\S]*?\}/)?.[0] ?? '';
+  assert.match(stateControlIconBlock, /top:\s*0/);
+  assert.match(stateControlIconBlock, /bottom:\s*0/);
+  assert.match(stateControlIconBlock, /margin:\s*auto 0/);
+  assert.doesNotMatch(stateControlIconBlock, /transform:/);
+});
