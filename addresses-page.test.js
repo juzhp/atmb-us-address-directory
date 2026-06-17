@@ -74,6 +74,24 @@ test('public address rows expose hover and visited visual states', () => {
   assert.match(css, /transition:[^;]*(background|box-shadow|border-color|transform)/);
 });
 
+test('public address list hides sorting and labels key metrics', () => {
+  const source = readFileSync('apps/web/app/addresses/page.tsx', 'utf8');
+
+  assert.doesNotMatch(source, /addresses-sort/);
+  assert.match(source, /address\.rdi\}[\s\S]*RDI/);
+  assert.match(source, /address\.cmra\}[\s\S]*CMRA/);
+  assert.match(source, /address\.price\}[\s\S]*价格/);
+  assert.match(source, /address\.mailbox\}[\s\S]*邮箱编号/);
+});
+
+test('public address result toolbar is compact on mobile', () => {
+  const css = readFileSync('apps/web/app/globals.css', 'utf8');
+
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-toolbar\s*\{[\s\S]*min-height:\s*auto/);
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-toolbar\s*\{[\s\S]*padding:\s*14px 16px/);
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.addresses-result-count\s*\{[\s\S]*font-size:\s*16px/);
+});
+
 test('public address pages persist clicked row state', () => {
   const component = readFileSync('apps/web/app/_components/AddressRowClickState.tsx', 'utf8');
   const addressesPage = readFileSync('apps/web/app/addresses/page.tsx', 'utf8');

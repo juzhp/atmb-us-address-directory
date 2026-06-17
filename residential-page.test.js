@@ -58,3 +58,13 @@ test('residential address detail links use the referral-gated redirect', () => {
   assert.match(source, /addresses-detail-button/);
   assert.match(source, /href=\{address\.mapsUrl\}/);
 });
+
+test('residential address list hides sorting and labels key metrics', () => {
+  const source = readFileSync('apps/web/app/residential-addresses/page.tsx', 'utf8');
+
+  assert.doesNotMatch(source, /addresses-sort/);
+  assert.match(source, /address\.rdi\}[\s\S]*RDI/);
+  assert.match(source, /address\.cmra\}[\s\S]*CMRA/);
+  assert.match(source, /address\.price\}[\s\S]*价格/);
+  assert.match(source, /address\.mailbox\}[\s\S]*邮箱编号/);
+});

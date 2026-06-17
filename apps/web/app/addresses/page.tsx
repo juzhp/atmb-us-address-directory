@@ -261,7 +261,6 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
                 找到 <strong>{formatNumber(data.total)}</strong> 个 Anytime Mailbox 地址
                 {data.selectedStateLabel ? <span> · {data.selectedStateLabel}</span> : null}
               </div>
-              <div className="addresses-sort">排序：最近更新 <ChevronDown size={17} aria-hidden="true" /></div>
             </div>
             {data.items.length > 0 ? (
               <div className="addresses-list" role="list">
@@ -277,13 +276,15 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
                       <span className={address.rdi === 'Residential' ? 'addresses-badge good' : 'addresses-badge warn'}>
                         {address.rdi}
                       </span>
+                      RDI
                     </div>
                     <div className="addresses-data-cell">
                       <span className={address.cmra === 'No' ? 'addresses-badge good' : 'addresses-badge warn'}>
                         {address.cmra}
                       </span>
+                      CMRA
                     </div>
-                    <div className="addresses-data-cell"><strong>{address.price}</strong></div>
+                    <div className="addresses-data-cell"><strong>{address.price}</strong>价格</div>
                     <div className="addresses-data-cell"><strong>{address.mailbox}</strong>邮箱编号</div>
                     <div className="addresses-row-actions">
                       <a className="addresses-detail-button" href={address.detailUrl} rel="noreferrer" target="_blank">

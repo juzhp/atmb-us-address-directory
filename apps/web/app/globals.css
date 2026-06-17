@@ -5563,7 +5563,21 @@ a {
     font-size: 15px;
   }
 
+  .addresses-result-toolbar {
+    min-height: auto;
+    justify-content: center;
+    gap: 0;
+    padding: 14px 16px;
+  }
+
+  .addresses-result-count {
+    width: 100%;
+    font-size: 16px;
+    line-height: 1.38;
+  }
+
   .addresses-row {
+    min-height: auto;
     padding: 16px;
   }
 

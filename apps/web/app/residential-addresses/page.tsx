@@ -3,7 +3,6 @@ import Link from 'next/link';
 import {
   ArrowRight,
   Check,
-  ChevronDown,
   Database,
   Home,
   MapPin,
@@ -209,7 +208,6 @@ export default async function ResidentialAddressesPage({ searchParams }: Residen
               <div className="addresses-result-count">
                 找到 <strong>{formatNumber(data.total)}</strong> 个 RDI Residential 地址
               </div>
-              <div className="addresses-sort">排序：最近更新 <ChevronDown size={17} aria-hidden="true" /></div>
             </div>
             {data.items.length > 0 ? (
               <div className="addresses-list" role="list">
@@ -221,13 +219,14 @@ export default async function ResidentialAddressesPage({ searchParams }: Residen
                       <p>{address.streetAddress}<br />{address.cityLine}</p>
                     </div>
                     <div className="addresses-data-cell"><strong>{address.stateLabel}</strong>州/地区</div>
-                    <div className="addresses-data-cell"><span className="addresses-badge good">{address.rdi}</span></div>
+                    <div className="addresses-data-cell"><span className="addresses-badge good">{address.rdi}</span>RDI</div>
                     <div className="addresses-data-cell">
                       <span className={address.cmra === 'No' ? 'addresses-badge good' : 'addresses-badge warn'}>
                         {address.cmra}
                       </span>
+                      CMRA
                     </div>
-                    <div className="addresses-data-cell"><strong>{address.price}</strong></div>
+                    <div className="addresses-data-cell"><strong>{address.price}</strong>价格</div>
                     <div className="addresses-data-cell"><strong>{address.mailbox}</strong>邮箱编号</div>
                     <div className="addresses-row-actions">
                       <a className="addresses-detail-button" href={address.detailUrl} rel="noreferrer" target="_blank">
