@@ -1,7 +1,9 @@
 ﻿import axios, { type AxiosRequestConfig } from 'axios';
 import type { DatabaseContext } from '@atmb/db';
+import { execFile } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import type { AddressCmra, AddressRdi, AdminSubtaskType } from '@atmb/shared';
 
 import type { SettingsService } from '../settings/service.js';
@@ -44,6 +46,7 @@ export interface HttpCrawlFetcherOptions {
   random?: () => number;
   requestDelayMs?: { min: number; max: number };
   sleep?: (delayMs: number) => Promise<void>;
+  curlFetch?: (url: string, options: { headers: Record<string, string>; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
 }
 
 export interface SmartyCredentials {
@@ -155,6 +158,9 @@ interface AddressCacheRow {
   smartyCheckedAt: string;
   isActive: number;
 }
+
+const execFileAsync = promisify(execFile);
+const CURL_META_MARKER = '\\n__ATMB_CURL_META__';
 
 const DEFAULT_START_URL = 'https://www.anytimemailbox.com/l/usa';
 const DEFAULT_REQUEST_DELAY_MS = Object.freeze({ min: 200, max: 900 });
@@ -1261,12 +1267,14 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   private readonly random: () => number;
   private readonly requestDelayMs: { min: number; max: number };
   private readonly sleep: (delayMs: number) => Promise<void>;
+  private readonly curlFetch: (url: string, options: { headers: Record<string, string>; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
   private lastHeaderProfileIndex: number | null = null;
 
   constructor(options: HttpCrawlFetcherOptions = {}) {
     this.random = options.random ?? Math.random;
     this.requestDelayMs = options.requestDelayMs ?? DEFAULT_REQUEST_DELAY_MS;
     this.sleep = options.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
+    this.curlFetch = options.curlFetch ?? defaultCurlFetch;
   }
 
   async fetchHtml(url: string, options: CrawlFetchOptions = {}): Promise<CrawlFetchResult> {
@@ -1278,18 +1286,23 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   private async fetchSingle(url: string, options: CrawlFetchOptions) {
     await this.waitBeforeRequest();
 
+    const headers = this.headersForRequest(options);
+
     try {
       const response = await axios.get(url, {
         timeout: 15000,
         maxRedirects: 5,
         responseType: 'text',
         transformResponse: [(data) => data],
-        headers: this.headersForRequest(options),
+        headers,
         signal: options.signal,
       });
 
       return responseToFetchResult(url, url, response);
     } catch (error) {
+      const fallback = await this.fetchWithCurlFallback(url, headers, options.signal, error);
+      if (fallback) return fallback;
+
       throw normalizeCrawlFetchError(url, error);
     }
   }
@@ -1319,6 +1332,9 @@ export class HttpCrawlFetcher implements CrawlFetcher {
           signal: options.signal,
         });
       } catch (error) {
+        const fallback = await this.fetchWithCurlFallback(currentUrl.toString(), headers, options.signal, error);
+        if (fallback) return fallback;
+
         throw normalizeCrawlFetchError(currentUrl.toString(), error);
       }
 
@@ -1338,6 +1354,22 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   private headersForRequest(options: CrawlFetchOptions) {
     this.lastHeaderProfileIndex = selectCrawlHeaderProfileIndex(this.random, this.lastHeaderProfileIndex);
     return headersForRequest(options, CRAWL_HEADER_PROFILES[this.lastHeaderProfileIndex] ?? DEFAULT_CRAWL_HEADERS);
+  }
+
+  private async fetchWithCurlFallback(
+    url: string,
+    headers: Record<string, string>,
+    signal: AbortSignal | undefined,
+    error: unknown,
+  ) {
+    if (!isAxiosForbiddenError(error)) return null;
+
+    try {
+      const result = await this.curlFetch(url, { headers, signal });
+      return result.status >= 200 && result.status < 400 ? result : null;
+    } catch {
+      return null;
+    }
   }
 
   private async waitBeforeRequest() {
@@ -1628,6 +1660,57 @@ function safeRandom(random: () => number) {
   return Number.isFinite(value) ? Math.max(0, Math.min(0.999999, value)) : 0;
 }
 
+function isAxiosForbiddenError(error: unknown) {
+  return axios.isAxiosError(error) && Number(error.response?.status) === 403;
+}
+
+async function defaultCurlFetch(url: string, options: { headers: Record<string, string>; signal?: AbortSignal }): Promise<CrawlFetchResult> {
+  const args = [
+    '--silent',
+    '--show-error',
+    '--location',
+    '--max-redirs',
+    '5',
+    '--connect-timeout',
+    '10',
+    '--max-time',
+    '20',
+    '--compressed',
+  ];
+
+  for (const [name, value] of Object.entries(options.headers)) {
+    args.push('-H', `${name}: ${value}`);
+  }
+
+  args.push('--write-out', `${CURL_META_MARKER}%{http_code}\t%{url_effective}\t%{content_type}`, url);
+
+  const { stdout } = await execFileAsync('curl', args, {
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024,
+    windowsHide: true,
+    signal: options.signal,
+  });
+
+  return parseCurlFetchOutput(url, String(stdout));
+}
+
+function parseCurlFetchOutput(url: string, output: string): CrawlFetchResult {
+  const markerIndex = output.lastIndexOf(CURL_META_MARKER);
+  if (markerIndex < 0) {
+    throw new Error(`curl fallback did not return metadata for ${url}`);
+  }
+
+  const html = output.slice(0, markerIndex);
+  const [statusText, finalUrl, contentType] = output.slice(markerIndex + CURL_META_MARKER.length).split('\t');
+
+  return {
+    url,
+    finalUrl: finalUrl || url,
+    html,
+    status: Number(statusText) || 0,
+    contentType: contentType || undefined,
+  };
+}
 function normalizeCrawlFetchError(url: string, error: unknown) {
   if (axios.isAxiosError(error) && error.response && isCloudflareChallengeResponse(error.response)) {
     return createCloudflareChallengeError(url, error.response);

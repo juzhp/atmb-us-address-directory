@@ -102,6 +102,9 @@ test('HTTP crawl fetcher reports Cloudflare challenge responses clearly', async 
   const fetcher = new HttpCrawlFetcher({
     random: () => 0,
     requestDelayMs: { min: 0, max: 0 },
+    curlFetch: async () => {
+      throw new Error('curl fallback unavailable');
+    },
   });
 
   try {
@@ -114,6 +117,51 @@ test('HTTP crawl fetcher reports Cloudflare challenge responses clearly', async 
   }
 });
 
+test('HTTP crawl fetcher retries once with curl after Axios returns 403', async () => {
+  const getMock = mock.method(axios, 'get', async () => {
+    throw {
+      isAxiosError: true,
+      response: {
+        status: 403,
+        statusText: 'Forbidden',
+        headers: {
+          'cf-mitigated': 'challenge',
+          server: 'cloudflare',
+          'content-type': 'text/html; charset=UTF-8',
+        },
+        data: '<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>',
+      },
+    };
+  });
+  const curlCalls: Array<{ url: string; headers: Record<string, string> }> = [];
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    curlFetch: async (url, options) => {
+      curlCalls.push({ url, headers: options.headers });
+
+      return {
+        url,
+        finalUrl: url,
+        html: '<html><title>Anytime Mailbox</title></html>',
+        status: 200,
+        contentType: 'text/html; charset=utf-8',
+      };
+    },
+  });
+
+  try {
+    const result = await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+
+    assert.equal(result.status, 200);
+    assert.match(result.html, /Anytime Mailbox/);
+    assert.equal(curlCalls.length, 1);
+    assert.equal(curlCalls[0]?.url, 'https://www.anytimemailbox.com/l/usa');
+    assert.ok(curlCalls[0]?.headers['User-Agent']);
+  } finally {
+    getMock.mock.restore();
+  }
+});
 test('reuses a successful Smarty result by anytime_url and never calls Smarty again', async () => {
   const harness = buildHarness([
     crawledAddress({
