@@ -40,6 +40,12 @@ export interface CrawlFetcher {
   fetchHtml(url: string, options?: CrawlFetchOptions): Promise<CrawlFetchResult>;
 }
 
+export interface HttpCrawlFetcherOptions {
+  random?: () => number;
+  requestDelayMs?: { min: number; max: number };
+  sleep?: (delayMs: number) => Promise<void>;
+}
+
 export interface SmartyCredentials {
   authId: string;
   authToken: string;
@@ -151,6 +157,22 @@ interface AddressCacheRow {
 }
 
 const DEFAULT_START_URL = 'https://www.anytimemailbox.com/l/usa';
+const DEFAULT_REQUEST_DELAY_MS = Object.freeze({ min: 200, max: 900 });
+const CRAWL_HEADER_PROFILES = Object.freeze([
+  DEFAULT_CRAWL_HEADERS,
+  Object.freeze({
+    ...DEFAULT_CRAWL_HEADERS,
+    'User-Agent':
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.7,zh;q=0.6',
+  }),
+  Object.freeze({
+    ...DEFAULT_CRAWL_HEADERS,
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
+    'Accept-Language': 'en-US,en;q=0.9',
+  }),
+]);
 const SMARTY_BATCH_LIMIT = 100;
 const SMARTY_BODY_LIMIT_BYTES = 32 * 1024;
 
@@ -1236,6 +1258,17 @@ export class CrawlPipeline {
 }
 
 export class HttpCrawlFetcher implements CrawlFetcher {
+  private readonly random: () => number;
+  private readonly requestDelayMs: { min: number; max: number };
+  private readonly sleep: (delayMs: number) => Promise<void>;
+  private lastHeaderProfileIndex: number | null = null;
+
+  constructor(options: HttpCrawlFetcherOptions = {}) {
+    this.random = options.random ?? Math.random;
+    this.requestDelayMs = options.requestDelayMs ?? DEFAULT_REQUEST_DELAY_MS;
+    this.sleep = options.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
+  }
+
   async fetchHtml(url: string, options: CrawlFetchOptions = {}): Promise<CrawlFetchResult> {
     return options.preserveRedirectCookies
       ? this.fetchWithRedirectCookies(url, options)
@@ -1243,16 +1276,22 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   }
 
   private async fetchSingle(url: string, options: CrawlFetchOptions) {
-    const response = await axios.get(url, {
-      timeout: 15000,
-      maxRedirects: 5,
-      responseType: 'text',
-      transformResponse: [(data) => data],
-      headers: headersForRequest(options),
-      signal: options.signal,
-    });
+    await this.waitBeforeRequest();
 
-    return responseToFetchResult(url, url, response);
+    try {
+      const response = await axios.get(url, {
+        timeout: 15000,
+        maxRedirects: 5,
+        responseType: 'text',
+        transformResponse: [(data) => data],
+        headers: this.headersForRequest(options),
+        signal: options.signal,
+      });
+
+      return responseToFetchResult(url, url, response);
+    } catch (error) {
+      throw normalizeCrawlFetchError(url, error);
+    }
   }
 
   private async fetchWithRedirectCookies(url: string, options: CrawlFetchOptions) {
@@ -1261,19 +1300,27 @@ export class HttpCrawlFetcher implements CrawlFetcher {
 
     for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
       const cookieHeader = createCookieHeader(cookieStore);
-      const headers = headersForRequest(options);
+      const headers = this.headersForRequest(options);
       if (cookieHeader) {
         headers.Cookie = headers.Cookie ? `${headers.Cookie}; ${cookieHeader}` : cookieHeader;
       }
-      const response = await axios.get(currentUrl.toString(), {
-        timeout: 15000,
-        maxRedirects: 0,
-        responseType: 'text',
-        transformResponse: [(data) => data],
-        validateStatus: (status) => status >= 200 && status < 400,
-        headers,
-        signal: options.signal,
-      });
+
+      await this.waitBeforeRequest();
+
+      let response;
+      try {
+        response = await axios.get(currentUrl.toString(), {
+          timeout: 15000,
+          maxRedirects: 0,
+          responseType: 'text',
+          transformResponse: [(data) => data],
+          validateStatus: (status) => status >= 200 && status < 400,
+          headers,
+          signal: options.signal,
+        });
+      } catch (error) {
+        throw normalizeCrawlFetchError(currentUrl.toString(), error);
+      }
 
       collectSetCookies(cookieStore, response.headers['set-cookie']);
 
@@ -1286,6 +1333,22 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     }
 
     throw new Error(`Too many redirects while fetching ${url}`);
+  }
+
+  private headersForRequest(options: CrawlFetchOptions) {
+    this.lastHeaderProfileIndex = selectCrawlHeaderProfileIndex(this.random, this.lastHeaderProfileIndex);
+    return headersForRequest(options, CRAWL_HEADER_PROFILES[this.lastHeaderProfileIndex] ?? DEFAULT_CRAWL_HEADERS);
+  }
+
+  private async waitBeforeRequest() {
+    const min = Math.max(0, this.requestDelayMs.min);
+    const max = Math.max(min, this.requestDelayMs.max);
+    if (max === 0) return;
+
+    const delayMs = Math.round(min + safeRandom(this.random) * (max - min));
+    if (delayMs > 0) {
+      await this.sleep(delayMs);
+    }
   }
 }
 
@@ -1537,9 +1600,9 @@ function extractHtmlTitle(html: string) {
   return normalizeText(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? 'no-title').slice(0, 120);
 }
 
-function headersForRequest(options: CrawlFetchOptions) {
+function headersForRequest(options: CrawlFetchOptions, profile: Record<string, string>) {
   const headers: Record<string, string> = {
-    ...DEFAULT_CRAWL_HEADERS,
+    ...profile,
     ...(options.headers ?? {}),
   };
 
@@ -1550,6 +1613,67 @@ function headersForRequest(options: CrawlFetchOptions) {
   return headers;
 }
 
+function selectCrawlHeaderProfileIndex(random: () => number, previousIndex: number | null) {
+  const total = CRAWL_HEADER_PROFILES.length;
+  if (total <= 1 || previousIndex === null) {
+    return Math.min(total - 1, Math.floor(safeRandom(random) * total));
+  }
+
+  const candidate = Math.floor(safeRandom(random) * (total - 1));
+  return candidate >= previousIndex ? candidate + 1 : candidate;
+}
+
+function safeRandom(random: () => number) {
+  const value = random();
+  return Number.isFinite(value) ? Math.max(0, Math.min(0.999999, value)) : 0;
+}
+
+function normalizeCrawlFetchError(url: string, error: unknown) {
+  if (axios.isAxiosError(error) && error.response && isCloudflareChallengeResponse(error.response)) {
+    return createCloudflareChallengeError(url, error.response);
+  }
+
+  return error;
+}
+
+function isCloudflareChallengeResponse(response: { status?: number; headers?: unknown; data?: unknown }) {
+  const cfMitigated = responseHeaderValue(response.headers, 'cf-mitigated')?.toLowerCase();
+  const server = responseHeaderValue(response.headers, 'server')?.toLowerCase() ?? '';
+  const html = typeof response.data === 'string' ? response.data : String(response.data ?? '');
+
+  return cfMitigated === 'challenge'
+    || (server.includes('cloudflare') && /Just a moment|challenges\.cloudflare\.com|cf_chl/i.test(html));
+}
+
+function createCloudflareChallengeError(url: string, response: { status?: number; headers?: unknown; data?: unknown }) {
+  const title = extractHtmlTitle(typeof response.data === 'string' ? response.data : String(response.data ?? ''));
+  const cfMitigated = responseHeaderValue(response.headers, 'cf-mitigated') ?? 'unknown';
+  const cfRay = responseHeaderValue(response.headers, 'cf-ray');
+
+  return new Error([
+    `Cloudflare challenge blocked ${url}`,
+    `status=${Number(response.status ?? 0)}`,
+    `cfMitigated=${cfMitigated}`,
+    cfRay ? `cfRay=${cfRay}` : null,
+    `title="${title}"`,
+  ].filter(Boolean).join(' '));
+}
+
+function responseHeaderValue(headers: unknown, name: string) {
+  if (!headers || typeof headers !== 'object') return undefined;
+
+  const maybeGetter = (headers as { get?: unknown }).get;
+  if (typeof maybeGetter === 'function') {
+    const value = maybeGetter.call(headers, name);
+    if (value !== undefined && value !== null) return String(value);
+  }
+
+  const record = headers as Record<string, unknown>;
+  const value = record[name] ?? record[name.toLowerCase()] ?? record[name.toUpperCase()];
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.join(', ');
+  return value === undefined || value === null ? undefined : String(value);
+}
 function responseToFetchResult(url: string, finalUrl: string, response: Pick<AxiosRequestConfig, 'headers'> & {
   data?: unknown;
   status?: number;

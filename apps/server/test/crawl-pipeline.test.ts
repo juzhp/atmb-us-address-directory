@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
 
 import { createDatabase, ensureDatabaseSchema, type DatabaseContext } from '@atmb/db';
 import axios from 'axios';
@@ -7,6 +7,7 @@ import axios from 'axios';
 import { resolveServerConfig } from '../src/auth/config.ts';
 import {
   CrawlPipeline,
+  HttpCrawlFetcher,
   HttpSmartyLookupClient,
   type CrawlFetcher,
   type CrawlFetchResult,
@@ -29,6 +30,89 @@ const testEnv = {
   SESSION_SECRET: 'test-session-secret-at-least-32-characters',
   WEB_ORIGIN: 'http://localhost:3000',
 };
+
+test('HTTP crawl fetcher varies request header profiles between requests', async () => {
+  const getMock = mock.method(axios, 'get', async (_url: string, _config: unknown) => ({
+    status: 200,
+    data: '<html></html>',
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  }));
+  const fetcher = new HttpCrawlFetcher({
+    random: randomSequence([0, 0]),
+    requestDelayMs: { min: 0, max: 0 },
+  });
+
+  try {
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+  } finally {
+    getMock.mock.restore();
+  }
+
+  const firstHeaders = getMock.mock.calls[0]?.arguments[1]?.headers as Record<string, string>;
+  const secondHeaders = getMock.mock.calls[1]?.arguments[1]?.headers as Record<string, string>;
+
+  assert.ok(firstHeaders);
+  assert.ok(secondHeaders);
+  assert.notEqual(firstHeaders['User-Agent'], secondHeaders['User-Agent']);
+  assert.equal(firstHeaders['Sec-Fetch-Mode'], 'navigate');
+  assert.equal(secondHeaders['Sec-Fetch-Mode'], 'navigate');
+});
+
+test('HTTP crawl fetcher waits a jittered delay before requests', async () => {
+  const delays: number[] = [];
+  const getMock = mock.method(axios, 'get', async (_url: string, _config: unknown) => ({
+    status: 200,
+    data: '<html></html>',
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  }));
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0.5,
+    requestDelayMs: { min: 100, max: 300 },
+    sleep: async (delayMs) => {
+      delays.push(delayMs);
+    },
+  });
+
+  try {
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+  } finally {
+    getMock.mock.restore();
+  }
+
+  assert.deepEqual(delays, [200]);
+});
+
+test('HTTP crawl fetcher reports Cloudflare challenge responses clearly', async () => {
+  const getMock = mock.method(axios, 'get', async () => {
+    throw {
+      isAxiosError: true,
+      response: {
+        status: 403,
+        statusText: 'Forbidden',
+        headers: {
+          'cf-mitigated': 'challenge',
+          server: 'cloudflare',
+          'content-type': 'text/html; charset=UTF-8',
+        },
+        data: '<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>',
+      },
+    };
+  });
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+  });
+
+  try {
+    await assert.rejects(
+      () => fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa'),
+      /Cloudflare challenge.*status=403.*title="Just a moment\.\.\."/,
+    );
+  } finally {
+    getMock.mock.restore();
+  }
+});
 
 test('reuses a successful Smarty result by anytime_url and never calls Smarty again', async () => {
   const harness = buildHarness([
@@ -825,6 +909,12 @@ test('calculates whether automatic system tasks are due from settings', () => {
     false,
   );
 });
+
+function randomSequence(values: number[]) {
+  let index = 0;
+
+  return () => values[Math.min(index++, values.length - 1)] ?? 0;
+}
 
 function buildHarness(addresses: CrawledAddressFixture[], smartyClient: SmartyLookupClient, options: {
   fetcher?: CrawlFetcher;
