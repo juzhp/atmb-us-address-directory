@@ -32,7 +32,13 @@ test('sitemap route lists current public SEO pages with production urls', async 
 
   assert.deepEqual(
     sitemap.map((entry) => entry.url),
-    [`${siteUrl}/`, `${siteUrl}/addresses`, `${siteUrl}/residential-addresses`],
+    [
+      `${siteUrl}/`,
+      `${siteUrl}/addresses`,
+      `${siteUrl}/residential-addresses`,
+      `${siteUrl}/guide/anytime-mailbox-tutorial`,
+      `${siteUrl}/guide/usps-form-1583`,
+    ],
   );
   assert.equal(sitemap[0].priority, 1);
   assert.equal(sitemap[1].changeFrequency, 'daily');

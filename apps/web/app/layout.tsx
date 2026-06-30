@@ -7,7 +7,7 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL('https://usaddres.com'),
   title: 'Anytime Mailbox住宅地址指南',
-  description: '美国真实住宅地址筛选指南。',
+  description: '筛选 Anytime Mailbox(ATMB) 美国真实私人住宅地址：RDI/CMRA、街景、价格一站筛查，适合美国信用卡与银行开户。',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

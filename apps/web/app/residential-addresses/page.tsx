@@ -25,19 +25,22 @@ import { SiteFooter, SiteHeader } from '../_components/SiteShell';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'Anytime Mailbox 住宅地址 | 美国真实住宅地址筛选',
+  title: '美国真实住宅地址（RDI Residential）| Anytime Mailbox 私人地址精选',
   description:
-    '浏览全站筛选出的 RDI Residential 地址候选。支持关键词搜索和 CMRA 筛选，帮助中文用户快速查找更接近美国真实住宅用途的 Anytime Mailbox 地址。',
+    '已默认过滤 RDI = Residential 的 Anytime Mailbox(ATMB) 美国住宅地址候选，再用 CMRA 与关键词二次筛选，帮你更快找到接近真实私人住宅、适合美国信用卡与银行开户的地址。',
   alternates: {
     canonical: '/residential-addresses',
   },
   keywords: [
     'Anytime Mailbox住宅地址',
+    'ATMB',
+    'anytimemailbox',
     '美国真实住宅地址',
+    '美国私人住宅地址',
     'Residential地址',
     'RDI Residential',
     'CMRA',
-    'Smarty地址验证',
+    '美国信用卡地址',
     '美国住宅地址租用',
   ],
 };
@@ -245,6 +248,16 @@ export default async function ResidentialAddressesPage({ searchParams }: Residen
               <div className="addresses-empty">
                 <strong>没有找到匹配住宅地址</strong>
                 <p>可以减少关键词，或清除 CMRA 筛选后重新搜索。</p>
+                <div className="addresses-empty-actions">
+                  <Link href={buildResidentialAddressesPageUrl(filters, { q: '', cmra: '', page: 1 })}>
+                    <RefreshCw size={15} aria-hidden="true" />
+                    清除全部筛选
+                  </Link>
+                  <a href="#residential-search-title">
+                    <Search size={15} aria-hidden="true" />
+                    重新搜索
+                  </a>
+                </div>
               </div>
             )}
             <nav className="addresses-pagination" aria-label="住宅地址列表分页">

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-type SiteNavKey = 'home' | 'addresses' | 'residential' | 'faq';
+type SiteNavKey = 'home' | 'addresses' | 'residential' | 'guide' | 'faq';
 
 function navClass(active: SiteNavKey, key: SiteNavKey) {
   return active === key ? 'site-nav-active' : undefined;
@@ -18,6 +18,19 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
           <a className="site-nav-recommend" href="/go/get-us-residential-address" rel="noreferrer" target="_blank">获得美国住宅地址</a>
           <Link className={navClass(active, 'addresses')} href="/addresses">所有地址</Link>
           <Link className={navClass(active, 'residential')} href="/residential-addresses">住宅地址</Link>
+          <div className="site-nav-group">
+            <Link
+              className={navClass(active, 'guide')}
+              href="/guide/anytime-mailbox-tutorial"
+              aria-haspopup="menu"
+            >
+              教程
+            </Link>
+            <div className="site-nav-dropdown" role="menu" aria-label="教程">
+              <Link role="menuitem" href="/guide/anytime-mailbox-tutorial">Anytime Mailbox 注册教程</Link>
+              <Link role="menuitem" href="/guide/usps-form-1583">USPS Form 1583 公证教程</Link>
+            </div>
+          </div>
           <Link className={navClass(active, 'faq')} href={active === 'home' ? '#faq' : '/#faq'}>FAQ</Link>
           <a className="site-github-link" href="https://github.com/juzhp/atmb-us-address-directory" rel="noreferrer" target="_blank" aria-label="GitHub">
             <GitHubMark />
@@ -42,6 +55,8 @@ export function SiteFooter() {
         <nav aria-label="页脚导航">
           <Link href="/addresses">所有地址</Link>
           <Link href="/residential-addresses">住宅地址</Link>
+          <Link href="/guide/anytime-mailbox-tutorial">注册教程</Link>
+          <Link href="/guide/usps-form-1583">1583 公证</Link>
           <Link href="/#faq">FAQ</Link>
         </nav>
       </div>

@@ -53,7 +53,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   const settingsService = new SettingsService(database, config, options.smartyClient, options.proxyTester);
   settingsService.ensureDefaultSettings();
   const taskService = new TaskService(database);
-  taskService.recoverInterruptedTasks();
+  const resumeTaskIds = taskService.recoverInterruptedTasks();
   const crawlPipeline = new CrawlPipeline({
     database,
     taskService,
@@ -63,6 +63,11 @@ export async function createServer(options: CreateServerOptions = {}) {
   });
   const taskExecutionDisabled = options.disableTaskExecution ?? config.nodeEnv === 'test';
   const taskExecutor = taskExecutionDisabled ? null : new QueuedTaskExecutor(crawlPipeline);
+  if (taskExecutor) {
+    for (const taskId of resumeTaskIds) {
+      void taskExecutor.enqueue(taskId);
+    }
+  }
   const taskScheduler = taskExecutor && !options.disableScheduler
     ? new TaskScheduler(settingsService, taskService, taskExecutor)
     : null;
