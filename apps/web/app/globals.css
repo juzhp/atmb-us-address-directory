@@ -1903,6 +1903,109 @@ a {
 .settings-card-actions .primary:hover {
   background: var(--teal-dark);
 }
+.proxy-form-grid {
+  align-items: start;
+}
+
+.proxy-table-wrap {
+  overflow-x: auto;
+}
+
+.proxy-table {
+  min-width: 980px;
+  table-layout: fixed;
+}
+
+.proxy-table th:nth-child(1),
+.proxy-table td:nth-child(1) {
+  width: 30%;
+}
+
+.proxy-table th:nth-child(2),
+.proxy-table td:nth-child(2) {
+  width: 110px;
+}
+
+.proxy-table th:nth-child(3),
+.proxy-table td:nth-child(3) {
+  width: 32%;
+}
+
+.proxy-table th:nth-child(4),
+.proxy-table td:nth-child(4) {
+  width: 14%;
+}
+
+.proxy-table th:nth-child(5),
+.proxy-table td:nth-child(5) {
+  width: 210px;
+}
+
+.proxy-table td {
+  vertical-align: top;
+}
+
+.proxy-table td strong {
+  max-width: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.proxy-table td > span:not(.settings-badge) {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.proxy-table td:nth-child(4) {
+  overflow-wrap: anywhere;
+}
+
+.proxy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.proxy-actions button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(5, 127, 147, 0.22);
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--teal-dark);
+  background: #eef8fa;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.proxy-actions button:hover {
+  border-color: rgba(5, 127, 147, 0.38);
+  background: #e2f4f7;
+}
+
+.proxy-actions button.danger {
+  border-color: rgba(166, 58, 58, 0.22);
+  color: #a63a3a;
+  background: var(--red-soft);
+}
+
+.proxy-empty {
+  min-height: 88px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: #fbfeff;
+  font-size: 13px;
+  font-weight: 900;
+}
 
 .frequency-options {
   display: grid;

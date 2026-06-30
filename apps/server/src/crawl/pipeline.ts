@@ -1,4 +1,4 @@
-﻿import axios, { type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import type { DatabaseContext } from '@atmb/db';
 import { execFile } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -1296,7 +1296,7 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     const proxy = this.proxyProvider();
 
     try {
-      const response = await axios.get(url, {
+      const response = await this.axiosGetWithNetworkRetry(url, {
         timeout: 15000,
         maxRedirects: 5,
         responseType: 'text',
@@ -1331,7 +1331,7 @@ export class HttpCrawlFetcher implements CrawlFetcher {
 
       let response;
       try {
-        response = await axios.get(currentUrl.toString(), {
+        response = await this.axiosGetWithNetworkRetry(currentUrl.toString(), {
           timeout: 15000,
           maxRedirects: 0,
           responseType: 'text',
@@ -1366,6 +1366,14 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     return headersForRequest(options, CRAWL_HEADER_PROFILES[this.lastHeaderProfileIndex] ?? DEFAULT_CRAWL_HEADERS);
   }
 
+  private async axiosGetWithNetworkRetry(url: string, config: AxiosRequestConfig) {
+    try {
+      return await axios.get(url, config);
+    } catch (error) {
+      if (!isRetryableNetworkError(error)) throw error;
+      return axios.get(url, config);
+    }
+  }
   private async fetchWithCurlFallback(
     url: string,
     headers: Record<string, string>,
@@ -1677,6 +1685,12 @@ function safeRandom(random: () => number) {
 
 function isAxiosForbiddenError(error: unknown) {
   return axios.isAxiosError(error) && Number(error.response?.status) === 403;
+}
+
+function isRetryableNetworkError(error: unknown) {
+  if (!axios.isAxiosError(error)) return false;
+  const code = error.code ?? (error.cause as { code?: unknown } | undefined)?.code;
+  return code === 'ECONNRESET';
 }
 
 async function defaultCurlFetch(url: string, options: { headers: Record<string, string>; proxy?: CrawlProxy | null; signal?: AbortSignal }): Promise<CrawlFetchResult> {
