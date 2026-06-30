@@ -26,20 +26,23 @@ import { SiteFooter, SiteHeader } from '../_components/SiteShell';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: '所有 Anytime Mailbox 地址 | 美国住宅地址筛选',
+  title: 'Anytime Mailbox 美国地址大全 | 按州搜索 RDI/CMRA/价格筛选住宅地址',
   description:
-    '浏览和搜索全站收录的 Anytime Mailbox 美国地址数据。支持关键词搜索、州筛选、RDI、CMRA 与价格筛选，帮助中文用户快速缩小美国真实住宅地址租用候选范围。',
+    '浏览并搜索全站收录的 Anytime Mailbox(ATMB) 美国地址：支持城市/州/ZIP/街道关键词、州筛选、RDI、CMRA 与价格区间，快速缩小美国真实住宅地址候选，配合街景与每日更新数据，挑选适合美国信用卡与银行开户的地址。',
   alternates: {
     canonical: '/addresses',
   },
   keywords: [
     'Anytime Mailbox 地址',
-    '所有美国地址',
-    '美国住宅地址筛选',
-    '美国地址搜索',
+    'ATMB',
+    'anytimemailbox',
+    '美国地址查询',
+    '美国地址大全',
+    '按州筛选美国地址',
     'RDI Residential',
     'CMRA',
-    'Smarty 地址验证',
+    '美国住宅地址搜索',
+    '美国信用卡地址',
     '美国地址价格',
   ],
 };

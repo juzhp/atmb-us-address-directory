@@ -28,24 +28,29 @@ import { getPublicHeadCode } from './_lib/public-head-code';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: 'Anytime Mailbox住宅地址指南 | 筛选美国真实住宅地址',
+  title: '美国住宅地址筛选工具 | Anytime Mailbox(ATMB) 真实私人地址 RDI/CMRA 一键查',
   description:
-    '基于 Anytime Mailbox 地址数据，结合 Smarty RDI/CMRA、Google Maps 街景跳转、价格、ZIP 与邮箱编号范围，帮助中文用户筛选美国真实住宅地址租用候选。',
+    '手动逐个用 USPS/Smarty 查 RDI/CMRA 要一个多小时？本站已批量筛好 Anytime Mailbox(ATMB) 美国真实私人住宅地址：按 RDI Residential、CMRA No、街景、价格、邮箱编号范围快速避开商业与 CMRA 地址，找到适合美国信用卡、银行开户、公司注册的地址。数据每日更新。',
   alternates: {
     canonical: '/',
   },
   keywords: [
-    '美国真实住宅地址',
-    'Anytime Mailbox住宅地址',
-    '美国住宅地址租用',
+    '美国住宅地址',
+    '美国私人地址',
+    '美国真实地址',
+    'Anytime Mailbox',
+    'ATMB',
+    'anytimemailbox',
+    '美国虚拟地址',
     'RDI Residential',
     'CMRA',
-    'Smarty地址验证',
-    'Google Maps街景',
+    '美国信用卡地址',
+    '美国银行开户地址',
+    '美国地址筛选',
   ],
   openGraph: {
-    title: 'Anytime Mailbox住宅地址指南',
-    description: '通过 RDI、CMRA、街景、价格和邮箱编号范围筛选美国真实住宅地址。',
+    title: '美国住宅地址筛选工具 | Anytime Mailbox(ATMB) 真实私人地址',
+    description: '已批量筛好 RDI Residential / CMRA No 的 Anytime Mailbox 美国真实住宅地址，省去逐个查询，适合美国信用卡与银行开户。',
     type: 'website',
     locale: 'zh_CN',
     images: [
@@ -59,8 +64,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Anytime Mailbox住宅地址指南',
-    description: '筛选美国真实住宅地址的第三方研究工具。',
+    title: '美国住宅地址筛选工具 | Anytime Mailbox(ATMB)',
+    description: '已批量筛好 RDI Residential / CMRA No 的美国真实住宅地址，适合美国信用卡与银行开户的第三方筛选工具。',
     images: ['/assets/home/hero-residential-map-v4.png'],
   },
 };
@@ -203,8 +208,8 @@ export default async function HomePage() {
               辅助筛选美国真实住宅地址
             </h1>
             <p className="home-hero-lede">
-              基于 Anytime Mailbox 地址数据，结合 Smarty 返回的 RDI 与 CMRA 字段、Google Maps 街景跳转、
-              价格、ZIP 与邮箱编号范围，帮助中文用户更快缩小美国住宅地址租用候选范围。
+              手动逐个用 USPS / Smarty 核对 RDI、CMRA 往往要一个多小时。本站已批量筛好 Anytime Mailbox(ATMB) 美国真实住宅地址，
+              结合 RDI Residential、CMRA No、Google Maps 街景、价格与邮箱编号范围，帮你几秒缩小适合美国信用卡与银行开户的候选。
             </p>
             <div className="home-proof-list" aria-label="核心判断维度">
               <span><span className="home-proof-icon"><CheckCircle2 size={15} aria-hidden="true" /></span>RDI 区分 Residential / Commercial</span>
