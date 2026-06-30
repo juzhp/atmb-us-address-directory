@@ -38,6 +38,19 @@ const updateScheduleSchema = z.object({
 const headCodeSchema = z.object({
   headCode: z.string(),
 });
+const proxySchema = z.object({
+  url: z.string().trim().min(1).optional(),
+  note: z.string().nullable().optional(),
+  isActive: z.boolean().optional(),
+});
+
+const createProxySchema = proxySchema.extend({
+  url: z.string().trim().min(1),
+});
+
+const proxyIdSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
 
 export function registerSettingsRoutes(app: FastifyInstance, settingsService: SettingsService) {
   app.get('/api/admin/settings', async (request, reply) => {
@@ -69,6 +82,88 @@ export function registerSettingsRoutes(app: FastifyInstance, settingsService: Se
     }
   });
 
+
+  app.get('/api/admin/settings/proxies', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return reply;
+    return { items: settingsService.listProxies() };
+  });
+
+  app.post('/api/admin/settings/proxies', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return reply;
+    const parsed = createProxySchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ message: '代理字段不正确' });
+    }
+
+    try {
+      return { item: settingsService.createProxy(parsed.data) };
+    } catch (error) {
+      if (error instanceof Error && (error.message === 'INVALID_PROXY_URL' || error.message === 'UNSUPPORTED_PROXY_PROTOCOL')) {
+        return reply.code(400).send({ message: '代理地址仅支持 HTTP/HTTPS host:port 格式' });
+      }
+      throw error;
+    }
+  });
+
+  app.patch('/api/admin/settings/proxies/:id', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return reply;
+    const params = proxyIdSchema.safeParse(request.params);
+    const parsed = proxySchema.safeParse(request.body);
+
+    if (!params.success || !parsed.success) {
+      return reply.code(400).send({ message: '代理字段不正确' });
+    }
+
+    try {
+      return { item: settingsService.updateProxy(params.data.id, parsed.data) };
+    } catch (error) {
+      if (error instanceof Error && error.message === 'PROXY_NOT_FOUND') {
+        return reply.code(404).send({ message: '代理不存在' });
+      }
+      if (error instanceof Error && (error.message === 'INVALID_PROXY_URL' || error.message === 'UNSUPPORTED_PROXY_PROTOCOL')) {
+        return reply.code(400).send({ message: '代理地址仅支持 HTTP/HTTPS host:port 格式' });
+      }
+      throw error;
+    }
+  });
+
+  app.delete('/api/admin/settings/proxies/:id', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return reply;
+    const params = proxyIdSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ message: '代理 ID 不正确' });
+    }
+
+    try {
+      settingsService.deleteProxy(params.data.id);
+      return reply.code(204).send();
+    } catch (error) {
+      if (error instanceof Error && error.message === 'PROXY_NOT_FOUND') {
+        return reply.code(404).send({ message: '代理不存在' });
+      }
+      throw error;
+    }
+  });
+
+  app.post('/api/admin/settings/proxies/:id/test', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return reply;
+    const params = proxyIdSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ message: '代理 ID 不正确' });
+    }
+
+    try {
+      return { item: await settingsService.testProxy(params.data.id) };
+    } catch (error) {
+      if (error instanceof Error && error.message === 'PROXY_NOT_FOUND') {
+        return reply.code(404).send({ message: '代理不存在' });
+      }
+      throw error;
+    }
+  });
   app.patch('/api/admin/settings/update-schedule', async (request, reply) => {
     if (!requireAdmin(request, reply)) return reply;
     const parsed = updateScheduleSchema.safeParse(request.body);

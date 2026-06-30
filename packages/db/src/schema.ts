@@ -276,6 +276,30 @@ export const crawlDiscoveredAddresses = sqliteTable(
   ],
 );
 
+export const proxyLibrary = sqliteTable(
+  'proxy_library',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    url: text('url').notNull(),
+    note: text('note'),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+    lastTestStatus: text('last_test_status', {
+      enum: ['not_tested', 'success', 'failed'],
+    }).notNull().default('not_tested'),
+    lastTestMessage: text('last_test_message'),
+    lastTestSampleAddress: text('last_test_sample_address'),
+    lastTestedAt: text('last_tested_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('proxy_library_url_unique').on(table.url),
+    index('proxy_library_active_idx').on(table.isActive),
+    index('proxy_library_test_status_idx').on(table.lastTestStatus),
+    check('proxy_library_test_status_check', sql`${table.lastTestStatus} IN ('not_tested', 'success', 'failed')`),
+  ],
+);
+
 export const systemSettings = sqliteTable(
   'system_settings',
   {

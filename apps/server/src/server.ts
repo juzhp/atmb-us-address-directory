@@ -16,7 +16,7 @@ import { seedDevelopmentAddresses } from './addresses/seed.js';
 import { AddressService } from './addresses/service.js';
 import { CrawlPipeline, type CrawlFetcher, type SmartyLookupClient } from './crawl/pipeline.js';
 import { registerSettingsRoutes } from './settings/routes.js';
-import { SettingsService, type SmartyClient } from './settings/service.js';
+import { SettingsService, type ProxyTester, type SmartyClient } from './settings/service.js';
 import { QueuedTaskExecutor } from './tasks/executor.js';
 import { registerTaskRoutes } from './tasks/routes.js';
 import { TaskScheduler } from './tasks/scheduler.js';
@@ -28,6 +28,7 @@ export interface CreateServerOptions {
   env?: Record<string, string | undefined>;
   logger?: FastifyServerOptions['logger'];
   smartyClient?: SmartyClient;
+  proxyTester?: ProxyTester;
   smartyLookupClient?: SmartyLookupClient;
   crawlFetcher?: CrawlFetcher;
   disableTaskExecution?: boolean;
@@ -49,7 +50,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     seedDevelopmentTasks(database);
   }
   const addressService = new AddressService(database);
-  const settingsService = new SettingsService(database, config, options.smartyClient);
+  const settingsService = new SettingsService(database, config, options.smartyClient, options.proxyTester);
   settingsService.ensureDefaultSettings();
   const taskService = new TaskService(database);
   taskService.recoverInterruptedTasks();

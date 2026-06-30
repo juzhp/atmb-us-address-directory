@@ -251,6 +251,23 @@ export function ensureDatabaseSchema(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS crawl_discovered_imported_address_idx
       ON crawl_discovered_addresses (imported_address_id);
 
+
+    CREATE TABLE IF NOT EXISTS proxy_library (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      url TEXT NOT NULL UNIQUE,
+      note TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      last_test_status TEXT NOT NULL DEFAULT 'not_tested'
+        CHECK (last_test_status IN ('not_tested', 'success', 'failed')),
+      last_test_message TEXT,
+      last_test_sample_address TEXT,
+      last_tested_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS proxy_library_active_idx ON proxy_library (is_active);
+    CREATE INDEX IF NOT EXISTS proxy_library_test_status_idx ON proxy_library (last_test_status);
     CREATE TABLE IF NOT EXISTS system_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       smarty_auth_id TEXT NOT NULL DEFAULT '',

@@ -162,6 +162,36 @@ test('HTTP crawl fetcher retries once with curl after Axios returns 403', async 
     getMock.mock.restore();
   }
 });
+test('HTTP crawl fetcher applies a random active proxy to Axios requests', async () => {
+  const configs: unknown[] = [];
+  const getMock = mock.method(axios, 'get', async (_url: string, config: unknown) => {
+    configs.push(config);
+    return {
+      status: 200,
+      data: '<html></html>',
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    };
+  });
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    proxyProvider: () => ({ id: 1, url: 'http://user:pass@127.0.0.1:8080' }),
+  });
+
+  try {
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+  } finally {
+    getMock.mock.restore();
+  }
+
+  const proxy = (configs[0] as { proxy?: { protocol?: string; host?: string; port?: number; auth?: { username: string; password: string } } }).proxy;
+  assert.deepEqual(proxy, {
+    protocol: 'http',
+    host: '127.0.0.1',
+    port: 8080,
+    auth: { username: 'user', password: 'pass' },
+  });
+});
 test('reuses a successful Smarty result by anytime_url and never calls Smarty again', async () => {
   const harness = buildHarness([
     crawledAddress({

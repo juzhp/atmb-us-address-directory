@@ -20,12 +20,16 @@ async function buildTestServer(options: {
   smartyClient?: {
     testConnection: (credentials: { authId: string; authToken: string }) => Promise<{ ok: boolean; message?: string }>;
   };
+  proxyTester?: {
+    testProxy: (proxy: { id: number; url: string; note: string | null; isActive: boolean }) => Promise<{ ok: boolean; message?: string; sampleAddress?: string }>;
+  };
 } = {}) {
   const app = await createServer({
     databaseUrl: options.databaseUrl ?? ':memory:',
     env: testEnv,
     logger: false,
     smartyClient: options.smartyClient,
+    proxyTester: options.proxyTester,
   });
 
   await app.ready();
@@ -217,4 +221,84 @@ test('validates update schedule and saves head code', async (t) => {
     characterCount: 71,
     warnings: [],
   });
+});
+
+test('manages proxy library entries and records proxy test result', async (t) => {
+  const tested: Array<{ url: string; isActive: boolean }> = [];
+  const app = await buildTestServer({
+    proxyTester: {
+      async testProxy(proxy) {
+        tested.push({ url: proxy.url, isActive: proxy.isActive });
+        return { ok: true, message: 'Parsed 1 address from Texas', sampleAddress: 'Austin, TX 78701' };
+      },
+    },
+  });
+  t.after(() => app.close());
+  const cookie = await loginCookie(app);
+
+  const createResponse = await app.inject({
+    method: 'POST',
+    url: '/api/admin/settings/proxies',
+    headers: { cookie },
+    payload: {
+      url: '127.0.0.1:8080',
+      note: 'primary pool',
+    },
+  });
+
+  assert.equal(createResponse.statusCode, 200);
+  const created = createResponse.json().item;
+  assert.equal(created.url, 'http://127.0.0.1:8080');
+  assert.equal(created.note, 'primary pool');
+  assert.equal(created.isActive, true);
+
+  const updateResponse = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/settings/proxies/${created.id}`,
+    headers: { cookie },
+    payload: {
+      isActive: false,
+      note: 'paused for now',
+    },
+  });
+
+  assert.equal(updateResponse.statusCode, 200);
+  assert.equal(updateResponse.json().item.isActive, false);
+  assert.equal(updateResponse.json().item.note, 'paused for now');
+
+  const testResponse = await app.inject({
+    method: 'POST',
+    url: `/api/admin/settings/proxies/${created.id}/test`,
+    headers: { cookie },
+  });
+
+  assert.equal(testResponse.statusCode, 200);
+  assert.deepEqual(tested, [{ url: 'http://127.0.0.1:8080', isActive: false }]);
+  assert.equal(testResponse.json().item.lastTestStatus, 'success');
+  assert.equal(testResponse.json().item.lastTestMessage, 'Parsed 1 address from Texas');
+  assert.equal(testResponse.json().item.lastTestSampleAddress, 'Austin, TX 78701');
+
+  const listResponse = await app.inject({
+    method: 'GET',
+    url: '/api/admin/settings/proxies',
+    headers: { cookie },
+  });
+
+  assert.equal(listResponse.statusCode, 200);
+  assert.equal(listResponse.json().items.length, 1);
+
+  const deleteResponse = await app.inject({
+    method: 'DELETE',
+    url: `/api/admin/settings/proxies/${created.id}`,
+    headers: { cookie },
+  });
+
+  assert.equal(deleteResponse.statusCode, 204);
+
+  const emptyResponse = await app.inject({
+    method: 'GET',
+    url: '/api/admin/settings/proxies',
+    headers: { cookie },
+  });
+  assert.deepEqual(emptyResponse.json().items, []);
 });

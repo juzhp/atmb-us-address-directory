@@ -1,6 +1,9 @@
 'use client';
 
 import type {
+  AdminProxyListItem,
+  AdminProxyListResponse,
+  AdminProxyResponse,
   AdminSystemSettings,
   AdminSystemSettingsResponse,
   HeadCodeCheckResponse,
@@ -10,6 +13,9 @@ import type {
 import {
   CheckCircle2,
   Code2,
+  Plus,
+  Power,
+  Trash2,
   RefreshCw,
   Save,
   Settings,
@@ -32,6 +38,11 @@ export function SystemSettings() {
     remainingCredits: '',
     monthlyUsed: '',
   });
+  const [proxies, setProxies] = useState<AdminProxyListItem[]>([]);
+  const [proxyForm, setProxyForm] = useState({
+    url: '',
+    note: '',
+  });
   const [scheduleForm, setScheduleForm] = useState({
     autoUpdateEnabled: true,
     updateFrequencyDays: '1',
@@ -48,6 +59,8 @@ export function SystemSettings() {
     startTransition(loadSettings);
   }, []);
 
+  const activeProxyCount = proxies.filter((proxy) => proxy.isActive).length;
+
   const updateLabel = useMemo(() => {
     if (!settings?.autoUpdateEnabled || !settings.updateFrequencyDays) {
       return '不更新';
@@ -56,17 +69,19 @@ export function SystemSettings() {
   }, [settings]);
 
   async function loadSettings() {
-    const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/settings`, {
-      credentials: 'include',
-    });
+    const [settingsResponse, proxiesResponse] = await Promise.all([
+      fetch(`${PUBLIC_API_BASE_URL}/api/admin/settings`, { credentials: 'include' }),
+      fetch(`${PUBLIC_API_BASE_URL}/api/admin/settings/proxies`, { credentials: 'include' }),
+    ]);
 
-    if (!response.ok) {
+    if (!settingsResponse.ok || !proxiesResponse.ok) {
       setLoadError('加载系统设置失败');
       return;
     }
 
     setLoadError('');
-    applySettings(((await response.json()) as AdminSystemSettingsResponse).settings);
+    applySettings(((await settingsResponse.json()) as AdminSystemSettingsResponse).settings);
+    setProxies(((await proxiesResponse.json()) as AdminProxyListResponse).items);
   }
 
   function applySettings(next: AdminSystemSettings) {
@@ -132,6 +147,91 @@ export function SystemSettings() {
     });
   }
 
+
+  function createProxy(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    startTransition(async () => {
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/settings/proxies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          url: proxyForm.url,
+          note: proxyForm.note || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        showToast(body?.message ?? '保存代理失败', 'error');
+        return;
+      }
+
+      const body = (await response.json()) as AdminProxyResponse;
+      setProxies((current) => [body.item, ...current]);
+      setProxyForm({ url: '', note: '' });
+      showToast('代理已添加', 'success');
+    });
+  }
+
+  function updateProxy(proxy: AdminProxyListItem, input: Partial<Pick<AdminProxyListItem, 'url' | 'note' | 'isActive'>>) {
+    startTransition(async () => {
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/settings/proxies/${proxy.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(input),
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        showToast(body?.message ?? '更新代理失败', 'error');
+        return;
+      }
+
+      const body = (await response.json()) as AdminProxyResponse;
+      setProxies((current) => current.map((item) => (item.id === body.item.id ? body.item : item)));
+      showToast(body.item.isActive ? '代理已启用' : '代理已暂停', 'success');
+    });
+  }
+
+  function testProxy(proxy: AdminProxyListItem) {
+    startTransition(async () => {
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/settings/proxies/${proxy.id}/test`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        showToast(body?.message ?? '测试代理失败', 'error');
+        return;
+      }
+
+      const body = (await response.json()) as AdminProxyResponse;
+      setProxies((current) => current.map((item) => (item.id === body.item.id ? body.item : item)));
+      showToast(body.item.lastTestStatus === 'success' ? '代理测试通过' : '代理测试失败', body.item.lastTestStatus === 'success' ? 'success' : 'error');
+    });
+  }
+
+  function deleteProxy(proxy: AdminProxyListItem) {
+    if (!window.confirm(`删除代理 ${proxy.url}？`)) return;
+
+    startTransition(async () => {
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/settings/proxies/${proxy.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        showToast('删除代理失败', 'error');
+        return;
+      }
+
+      setProxies((current) => current.filter((item) => item.id !== proxy.id));
+      showToast('代理已删除', 'success');
+    });
+  }
   function saveSchedule(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     startTransition(async () => {
@@ -314,7 +414,101 @@ export function SystemSettings() {
         </div>
       </form>
 
-      <form className="settings-card" onSubmit={saveSchedule}>
+
+      <form className="settings-card" onSubmit={createProxy}>
+        <div className="settings-card-head">
+          <div>
+            <h2>代理库</h2>
+            <p>除同步 Smarty 外，抓取任务会从启用的代理中随机选择一个发起 ATMB 请求。</p>
+          </div>
+          <span className={`settings-badge ${activeProxyCount > 0 ? 'connected' : 'not_configured'}`}>
+            {activeProxyCount > 0 ? `${activeProxyCount} 个启用` : '未启用'}
+          </span>
+        </div>
+        <div className="settings-card-body">
+          <div className="settings-form-grid proxy-form-grid">
+            <label>
+              <span>代理地址</span>
+              <input
+                value={proxyForm.url}
+                onChange={(event) => setProxyForm((current) => ({ ...current, url: event.target.value }))}
+                placeholder="http://user:pass@host:port"
+              />
+              <small>支持 HTTP/HTTPS；只填 host:port 时默认按 HTTP 保存。</small>
+            </label>
+            <label>
+              <span>备注</span>
+              <input
+                value={proxyForm.note}
+                onChange={(event) => setProxyForm((current) => ({ ...current, note: event.target.value }))}
+                placeholder="用途、来源、有效期"
+              />
+            </label>
+          </div>
+          <div className="settings-card-actions">
+            <button className="primary" disabled={isPending || !proxyForm.url.trim()} type="submit">
+              <Plus size={16} aria-hidden="true" />
+              添加代理
+            </button>
+          </div>
+
+          <div className="proxy-table-wrap">
+            {proxies.length ? (
+              <table className="admin-address-table proxy-table">
+                <thead>
+                  <tr>
+                    <th>代理</th>
+                    <th>状态</th>
+                    <th>测试</th>
+                    <th>备注</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proxies.map((proxy) => (
+                    <tr key={proxy.id}>
+                      <td>
+                        <strong>{proxy.url}</strong>
+                        <span>更新：{formatDateTime(proxy.updatedAt)}</span>
+                      </td>
+                      <td>
+                        <span className={`settings-badge ${proxy.isActive ? 'connected' : 'not_configured'}`}>
+                          {proxy.isActive ? '启用中' : '已暂停'}
+                        </span>
+                      </td>
+                      <td>
+                        <strong>{proxyTestLabel(proxy.lastTestStatus)}</strong>
+                        <span>{proxy.lastTestMessage ?? '尚未测试'}</span>
+                        {proxy.lastTestSampleAddress ? <span>{proxy.lastTestSampleAddress}</span> : null}
+                        {proxy.lastTestedAt ? <span>{formatDateTime(proxy.lastTestedAt)}</span> : null}
+                      </td>
+                      <td>{proxy.note || '-'}</td>
+                      <td>
+                        <div className="proxy-actions">
+                          <button disabled={isPending} type="button" onClick={() => testProxy(proxy)}>
+                            <RefreshCw size={15} aria-hidden="true" />
+                            测试
+                          </button>
+                          <button disabled={isPending} type="button" onClick={() => updateProxy(proxy, { isActive: !proxy.isActive })}>
+                            <Power size={15} aria-hidden="true" />
+                            {proxy.isActive ? '暂停' : '启用'}
+                          </button>
+                          <button className="danger" disabled={isPending} type="button" onClick={() => deleteProxy(proxy)}>
+                            <Trash2 size={15} aria-hidden="true" />
+                            删除
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="proxy-empty">暂无代理</div>
+            )}
+          </div>
+        </div>
+      </form>      <form className="settings-card" onSubmit={saveSchedule}>
         <div className="settings-card-head">
           <div>
             <h2>更新设置</h2>
@@ -453,6 +647,11 @@ function numberOrNull(value: string) {
   return trimmed ? Number(trimmed) : null;
 }
 
+function proxyTestLabel(status: AdminProxyListItem['lastTestStatus']) {
+  if (status === 'success') return '测试通过';
+  if (status === 'failed') return '测试失败';
+  return '尚未测试';
+}
 function connectionLabel(status: AdminSystemSettings['smartyConnectionStatus']) {
   if (status === 'connected') return '已连接';
   if (status === 'failed') return '连接失败';

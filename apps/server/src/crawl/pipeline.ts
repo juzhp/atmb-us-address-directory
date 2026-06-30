@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { AddressCmra, AddressRdi, AdminSubtaskType } from '@atmb/shared';
 
+import { proxyUrlToAxiosProxy, type CrawlProxy } from '../proxy.js';
 import type { SettingsService } from '../settings/service.js';
 import type { TaskService } from '../tasks/service.js';
 import {
@@ -46,7 +47,8 @@ export interface HttpCrawlFetcherOptions {
   random?: () => number;
   requestDelayMs?: { min: number; max: number };
   sleep?: (delayMs: number) => Promise<void>;
-  curlFetch?: (url: string, options: { headers: Record<string, string>; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
+  curlFetch?: (url: string, options: { headers: Record<string, string>; proxy?: CrawlProxy | null; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
+  proxyProvider?: () => CrawlProxy | null;
 }
 
 export interface SmartyCredentials {
@@ -189,7 +191,9 @@ export class CrawlPipeline {
   private readonly concurrency: number;
 
   constructor(private readonly options: CrawlPipelineOptions) {
-    this.fetcher = options.fetcher ?? new HttpCrawlFetcher();
+    this.fetcher = options.fetcher ?? new HttpCrawlFetcher({
+      proxyProvider: () => options.settingsService.getRandomActiveProxy(),
+    });
     this.smartyClient = options.smartyClient ?? new HttpSmartyLookupClient();
     this.startUrl = options.startUrl ?? DEFAULT_START_URL;
     this.concurrency = Math.max(1, options.concurrency ?? 2);
@@ -1267,7 +1271,8 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   private readonly random: () => number;
   private readonly requestDelayMs: { min: number; max: number };
   private readonly sleep: (delayMs: number) => Promise<void>;
-  private readonly curlFetch: (url: string, options: { headers: Record<string, string>; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
+  private readonly curlFetch: (url: string, options: { headers: Record<string, string>; proxy?: CrawlProxy | null; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
+  private readonly proxyProvider: () => CrawlProxy | null;
   private lastHeaderProfileIndex: number | null = null;
 
   constructor(options: HttpCrawlFetcherOptions = {}) {
@@ -1275,6 +1280,7 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     this.requestDelayMs = options.requestDelayMs ?? DEFAULT_REQUEST_DELAY_MS;
     this.sleep = options.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
     this.curlFetch = options.curlFetch ?? defaultCurlFetch;
+    this.proxyProvider = options.proxyProvider ?? (() => null);
   }
 
   async fetchHtml(url: string, options: CrawlFetchOptions = {}): Promise<CrawlFetchResult> {
@@ -1287,6 +1293,7 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     await this.waitBeforeRequest();
 
     const headers = this.headersForRequest(options);
+    const proxy = this.proxyProvider();
 
     try {
       const response = await axios.get(url, {
@@ -1295,12 +1302,13 @@ export class HttpCrawlFetcher implements CrawlFetcher {
         responseType: 'text',
         transformResponse: [(data) => data],
         headers,
+        ...axiosProxyOption(proxy),
         signal: options.signal,
       });
 
       return responseToFetchResult(url, url, response);
     } catch (error) {
-      const fallback = await this.fetchWithCurlFallback(url, headers, options.signal, error);
+      const fallback = await this.fetchWithCurlFallback(url, headers, proxy, options.signal, error);
       if (fallback) return fallback;
 
       throw normalizeCrawlFetchError(url, error);
@@ -1314,6 +1322,7 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
       const cookieHeader = createCookieHeader(cookieStore);
       const headers = this.headersForRequest(options);
+      const proxy = this.proxyProvider();
       if (cookieHeader) {
         headers.Cookie = headers.Cookie ? `${headers.Cookie}; ${cookieHeader}` : cookieHeader;
       }
@@ -1329,10 +1338,11 @@ export class HttpCrawlFetcher implements CrawlFetcher {
           transformResponse: [(data) => data],
           validateStatus: (status) => status >= 200 && status < 400,
           headers,
+          ...axiosProxyOption(proxy),
           signal: options.signal,
         });
       } catch (error) {
-        const fallback = await this.fetchWithCurlFallback(currentUrl.toString(), headers, options.signal, error);
+        const fallback = await this.fetchWithCurlFallback(currentUrl.toString(), headers, proxy, options.signal, error);
         if (fallback) return fallback;
 
         throw normalizeCrawlFetchError(currentUrl.toString(), error);
@@ -1359,13 +1369,14 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   private async fetchWithCurlFallback(
     url: string,
     headers: Record<string, string>,
+    proxy: CrawlProxy | null,
     signal: AbortSignal | undefined,
     error: unknown,
   ) {
     if (!isAxiosForbiddenError(error)) return null;
 
     try {
-      const result = await this.curlFetch(url, { headers, signal });
+      const result = await this.curlFetch(url, { headers, proxy, signal });
       return result.status >= 200 && result.status < 400 ? result : null;
     } catch {
       return null;
@@ -1632,6 +1643,10 @@ function extractHtmlTitle(html: string) {
   return normalizeText(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? 'no-title').slice(0, 120);
 }
 
+function axiosProxyOption(proxy: CrawlProxy | null) {
+  return proxy ? { proxy: proxyUrlToAxiosProxy(proxy.url) } : {};
+}
+
 function headersForRequest(options: CrawlFetchOptions, profile: Record<string, string>) {
   const headers: Record<string, string> = {
     ...profile,
@@ -1664,7 +1679,7 @@ function isAxiosForbiddenError(error: unknown) {
   return axios.isAxiosError(error) && Number(error.response?.status) === 403;
 }
 
-async function defaultCurlFetch(url: string, options: { headers: Record<string, string>; signal?: AbortSignal }): Promise<CrawlFetchResult> {
+async function defaultCurlFetch(url: string, options: { headers: Record<string, string>; proxy?: CrawlProxy | null; signal?: AbortSignal }): Promise<CrawlFetchResult> {
   const args = [
     '--silent',
     '--show-error',

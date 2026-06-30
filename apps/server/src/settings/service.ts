@@ -6,7 +6,10 @@ import {
   randomBytes,
 } from 'node:crypto';
 import type { DatabaseContext } from '@atmb/db';
+import { US_STATES } from '@atmb/shared';
 import type {
+  AdminProxyListItem,
+  AdminProxyTestStatus,
   AdminSystemSettings,
   HeadCodeCheckResponse,
   SmartyConnectionStatus,
@@ -15,6 +18,8 @@ import type {
 } from '@atmb/shared';
 
 import type { ServerConfig } from '../auth/config.js';
+import { DEFAULT_CRAWL_HEADERS, parseLocationList } from '../crawl/parser.js';
+import { normalizeProxyUrl, proxyUrlToAxiosProxy, type CrawlProxy } from '../proxy.js';
 
 export interface SmartyClient {
   testConnection(credentials: { authId: string; authToken: string }): Promise<{
@@ -28,6 +33,35 @@ export interface SaveSmartySettingsInput {
   authToken?: string;
   remainingCredits?: number | null;
   monthlyUsed?: number | null;
+}
+
+export interface ProxyTestResult {
+  ok: boolean;
+  message?: string;
+  sampleAddress?: string;
+}
+
+export interface ProxyTester {
+  testProxy(proxy: AdminProxyListItem): Promise<ProxyTestResult>;
+}
+
+export interface SaveProxyInput {
+  url?: string;
+  note?: string | null;
+  isActive?: boolean;
+}
+
+interface ProxyRow {
+  id: number;
+  url: string;
+  note: string | null;
+  isActive: number;
+  lastTestStatus: AdminProxyTestStatus;
+  lastTestMessage: string | null;
+  lastTestSampleAddress: string | null;
+  lastTestedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SaveUpdateScheduleInput {
@@ -78,11 +112,48 @@ export class HttpSmartyClient implements SmartyClient {
   }
 }
 
+export class HttpProxyTester implements ProxyTester {
+  async testProxy(proxy: AdminProxyListItem): Promise<ProxyTestResult> {
+    const state = US_STATES[Math.floor(Math.random() * US_STATES.length)] ?? US_STATES[0];
+    if (!state) {
+      return { ok: false, message: 'No state target available' };
+    }
+
+    const url = `https://www.anytimemailbox.com/l/usa/${state.slug}`;
+
+    try {
+      const response = await axios.get(url, {
+        timeout: 15000,
+        responseType: 'text',
+        transformResponse: [(data) => data],
+        headers: DEFAULT_CRAWL_HEADERS,
+        proxy: proxyUrlToAxiosProxy(proxy.url),
+        validateStatus: () => true,
+      });
+
+      if (response.status < 200 || response.status >= 300) {
+        return { ok: false, message: `ATMB state page returned ${response.status}` };
+      }
+
+      const html = typeof response.data === 'string' ? response.data : String(response.data ?? '');
+      const locations = parseLocationList(html, url);
+      const sample = locations[0]?.address || locations[0]?.name;
+
+      return locations.length > 0
+        ? { ok: true, message: `Parsed ${locations.length} address(es) from ${state.name}`, sampleAddress: sample }
+        : { ok: false, message: `No addresses parsed from ${state.name}` };
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : 'Proxy test failed' };
+    }
+  }
+}
+
 export class SettingsService {
   constructor(
     private readonly database: DatabaseContext,
     private readonly config: ServerConfig,
     private readonly smartyClient: SmartyClient = new HttpSmartyClient(),
+    private readonly proxyTester: ProxyTester = new HttpProxyTester(),
   ) {}
 
   ensureDefaultSettings() {
@@ -224,6 +295,123 @@ export class SettingsService {
     return this.getSettings();
   }
 
+
+  listProxies() {
+    return this.database.sqlite
+      .prepare(`
+        SELECT
+          id,
+          url,
+          note,
+          is_active AS isActive,
+          last_test_status AS lastTestStatus,
+          last_test_message AS lastTestMessage,
+          last_test_sample_address AS lastTestSampleAddress,
+          last_tested_at AS lastTestedAt,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM proxy_library
+        ORDER BY id DESC
+      `)
+      .all()
+      .map((row) => toSafeProxy(row as ProxyRow));
+  }
+
+  createProxy(input: SaveProxyInput) {
+    if (!input.url) {
+      throw new Error('INVALID_PROXY_URL');
+    }
+
+    const now = new Date().toISOString();
+    const url = normalizeProxyUrl(input.url);
+    const result = this.database.sqlite
+      .prepare(`
+        INSERT INTO proxy_library (url, note, is_active, created_at, updated_at)
+        VALUES (@url, @note, @isActive, @now, @now)
+      `)
+      .run({
+        url,
+        note: normalizeProxyNote(input.note),
+        isActive: input.isActive === false ? 0 : 1,
+        now,
+      });
+
+    return this.getProxy(Number(result.lastInsertRowid));
+  }
+
+  updateProxy(id: number, input: SaveProxyInput) {
+    const current = this.getProxyRow(id);
+    const now = new Date().toISOString();
+    const nextUrl = input.url === undefined ? current.url : normalizeProxyUrl(input.url);
+
+    this.database.sqlite
+      .prepare(`
+        UPDATE proxy_library
+        SET
+          url = @url,
+          note = @note,
+          is_active = @isActive,
+          updated_at = @updatedAt
+        WHERE id = @id
+      `)
+      .run({
+        id,
+        url: nextUrl,
+        note: input.note === undefined ? current.note : normalizeProxyNote(input.note),
+        isActive: input.isActive === undefined ? current.isActive : input.isActive ? 1 : 0,
+        updatedAt: now,
+      });
+
+    return this.getProxy(id);
+  }
+
+  deleteProxy(id: number) {
+    const result = this.database.sqlite.prepare('DELETE FROM proxy_library WHERE id = ?').run(id);
+    if (result.changes === 0) {
+      throw new Error('PROXY_NOT_FOUND');
+    }
+  }
+
+  async testProxy(id: number) {
+    const current = this.getProxy(id);
+    const result = await this.proxyTester.testProxy(current);
+    const now = new Date().toISOString();
+
+    this.database.sqlite
+      .prepare(`
+        UPDATE proxy_library
+        SET
+          last_test_status = @status,
+          last_test_message = @message,
+          last_test_sample_address = @sampleAddress,
+          last_tested_at = @testedAt,
+          updated_at = @updatedAt
+        WHERE id = @id
+      `)
+      .run({
+        id,
+        status: result.ok ? 'success' : 'failed',
+        message: result.message ?? null,
+        sampleAddress: result.sampleAddress ?? null,
+        testedAt: now,
+        updatedAt: now,
+      });
+
+    return this.getProxy(id);
+  }
+
+  getRandomActiveProxy(): CrawlProxy | null {
+    const rows = this.database.sqlite
+      .prepare('SELECT id, url FROM proxy_library WHERE is_active = 1 ORDER BY id ASC')
+      .all() as Array<{ id: number; url: string }>;
+
+    if (!rows.length) return null;
+    return rows[Math.floor(Math.random() * rows.length)] ?? null;
+  }
+
+  getProxy(id: number) {
+    return toSafeProxy(this.getProxyRow(id));
+  }
   checkHeadCode(headCode: string): HeadCodeCheckResponse {
     const warnings: string[] = [];
 
@@ -239,6 +427,32 @@ export class SettingsService {
       characterCount: headCode.length,
       warnings,
     };
+  }
+
+  private getProxyRow(id: number): ProxyRow {
+    const row = this.database.sqlite
+      .prepare(`
+        SELECT
+          id,
+          url,
+          note,
+          is_active AS isActive,
+          last_test_status AS lastTestStatus,
+          last_test_message AS lastTestMessage,
+          last_test_sample_address AS lastTestSampleAddress,
+          last_tested_at AS lastTestedAt,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM proxy_library
+        WHERE id = ?
+      `)
+      .get(id) as ProxyRow | undefined;
+
+    if (!row) {
+      throw new Error('PROXY_NOT_FOUND');
+    }
+
+    return row;
   }
 
   private getRow(): SystemSettingsRow {
@@ -267,6 +481,26 @@ export class SettingsService {
       `)
       .get() as SystemSettingsRow;
   }
+}
+
+function toSafeProxy(row: ProxyRow): AdminProxyListItem {
+  return {
+    id: row.id,
+    url: row.url,
+    note: row.note,
+    isActive: Boolean(row.isActive),
+    lastTestStatus: row.lastTestStatus,
+    lastTestMessage: row.lastTestMessage,
+    lastTestSampleAddress: row.lastTestSampleAddress,
+    lastTestedAt: row.lastTestedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function normalizeProxyNote(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 function toSafeSettings(row: SystemSettingsRow): AdminSystemSettings {

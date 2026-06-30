@@ -99,6 +99,28 @@ export interface AdminSystemSettings {
   updatedAt: string;
 }
 
+export type AdminProxyTestStatus = 'not_tested' | 'success' | 'failed';
+
+export interface AdminProxyListItem {
+  id: number;
+  url: string;
+  note: string | null;
+  isActive: boolean;
+  lastTestStatus: AdminProxyTestStatus;
+  lastTestMessage: string | null;
+  lastTestSampleAddress: string | null;
+  lastTestedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminProxyListResponse {
+  items: AdminProxyListItem[];
+}
+
+export interface AdminProxyResponse {
+  item: AdminProxyListItem;
+}
 export interface AdminSystemSettingsResponse {
   settings: AdminSystemSettings;
 }
