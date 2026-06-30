@@ -808,6 +808,7 @@ export class CrawlPipeline {
       state: row.state,
       postalCode: row.postalCode,
     }));
+    const stageById = new Map(pending.map((row) => [String(row.id), row]));
 
     for (const chunk of chunkSmartyInputs(inputs)) {
       await this.checkTaskControl(taskId, 'sync_smarty', runOptions);
@@ -815,9 +816,8 @@ export class CrawlPipeline {
       const byInputId = new Map(results.map((result) => [result.inputId, result]));
 
       for (const input of chunk) {
-        await this.checkTaskControl(taskId, 'sync_smarty', runOptions);
         const result = byInputId.get(input.inputId);
-        const stage = pending.find((item) => String(item.id) === input.inputId);
+        const stage = stageById.get(input.inputId);
         if (!stage) continue;
 
         if (!result) {
@@ -1254,11 +1254,21 @@ export class CrawlPipeline {
   }
 
   private async mapWithConcurrency<T>(items: T[], mapper: (item: T) => Promise<void>) {
+    let stopped = false;
     const workers = Array.from({ length: Math.min(this.concurrency, items.length || 1) }, async (_, workerIndex) => {
       for (let index = workerIndex; index < items.length; index += this.concurrency) {
+        if (stopped) {
+          return;
+        }
         const item = items[index];
         if (item !== undefined) {
-          await mapper(item);
+          try {
+            await mapper(item);
+          } catch (error) {
+            // 任一 worker 出错即终止其它 worker，避免任务已失败后继续抓取/写库
+            stopped = true;
+            throw error;
+          }
         }
       }
     });

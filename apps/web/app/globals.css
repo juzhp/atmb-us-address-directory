@@ -13,6 +13,10 @@
   --red-soft: #fff0f0;
   --shadow: 0 18px 44px rgba(7, 26, 63, 0.08);
   --deep-shadow: 0 30px 80px rgba(7, 26, 63, 0.14);
+  --ease-out: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 340ms;
 }
 
 * {
@@ -5737,12 +5741,202 @@ a {
   }
 }
 
+/* ===== 公网页面动效（本轮新增，纯 CSS） ===== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -160% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+
+/* 1 + 2. 列表项入场（轻微 stagger，仅前 12 项） */
+.addresses-list .addresses-row {
+  animation: fadeInUp var(--dur-base) var(--ease-out) both;
+}
+
+.addresses-list .addresses-row:nth-child(2) { animation-delay: 30ms; }
+.addresses-list .addresses-row:nth-child(3) { animation-delay: 60ms; }
+.addresses-list .addresses-row:nth-child(4) { animation-delay: 90ms; }
+.addresses-list .addresses-row:nth-child(5) { animation-delay: 120ms; }
+.addresses-list .addresses-row:nth-child(6) { animation-delay: 150ms; }
+.addresses-list .addresses-row:nth-child(7) { animation-delay: 180ms; }
+.addresses-list .addresses-row:nth-child(8) { animation-delay: 210ms; }
+.addresses-list .addresses-row:nth-child(9) { animation-delay: 240ms; }
+.addresses-list .addresses-row:nth-child(10) { animation-delay: 270ms; }
+.addresses-list .addresses-row:nth-child(11) { animation-delay: 300ms; }
+.addresses-list .addresses-row:nth-child(n + 12) { animation-delay: 330ms; }
+
+/* 7. 已访问行标记 + 悬停/按压反馈 */
+.addresses-row {
+  transition: border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.addresses-row:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow);
+}
+
+.addresses-row.is-clicked {
+  border-left: 3px solid var(--teal);
+  background: linear-gradient(90deg, rgba(5, 127, 147, 0.05), transparent 38%);
+}
+
+.addresses-detail-button,
+.addresses-photo-button {
+  transition: background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.addresses-detail-button:active,
+.addresses-photo-button:active {
+  transform: translateY(1px);
+}
+
+/* 1. 加载骨架（loading.tsx 复用） */
+.addresses-skeleton .addresses-skeleton-row {
+  display: block;
+  height: 84px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: linear-gradient(
+    100deg,
+    rgba(211, 227, 236, 0.18) 30%,
+    rgba(211, 227, 236, 0.55) 50%,
+    rgba(211, 227, 236, 0.18) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s var(--ease-out) infinite;
+}
+
+/* 3. 空状态操作引导 */
+.addresses-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.addresses-empty-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--teal-dark);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.addresses-empty-actions a:hover {
+  background: var(--green-soft);
+  border-color: var(--teal);
+}
+
+/* 5. 州列表 <details> 平滑展开 + chevron 旋转 */
+.addresses-state-details {
+  interpolate-size: allow-keywords;
+}
+
+.addresses-state-details summary svg {
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.addresses-state-details[open] summary svg {
+  transform: rotate(180deg);
+}
+
+@supports (interpolate-size: allow-keywords) {
+  .addresses-state-details::details-content {
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: height var(--dur-base) var(--ease-out),
+      opacity var(--dur-base) var(--ease-out),
+      content-visibility var(--dur-base) allow-discrete;
+  }
+
+  .addresses-state-details[open]::details-content {
+    height: auto;
+    opacity: 1;
+  }
+}
+
+/* 6. StateCombobox 下拉入场 + chevron 旋转 */
+.home-state-list {
+  animation: fadeInUp var(--dur-fast) var(--ease-out) both;
+  transform-origin: top center;
+}
+
+.home-state-chevron {
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.home-state-control.is-open .home-state-chevron {
+  transform: rotate(180deg);
+}
+
+.home-state-list [role='option'] {
+  transition: background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+/* 8. 首页 section 滚动驱动入场（渐进增强，不支持则默认可见） */
+@supports (animation-timeline: view()) {
+  @keyframes revealOnScroll {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .home-trust-item,
+  .home-indicator,
+  .addresses-seo-card {
+    animation: revealOnScroll linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 22%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
-  .scroll-back-top {
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

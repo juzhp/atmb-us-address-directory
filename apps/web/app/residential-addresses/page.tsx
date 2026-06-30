@@ -245,6 +245,16 @@ export default async function ResidentialAddressesPage({ searchParams }: Residen
               <div className="addresses-empty">
                 <strong>没有找到匹配住宅地址</strong>
                 <p>可以减少关键词，或清除 CMRA 筛选后重新搜索。</p>
+                <div className="addresses-empty-actions">
+                  <Link href={buildResidentialAddressesPageUrl(filters, { q: '', cmra: '', page: 1 })}>
+                    <RefreshCw size={15} aria-hidden="true" />
+                    清除全部筛选
+                  </Link>
+                  <a href="#residential-search-title">
+                    <Search size={15} aria-hidden="true" />
+                    重新搜索
+                  </a>
+                </div>
               </div>
             )}
             <nav className="addresses-pagination" aria-label="住宅地址列表分页">

@@ -152,40 +152,62 @@ export class TaskService {
     return row?.generatedAt ?? null;
   }
 
-  recoverInterruptedTasks() {
+  /**
+   * 服务启动时恢复中断任务。返回需要重新入队续跑的 taskId 列表：
+   * - running：重置中断在执行中的子任务后保持 running，从断点续跑。
+   * - pause_requested：尊重暂停意图，落为 paused，不续跑。
+   * - stop_requested：尊重停止意图，落为 stopped，不续跑。
+   */
+  recoverInterruptedTasks(): number[] {
     const now = new Date().toISOString();
     const rows = this.database.sqlite
-      .prepare("SELECT id FROM crawl_tasks WHERE status IN ('running', 'pause_requested', 'stop_requested')")
-      .all() as Array<{ id: number }>;
+      .prepare("SELECT id, status FROM crawl_tasks WHERE status IN ('running', 'pause_requested', 'stop_requested')")
+      .all() as Array<{ id: number; status: AdminTaskStatus }>;
 
     if (rows.length === 0) {
-      return 0;
+      return [];
     }
+
+    const resumeIds: number[] = [];
 
     const recover = this.database.sqlite.transaction(() => {
       for (const row of rows) {
+        if (row.status === 'stop_requested') {
+          this.markTaskStopped(row.id, '任务在服务重启前已请求停止');
+          continue;
+        }
+
+        // running / pause_requested：把中断在执行中的子任务重置为 pending，
+        // 已成功的子任务保留，pipeline 会据此从断点续跑。
         this.database.sqlite
           .prepare(`
             UPDATE crawl_subtasks
             SET
-              execution_status = 'completed',
-              result_status = 'failed',
-              error_message = COALESCE(error_message, '浠诲姟鍦ㄦ湇鍔￠噸鍚墠涓柇锛岃閲嶆柊鍒涘缓浠诲姟'),
+              execution_status = 'pending',
+              result_status = NULL,
+              error_message = NULL,
               updated_at = @updatedAt
             WHERE task_id = @taskId
-              AND (execution_status != 'completed' OR result_status IS NULL)
+              AND NOT (execution_status = 'completed' AND result_status = 'success')
           `)
           .run({
             taskId: row.id,
             updatedAt: now,
           });
-        this.recalculateTaskCounts(row.id, true);
+
+        if (row.status === 'pause_requested') {
+          this.updateTaskStatus(row.id, 'paused', now);
+        } else {
+          this.updateTaskStatus(row.id, 'running', now);
+          resumeIds.push(row.id);
+        }
+        this.recalculateTaskCounts(row.id);
       }
     });
 
     recover();
 
-    return rows.length;
+    return resumeIds;
   }
 
   listTasks(query: TaskQuery): AdminTaskListResponse {

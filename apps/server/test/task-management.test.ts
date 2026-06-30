@@ -498,3 +498,48 @@ test('resumes a completed task that has failed subtasks', async (t) => {
   assert.equal(retrySubtask.resultStatus, null);
   assert.equal(retrySubtask.errorMessage, null);
 });
+
+test('recoverInterruptedTasks resumes running tasks from checkpoint and honors pause/stop intents', () => {
+  const database = createDatabase({ url: ':memory:' });
+  ensureDatabaseSchema(database.sqlite);
+  const taskService = new TaskService(database);
+
+  try {
+    // running 任务：一个子任务已成功，一个在执行中被中断
+    const running = taskService.createManualTask({ createdBy: 'Test Admin' });
+    taskService.markSubtaskSuccess(running.id, 'fetch_states');
+    taskService.markSubtaskRunning(running.id, 'fetch_names');
+
+    const pausing = taskService.createManualTask({ createdBy: 'Test Admin' });
+    database.sqlite.prepare("UPDATE crawl_tasks SET status = 'pause_requested' WHERE id = ?").run(pausing.id);
+
+    const stopping = taskService.createManualTask({ createdBy: 'Test Admin' });
+    database.sqlite.prepare("UPDATE crawl_tasks SET status = 'stop_requested' WHERE id = ?").run(stopping.id);
+
+    const resumeIds = taskService.recoverInterruptedTasks();
+
+    // running：仍为 running 且仅它被重新入队；已成功子任务保留，被中断子任务重置为 pending
+    assert.deepEqual(resumeIds, [running.id]);
+    assert.equal(taskService.getTask(running.id)?.status, 'running');
+
+    const subtasks = database.sqlite
+      .prepare('SELECT task_type AS taskType, execution_status AS executionStatus, result_status AS resultStatus FROM crawl_subtasks WHERE task_id = ?')
+      .all(running.id) as Array<{ taskType: string; executionStatus: string; resultStatus: string | null }>;
+    const states = subtasks.find((item) => item.taskType === 'fetch_states');
+    const names = subtasks.find((item) => item.taskType === 'fetch_names');
+    assert.equal(states?.executionStatus, 'completed');
+    assert.equal(states?.resultStatus, 'success');
+    assert.equal(names?.executionStatus, 'pending');
+    assert.equal(names?.resultStatus, null);
+
+    // pause_requested -> paused，不续跑
+    assert.equal(taskService.getTask(pausing.id)?.status, 'paused');
+    assert.ok(!resumeIds.includes(pausing.id));
+
+    // stop_requested -> stopped，不续跑
+    assert.equal(taskService.getTask(stopping.id)?.status, 'stopped');
+    assert.ok(!resumeIds.includes(stopping.id));
+  } finally {
+    database.sqlite.close();
+  }
+});
