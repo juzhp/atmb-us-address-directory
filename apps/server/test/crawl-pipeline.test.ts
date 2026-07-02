@@ -193,22 +193,16 @@ test('HTTP crawl fetcher applies a random active proxy to Axios requests', async
   });
 });
 
-test('HTTP crawl fetcher retries TLS ECONNRESET once with the same proxy', async () => {
+test('HTTP crawl fetcher retries TLS ECONNRESET ten times with five second delays and the same proxy', async () => {
   const configs: unknown[] = [];
+  const delays: number[] = [];
   let calls = 0;
   const getMock = mock.method(axios, 'get', async (_url: string, config: unknown) => {
     configs.push(config);
     calls += 1;
 
-    if (calls === 1) {
-      throw {
-        isAxiosError: true,
-        code: 'ECONNRESET',
-        cause: {
-          code: 'ECONNRESET',
-          message: 'Client network socket disconnected before secure TLS connection was established',
-        },
-      };
+    if (calls <= 3) {
+      throw createTlsResetError();
     }
 
     return {
@@ -221,6 +215,9 @@ test('HTTP crawl fetcher retries TLS ECONNRESET once with the same proxy', async
   const fetcher = new HttpCrawlFetcher({
     random: () => 0,
     requestDelayMs: { min: 0, max: 0 },
+    sleep: async (delayMs) => {
+      delays.push(delayMs);
+    },
     proxyProvider: () => {
       proxyProviderCalls += 1;
       return { id: 1, url: 'http://user:pass@127.0.0.1:8080' };
@@ -231,17 +228,48 @@ test('HTTP crawl fetcher retries TLS ECONNRESET once with the same proxy', async
     const result = await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
 
     assert.equal(result.status, 200);
-    assert.equal(calls, 2);
+    assert.equal(calls, 4);
     assert.equal(proxyProviderCalls, 1);
-    assert.deepEqual(
-      (configs[1] as { proxy?: unknown }).proxy,
-      (configs[0] as { proxy?: unknown }).proxy,
-    );
+    assert.deepEqual(delays, [5000, 5000, 5000]);
+    const firstProxy = JSON.stringify((configs[0] as { proxy?: unknown }).proxy);
+    assert.ok(configs.every((config) => JSON.stringify((config as { proxy?: unknown }).proxy) === firstProxy));
   } finally {
     getMock.mock.restore();
   }
 });
-test('reuses a successful Smarty result by anytime_url and never calls Smarty again', async () => {
+
+test('HTTP crawl fetcher fails after ten TLS ECONNRESET retries', async () => {
+  const delays: number[] = [];
+  let calls = 0;
+  const getMock = mock.method(axios, 'get', async () => {
+    calls += 1;
+    throw createTlsResetError();
+  });
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    sleep: async (delayMs) => {
+      delays.push(delayMs);
+    },
+    proxyProvider: () => ({ id: 1, url: 'http://user:pass@127.0.0.1:8080' }),
+  });
+
+  try {
+    await assert.rejects(
+      () => fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa'),
+      (error: unknown) => {
+        assert.equal((error as { code?: string }).code, 'ECONNRESET');
+        return true;
+      },
+    );
+
+    assert.equal(calls, 11);
+    assert.equal(delays.length, 10);
+    assert.ok(delays.every((delayMs) => delayMs === 5000));
+  } finally {
+    getMock.mock.restore();
+  }
+});test('reuses a successful Smarty result by anytime_url and never calls Smarty again', async () => {
   const harness = buildHarness([
     crawledAddress({
       name: 'Madison - Hwy 72',
@@ -1036,6 +1064,17 @@ test('calculates whether automatic system tasks are due from settings', () => {
     false,
   );
 });
+
+function createTlsResetError() {
+  return {
+    isAxiosError: true,
+    code: 'ECONNRESET',
+    cause: {
+      code: 'ECONNRESET',
+      message: 'Client network socket disconnected before secure TLS connection was established',
+    },
+  };
+}
 
 function randomSequence(values: number[]) {
   let index = 0;

@@ -166,6 +166,8 @@ const CURL_META_MARKER = '\\n__ATMB_CURL_META__';
 
 const DEFAULT_START_URL = 'https://www.anytimemailbox.com/l/usa';
 const DEFAULT_REQUEST_DELAY_MS = Object.freeze({ min: 200, max: 900 });
+const NETWORK_RETRY_DELAY_MS = 5000;
+const MAX_NETWORK_RETRIES = 10;
 const CRAWL_HEADER_PROFILES = Object.freeze([
   DEFAULT_CRAWL_HEADERS,
   Object.freeze({
@@ -1377,14 +1379,19 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   }
 
   private async axiosGetWithNetworkRetry(url: string, config: AxiosRequestConfig) {
-    try {
-      return await axios.get(url, config);
-    } catch (error) {
-      if (!isRetryableNetworkError(error)) throw error;
-      return axios.get(url, config);
+    for (let retryCount = 0; retryCount <= MAX_NETWORK_RETRIES; retryCount += 1) {
+      try {
+        return await axios.get(url, config);
+      } catch (error) {
+        if (!isRetryableNetworkError(error) || retryCount === MAX_NETWORK_RETRIES) {
+          throw error;
+        }
+        await this.sleep(NETWORK_RETRY_DELAY_MS);
+      }
     }
-  }
-  private async fetchWithCurlFallback(
+
+    throw new Error(`Unable to fetch ${url}`);
+  }  private async fetchWithCurlFallback(
     url: string,
     headers: Record<string, string>,
     proxy: CrawlProxy | null,
