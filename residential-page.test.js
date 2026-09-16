@@ -9,11 +9,12 @@ test('residential page uses real data and no static rows', () => {
   assert.match(source, /searchParams/);
   assert.match(source, /FAQPage/);
   assert.match(source, /action="\/residential-addresses#residential-list-title"/);
+  assert.match(source, /name="state" type="hidden"/);
   assert.doesNotMatch(source, /const residentialRows = \[/);
   assert.doesNotMatch(source, /'use client'|"use client"/);
 });
 
-test('residential filters only expose keyword, CMRA and page', async () => {
+test('residential filters only expose keyword, state, CMRA, USPS CMRA, C1 and page', async () => {
   const helpers = await import('./apps/web/app/_lib/public-residential-address-data.ts');
 
   assert.deepEqual(
@@ -22,12 +23,17 @@ test('residential filters only expose keyword, CMRA and page', async () => {
       state: 'CA',
       rdi: 'Commercial',
       cmra: 'No',
+      usps: 'N',
+      c1: 'pass',
       price: 'lt20',
       page: '2',
     }),
     {
       q: 'vancouver',
+      state: 'CA',
       cmra: 'No',
+      usps: 'N',
+      c1: 'pass',
       page: 2,
     },
   );
@@ -37,17 +43,24 @@ test('residential urls preserve filters and scroll back to results', async () =>
   const helpers = await import('./apps/web/app/_lib/public-residential-address-data.ts');
   const filters = {
     q: 'vancouver',
+    state: 'WA',
     cmra: 'No',
+    usps: 'N',
+    c1: 'pass',
     page: 2,
   };
 
   assert.equal(
     helpers.buildResidentialAddressesPageUrl(filters, { page: 3 }),
-    '/residential-addresses?q=vancouver&cmra=No&page=3#residential-list-title',
+    '/residential-addresses?q=vancouver&state=WA&cmra=No&usps=N&c1=pass&page=3#residential-list-title',
   );
   assert.equal(
     helpers.buildResidentialAddressesPageUrl(filters, { cmra: 'Yes', page: 1 }),
-    '/residential-addresses?q=vancouver&cmra=Yes#residential-list-title',
+    '/residential-addresses?q=vancouver&state=WA&cmra=Yes&usps=N&c1=pass#residential-list-title',
+  );
+  assert.equal(
+    helpers.buildResidentialAddressesPageUrl(filters, { state: '', page: 1 }),
+    '/residential-addresses?q=vancouver&cmra=No&usps=N&c1=pass#residential-list-title',
   );
 });
 

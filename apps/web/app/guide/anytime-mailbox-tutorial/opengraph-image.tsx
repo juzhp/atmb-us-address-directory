@@ -49,7 +49,7 @@ export default function Image() {
             Filter Real US Residential Addresses
           </div>
           <div style={{ display: 'flex', fontSize: 30, color: '#cfeaf2' }}>
-            RDI Residential · CMRA No · Street View · Daily Updated
+            RDI Residential · CMRA No · C1 Prescreen · Street View
           </div>
         </div>
 

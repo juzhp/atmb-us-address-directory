@@ -3,11 +3,15 @@ import { extname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseContext } from '@atmb/db';
 import type {
+  AddressC1Precheck,
+  AddressC1PrecheckFilter,
   AddressCmra,
   AddressCmraFilter,
   AddressPriceFilter,
   AddressRdi,
   AddressRdiFilter,
+  AddressUspsCmra,
+  AddressUspsCmraFilter,
   AdminAddressListItem,
   AdminAddressListResponse,
   AdminAddressStats,
@@ -19,6 +23,8 @@ export interface AddressQuery {
   state?: string;
   rdi?: AddressRdiFilter;
   cmra?: AddressCmraFilter;
+  uspsCmra?: AddressUspsCmraFilter;
+  c1Precheck?: AddressC1PrecheckFilter;
   featured?: boolean;
   price?: AddressPriceFilter;
   page?: number;
@@ -33,6 +39,8 @@ export interface AddressUpdateInput {
   postalCode?: string;
   rdi?: AddressRdi;
   cmra?: AddressCmra;
+  uspsCmra?: AddressUspsCmra | null;
+  c1Precheck?: AddressC1Precheck | null;
   priceCents?: number;
   isFeatured?: boolean;
   isVisible?: boolean;
@@ -73,6 +81,10 @@ interface AddressRow {
   pricePeriod: string;
   rdi: AddressRdi | null;
   cmra: AddressCmra | null;
+  uspsCmra: AddressUspsCmra | null;
+  uspsCmraUpdatedAt: string | null;
+  c1Precheck: AddressC1Precheck | null;
+  c1PrecheckUpdatedAt: string | null;
   mailboxMin: number | null;
   mailboxMax: number | null;
   mailboxCount: number | null;
@@ -111,6 +123,10 @@ const adminAddressRowsSql = `
     a.price_period AS pricePeriod,
     a.rdi,
     a.cmra,
+    a.usps_cmra AS uspsCmra,
+    a.usps_cmra_updated_at AS uspsCmraUpdatedAt,
+    a.c1_precheck AS c1Precheck,
+    a.c1_precheck_updated_at AS c1PrecheckUpdatedAt,
     a.mailbox_min AS mailboxMin,
     a.mailbox_max AS mailboxMax,
     a.mailbox_count AS mailboxCount,
@@ -144,6 +160,10 @@ const adminAddressRowsSql = `
     stage.price_period AS pricePeriod,
     stage.rdi,
     stage.cmra,
+    NULL AS uspsCmra,
+    NULL AS uspsCmraUpdatedAt,
+    NULL AS c1Precheck,
+    NULL AS c1PrecheckUpdatedAt,
     stage.mailbox_min AS mailboxMin,
     stage.mailbox_max AS mailboxMax,
     stage.mailbox_count AS mailboxCount,
@@ -203,6 +223,20 @@ export class AddressService {
     } else if (query.cmra) {
       params.cmra = query.cmra;
       where.push('a.cmra = @cmra');
+    }
+
+    if (query.uspsCmra === 'none') {
+      where.push('a.uspsCmra IS NULL');
+    } else if (query.uspsCmra) {
+      params.uspsCmra = query.uspsCmra;
+      where.push('a.uspsCmra = @uspsCmra');
+    }
+
+    if (query.c1Precheck === 'none') {
+      where.push('a.c1Precheck IS NULL');
+    } else if (query.c1Precheck) {
+      params.c1Precheck = query.c1Precheck;
+      where.push('a.c1Precheck = @c1Precheck');
     }
 
     if (typeof query.featured === 'boolean') {
@@ -269,6 +303,10 @@ export class AddressService {
           a.price_period AS pricePeriod,
           a.rdi,
           a.cmra,
+          a.usps_cmra AS uspsCmra,
+          a.usps_cmra_updated_at AS uspsCmraUpdatedAt,
+          a.c1_precheck AS c1Precheck,
+          a.c1_precheck_updated_at AS c1PrecheckUpdatedAt,
           a.mailbox_min AS mailboxMin,
           a.mailbox_max AS mailboxMax,
           a.mailbox_count AS mailboxCount,
@@ -304,6 +342,8 @@ export class AddressService {
       postalCode: input.postalCode ?? current.postalCode,
       rdi: input.rdi ?? current.rdi,
       cmra: input.cmra ?? current.cmra,
+      uspsCmra: input.uspsCmra === undefined ? current.uspsCmra : input.uspsCmra,
+      c1Precheck: input.c1Precheck === undefined ? current.c1Precheck : input.c1Precheck,
       priceCents: input.priceCents ?? current.priceCents,
       isFeatured: input.isFeatured ?? current.isFeatured,
       isVisible: input.isVisible ?? current.isVisible,
@@ -312,6 +352,16 @@ export class AddressService {
     const now = new Date().toISOString();
     const stateName = stateCodeToName(next.state) ?? current.stateName;
     const fullAddress = `${next.streetAddress} ${next.city}, ${next.state} ${next.postalCode} United States`;
+
+    // 人工核验字段只允许在 RDI 为 Residential 时修改；非 Residential 行保留旧值但不能再改
+    if (
+      next.rdi !== 'Residential'
+      && (next.uspsCmra !== current.uspsCmra || next.c1Precheck !== current.c1Precheck)
+    ) {
+      throw new Error('MANUAL_CHECK_REQUIRES_RESIDENTIAL');
+    }
+    const uspsCmraUpdatedAt = next.uspsCmra !== current.uspsCmra ? now : current.uspsCmraUpdatedAt;
+    const c1PrecheckUpdatedAt = next.c1Precheck !== current.c1Precheck ? now : current.c1PrecheckUpdatedAt;
 
     this.database.sqlite
       .prepare(`
@@ -326,6 +376,10 @@ export class AddressService {
           full_address = @fullAddress,
           rdi = @rdi,
           cmra = @cmra,
+          usps_cmra = @uspsCmra,
+          usps_cmra_updated_at = @uspsCmraUpdatedAt,
+          c1_precheck = @c1Precheck,
+          c1_precheck_updated_at = @c1PrecheckUpdatedAt,
           price_cents = @priceCents,
           is_featured = @isFeatured,
           is_visible = @isVisible,
@@ -338,6 +392,8 @@ export class AddressService {
         ...next,
         stateName,
         fullAddress,
+        uspsCmraUpdatedAt,
+        c1PrecheckUpdatedAt,
         isFeatured: next.isFeatured ? 1 : 0,
         isVisible: next.isVisible ? 1 : 0,
         updatedAt: now,

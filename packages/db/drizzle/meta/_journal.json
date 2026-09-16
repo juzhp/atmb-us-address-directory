@@ -50,6 +50,13 @@
       "when": 1781740000000,
       "tag": "0006_proxy_library",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789430400000,
+      "tag": "0007_address_manual_checks",
+      "breakpoints": true
     }
   ]
 }

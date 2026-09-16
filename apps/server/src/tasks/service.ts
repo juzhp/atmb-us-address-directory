@@ -946,18 +946,17 @@ export class TaskService {
       }
       case 'fetch_addresses': {
         const isTargetedAddressTask = !this.hasSubtask(taskId, 'fetch_names');
-        const current = isTargetedAddressTask
-          ? scalar(
-              this.database,
-              `
-                SELECT COUNT(*) AS count
-                FROM crawl_discovered_addresses
-                WHERE task_id = ?
-                  AND (myear_url IS NOT NULL OR crawl_status = 'skipped')
-              `,
-              [taskId],
-            )
-          : scalar(this.database, 'SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?', [taskId]);
+        // staged 行在读完州页时就已写入占位，只有拿到详情、跳过或记录失败的行才算处理完成
+        const current = scalar(
+          this.database,
+          `
+            SELECT COUNT(*) AS count
+            FROM crawl_discovered_addresses
+            WHERE task_id = ?
+              AND (myear_url IS NOT NULL OR crawl_status = 'skipped' OR error_message IS NOT NULL)
+          `,
+          [taskId],
+        );
         const totalFromStates = isTargetedAddressTask
           ? 0
           : scalar(this.database, 'SELECT COALESCE(SUM(location_count), 0) AS count FROM states');

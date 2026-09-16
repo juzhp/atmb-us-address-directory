@@ -8,9 +8,44 @@ test('addresses page uses real SQLite data integration points', () => {
   assert.match(source, /getPublicAddressesPageData/);
   assert.match(source, /searchParams/);
   assert.match(source, /FAQPage/);
+  assert.match(source, /name="state" type="hidden"/);
   assert.doesNotMatch(source, /const addressRows = \[/);
   assert.doesNotMatch(source, /const commonStates = \[/);
   assert.doesNotMatch(source, /'use client'|"use client"/);
+});
+
+test('state keyword lookup resolves codes, english and chinese names', async () => {
+  const { findUsStateCodeByKeyword } = await import('./packages/shared/src/us-states.ts');
+
+  assert.equal(findUsStateCodeByKeyword('德州'), 'TX');
+  assert.equal(findUsStateCodeByKeyword('加州'), 'CA');
+  assert.equal(findUsStateCodeByKeyword('纽约'), 'NY');
+  assert.equal(findUsStateCodeByKeyword('  ca  '), 'CA');
+  assert.equal(findUsStateCodeByKeyword('New York'), 'NY');
+  assert.equal(findUsStateCodeByKeyword('mail'), null);
+  assert.equal(findUsStateCodeByKeyword(''), null);
+});
+
+test('state links rank by filtered count and keep the selected state visible', async () => {
+  const helpers = await import('./apps/web/app/_lib/public-address-data.ts');
+  const states = Array.from({ length: 14 }, (_, index) => ({
+    code: `S${index}`,
+    name: `State ${index}`,
+    zhName: `州 ${index}`,
+    label: `州 ${index}`,
+    count: 100 - index,
+  }));
+
+  const unselected = helpers.splitPublicStateLinks(states, '');
+  assert.equal(unselected.visible.length, 12);
+  assert.deepEqual(unselected.visible.map((state) => state.code), states.slice(0, 12).map((state) => state.code));
+  assert.deepEqual(unselected.hidden.map((state) => state.code), ['S12', 'S13']);
+
+  const selected = helpers.splitPublicStateLinks(states, 'S13');
+  assert.equal(selected.visible.length, 12);
+  assert.equal(selected.visible[11].code, 'S13');
+  assert.ok(!selected.visible.some((state) => state.code === 'S11'));
+  assert.deepEqual(selected.hidden.map((state) => state.code), ['S11', 'S12']);
 });
 
 test('public address helpers format fields and generated links', async () => {

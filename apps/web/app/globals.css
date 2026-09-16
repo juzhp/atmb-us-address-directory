@@ -762,7 +762,7 @@ a {
   margin-bottom: 16px;
   padding: 18px;
   display: grid;
-  grid-template-columns: minmax(260px, 1.35fr) repeat(5, minmax(138px, 1fr)) auto;
+  grid-template-columns: minmax(220px, 1.35fr) repeat(7, minmax(112px, 1fr)) auto;
   gap: 14px;
   align-items: end;
 }
@@ -890,7 +890,7 @@ a {
 
 .admin-address-table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 1380px;
   border-collapse: collapse;
 }
 
@@ -1143,6 +1143,17 @@ a {
 
 .address-dialog-grid .wide {
   grid-column: span 2;
+}
+
+.address-dialog-grid label small {
+  color: #6b7f96;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.address-dialog-grid select:disabled {
+  color: #8a9bb0;
+  cursor: not-allowed;
 }
 
 .address-dialog-media {
@@ -3630,8 +3641,9 @@ a {
 
 .home-filter-note {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 12px 18px;
   margin-top: 15px;
   border-top: 1px solid var(--home-line);
   padding-top: 14px;
@@ -3742,7 +3754,7 @@ a {
 }
 
 .home-indicator-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 19px;
   margin-top: 0;
 }
@@ -3839,7 +3851,7 @@ a {
 
 .home-decision-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   border: 1px solid var(--home-line);
   border-radius: 8px;
   background: #fff;
@@ -4989,7 +5001,7 @@ a {
 
 .addresses-search-form {
   display: grid;
-  grid-template-columns: 1.45fr 0.78fr 0.72fr 0.78fr 180px;
+  grid-template-columns: 1.45fr 0.72fr 0.66fr 0.66fr 0.66fr 0.72fr 180px;
   gap: 15px;
   align-items: end;
 }
@@ -5123,6 +5135,33 @@ a {
   box-shadow: 0 8px 18px rgba(7, 26, 63, 0.03);
 }
 
+.addresses-state-link.is-empty:not(.active) {
+  border-color: #e3e9ef;
+  background: #f7f9fb;
+  color: #7b8ea3;
+  box-shadow: none;
+}
+
+.addresses-state-link.is-empty:not(.active) .addresses-state-name small {
+  color: #9aa9b8;
+}
+
+.addresses-state-link.is-empty:not(.active) .addresses-state-count {
+  background: #eef2f5;
+  color: #7b8ea3;
+}
+
+.addresses-state-skeleton {
+  background: linear-gradient(
+    100deg,
+    rgba(211, 227, 236, 0.18) 30%,
+    rgba(211, 227, 236, 0.55) 50%,
+    rgba(211, 227, 236, 0.18) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s var(--ease-out) infinite;
+}
+
 .addresses-state-link.active {
   border-color: #74c4cf;
   background: #effbfd;
@@ -5199,8 +5238,9 @@ a {
 
 .addresses-search-note {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 12px 18px;
   margin-top: 15px;
   border-top: 1px solid var(--home-line);
   padding-top: 14px;
@@ -5316,6 +5356,41 @@ a {
   color: var(--home-teal-dark);
 }
 
+.addresses-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.addresses-filter-chip {
+  display: inline-flex;
+  min-height: 29px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #bfe1e9;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: #f0fafc;
+  color: var(--home-teal-dark);
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.addresses-filter-chip span {
+  color: #5a718a;
+  font-weight: 700;
+}
+
+.addresses-filter-chip:hover {
+  border-color: var(--home-teal);
+  background: #e3f5f8;
+}
+
 .addresses-sort {
   display: inline-flex;
   height: 32px;
@@ -5334,7 +5409,7 @@ a {
   position: relative;
   display: grid;
   min-height: 98px;
-  grid-template-columns: 1.35fr 0.7fr 0.7fr 0.66fr 0.68fr 0.64fr 136px;
+  grid-template-columns: 1.3fr 0.68fr 0.62fr 0.62fr 0.62fr 0.62fr 0.66fr 0.62fr 136px;
   gap: 12px;
   align-items: center;
   border-bottom: 1px solid var(--home-line);
@@ -5470,6 +5545,13 @@ a {
   font-weight: 850;
 }
 
+/* 徽章单独占一行，标签在下一行，和价格/邮箱编号的排版一致 */
+.addresses-data-cell .addresses-badge {
+  display: flex;
+  width: fit-content;
+  margin-bottom: 3px;
+}
+
 .addresses-badge {
   display: inline-flex;
   min-width: 82px;
@@ -5490,6 +5572,11 @@ a {
 .addresses-badge.warn {
   background: var(--home-amber-soft);
   color: #86570d;
+}
+
+.addresses-badge.muted {
+  background: #edf5f8;
+  color: #526980;
 }
 
 .addresses-row-actions {
@@ -5652,7 +5739,7 @@ a {
 }
 
 .residential-page .addresses-search-form {
-  grid-template-columns: 1.7fr 0.72fr 162px;
+  grid-template-columns: 1.7fr 0.72fr 0.72fr 0.72fr 162px;
 }
 
 .residential-page .addresses-keyword-field {
@@ -5675,12 +5762,12 @@ a {
   }
 
   .addresses-row {
-    grid-template-columns: 1.2fr repeat(5, 0.72fr) 118px;
+    grid-template-columns: 1.2fr repeat(7, 0.72fr) 118px;
     gap: 10px;
   }
 
   .residential-page .addresses-search-form {
-    grid-template-columns: 1fr 187px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .residential-page .addresses-keyword-field,
@@ -5714,6 +5801,11 @@ a {
   .addresses-search-note {
     display: grid;
     align-items: start;
+  }
+
+  .addresses-active-filters {
+    justify-content: flex-start;
+    padding: 0 0 12px;
   }
 
   .addresses-row {
@@ -5759,10 +5851,27 @@ a {
 
   .addresses-proof-list,
   .addresses-search-form,
-  .addresses-state-grid,
   .addresses-row,
   .addresses-row-actions {
     grid-template-columns: 1fr;
+  }
+
+  .addresses-state-grid {
+    gap: 8px;
+  }
+
+  .addresses-state-link {
+    min-height: 32px;
+    padding: 0 9px;
+  }
+
+  .addresses-state-name small {
+    display: none;
+  }
+
+  .addresses-active-filters {
+    width: 100%;
+    padding: 10px 0 0;
   }
 
   .addresses-input-like,
@@ -5809,7 +5918,8 @@ a {
     gap: 14px;
   }
 
-  .addresses-data-cell strong {
+  .addresses-data-cell strong,
+  .addresses-data-cell .addresses-badge {
     margin-bottom: 0;
   }
 

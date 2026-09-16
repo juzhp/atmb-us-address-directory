@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
   Check,
-  ChevronDown,
+  CreditCard,
   Database,
   DollarSign,
   MapPin,
@@ -11,24 +12,28 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react';
+import { C1_PRECHECK_LABELS, type AddressC1Precheck } from '@atmb/shared';
 
 import {
   buildAddressesPageUrl,
   getPublicAddressesPageData,
   parsePublicAddressFilters,
+  type PublicAddressesPageData,
   type PublicAddressFilters,
 } from '../_lib/public-address-data';
 import { getPublicHeadCode } from '../_lib/public-head-code';
+import { ActiveFilterChips, type ActiveFilterChip } from '../_components/ActiveFilterChips';
 import { AddressRowClickState } from '../_components/AddressRowClickState';
 import { PublicHeadCode } from '../_components/PublicHeadCode';
 import { SiteFooter, SiteHeader } from '../_components/SiteShell';
+import { StateFilterPanel, StateFilterPanelSkeleton } from '../_components/StateFilterPanel';
 
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'Anytime Mailbox 美国地址大全 | 按州搜索 RDI/CMRA/价格筛选住宅地址',
+  title: 'Anytime Mailbox 美国地址大全 | 按州搜索 RDI/CMRA/C1 预审筛选住宅地址',
   description:
-    '浏览并搜索全站收录的 Anytime Mailbox(ATMB) 美国地址：支持城市/州/ZIP/街道关键词、州筛选、RDI、CMRA 与价格区间，快速缩小美国真实住宅地址候选，配合街景与每日更新数据，挑选适合美国信用卡与银行开户的地址。',
+    '浏览并搜索全站收录的 Anytime Mailbox(ATMB) 美国地址：支持城市/州/ZIP/街道关键词、州筛选、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与价格区间，快速缩小美国真实住宅地址候选，配合街景与每日更新数据，挑选适合美国信用卡与银行开户的地址。',
   alternates: {
     canonical: '/addresses',
   },
@@ -41,6 +46,9 @@ export const metadata: Metadata = {
     '按州筛选美国地址',
     'RDI Residential',
     'CMRA',
+    'USPS CMRA',
+    'C1 预审',
+    'Capital One 地址预审',
     '美国住宅地址搜索',
     '美国信用卡地址',
     '美国地址价格',
@@ -55,12 +63,12 @@ const seoCards = [
   },
   {
     title: '按州浏览更直观',
-    text: '州列表可以帮助你先缩小地区范围，再结合 RDI、CMRA、价格和邮箱编号范围继续筛选。',
+    text: '州列表可以帮助你先缩小地区范围，再结合 RDI、CMRA、USPS CMRA、C1 预审、价格和邮箱编号范围继续筛选。',
     icon: MapPin,
   },
   {
-    title: 'RDI / CMRA 做辅助判断',
-    text: 'RDI 和 CMRA 来自 Smarty，只用于缩小候选范围。是否适合租用还需要进入详情页结合街景、用途和风险判断。',
+    title: 'RDI / CMRA / C1 预审做辅助判断',
+    text: 'RDI 和 CMRA 来自 Smarty，只用于缩小候选范围；USPS CMRA 与 C1 预审可作为进一步参考。是否适合租用还需要进入详情页结合街景、用途和风险判断。',
     icon: ShieldCheck,
   },
 ];
@@ -68,7 +76,7 @@ const seoCards = [
 const faqs = [
   {
     question: '关键词搜索会搜索哪些字段？',
-    answer: '城市、州、ZIP、街道、地址名称和页面中可索引的地址文本。',
+    answer: '城市、州、ZIP、街道、地址名称和页面中可索引的地址文本，也支持德州、加州这类中文州名。',
   },
   {
     question: '州列表为什么要用可点击链接？',
@@ -76,13 +84,23 @@ const faqs = [
   },
   {
     question: '价格筛选是否代表地址质量？',
-    answer: '不代表。价格只是初筛字段，仍需结合 RDI、CMRA、街景和用途判断。',
+    answer: '不代表。价格只是初筛字段，仍需结合 RDI、CMRA、USPS CMRA、C1 预审、街景和用途判断。',
   },
   {
     question: 'RDI 和 CMRA 的数据来源是什么？',
     answer: '来自 Smarty 地址验证结果，仅作为辅助判断字段。',
   },
+  {
+    question: 'USPS CMRA 和 CMRA 有什么区别？',
+    answer: 'CMRA 来自 Smarty 地址验证结果，USPS CMRA 是 USPS 侧的标记；两者都是 N / No 时更接近普通住宅场景。',
+  },
 ];
+
+const priceFilterLabels: Record<string, string> = {
+  lt10: '小于 US$ 10',
+  lt20: '小于 US$ 20',
+  gte20: '大于等于 US$ 20',
+};
 
 const faqJsonLd = {
   '@context': 'https://schema.org',
@@ -104,13 +122,8 @@ interface AddressesPageProps {
 export default async function AddressesPage({ searchParams }: AddressesPageProps) {
   const params = searchParams ? await searchParams : {};
   const filters = parsePublicAddressFilters(params);
-  const [headCode, data] = await Promise.all([
-    getPublicHeadCode(),
-    getPublicAddressesPageData(filters),
-  ]);
-  const visibleStates = data.states.slice(0, 12);
-  const hiddenStates = data.states.slice(12);
-  const paginationItems = getPaginationItems(data.page, data.totalPages);
+  const dataPromise = getPublicAddressesPageData(filters);
+  const headCode = await getPublicHeadCode();
 
   return (
     <>
@@ -129,29 +142,20 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
                 <h1>所有 Anytime Mailbox 地址</h1>
                 <p className="addresses-hero-copy">
                   浏览和搜索全站收录的 Anytime Mailbox 美国地址数据。你可以用关键词查找城市、州、ZIP 或街道，
-                  也可以通过州筛选、RDI、CMRA 与价格区间快速缩小候选范围，再进入详情页查看街景跳转、邮箱编号范围和每日监控变化。
+                  也可以通过州筛选、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与价格区间快速缩小候选范围，再进入详情页查看街景跳转、邮箱编号范围和每日监控变化。
                 </p>
                 <div className="addresses-proof-list" aria-label="页面能力">
                   <span><span><Check size={15} aria-hidden="true" /></span>关键词搜索</span>
                   <span><span><Check size={15} aria-hidden="true" /></span>州筛选</span>
-                  <span><span><Check size={15} aria-hidden="true" /></span>RDI / CMRA 筛选</span>
-                  <span><span><Check size={15} aria-hidden="true" /></span>价格筛选</span>
+                  <span><span><Check size={15} aria-hidden="true" /></span>RDI / CMRA / USPS CMRA 筛选</span>
+                  <span><span><Check size={15} aria-hidden="true" /></span>C1 预审 / 价格筛选</span>
                 </div>
               </div>
               <aside className="addresses-stat-panel" aria-label="地址库概览">
                 <h2>地址库概览</h2>
-                <div>
-                  <span>收录地址</span>
-                  <strong>{formatCompactCount(data.stats.totalAddresses)}</strong>
-                </div>
-                <div>
-                  <span>住宅地址</span>
-                  <strong>{formatCompactCount(data.stats.residentialAddresses)}</strong>
-                </div>
-                <div>
-                  <span>州与地区入口</span>
-                  <strong>{data.stats.stateCount}</strong>
-                </div>
+                <Suspense fallback={<AddressStatsFallback />}>
+                  <AddressStats dataPromise={dataPromise} />
+                </Suspense>
               </aside>
             </div>
           </div>
@@ -160,6 +164,7 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
         <section className="addresses-inner addresses-search-panel" aria-labelledby="addresses-search-title">
           <h2 className="home-visually-hidden" id="addresses-search-title">搜索和筛选所有地址</h2>
           <form className="addresses-search-form" action="/addresses#address-list-title" method="get">
+            <input name="state" type="hidden" value={filters.state} />
             <label className="addresses-keyword-field">
               <span>关键词搜索</span>
               <div className="addresses-input-like">
@@ -190,6 +195,22 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
               </select>
             </label>
             <label>
+              <span>USPS CMRA</span>
+              <select name="usps" defaultValue={filters.usps}>
+                <option value="">全部</option>
+                <option value="Y">Y</option>
+                <option value="N">N</option>
+              </select>
+            </label>
+            <label>
+              <span>C1 预审</span>
+              <select name="c1" defaultValue={filters.c1}>
+                <option value="">全部</option>
+                <option value="pass">通过</option>
+                <option value="fail">不通过</option>
+              </select>
+            </label>
+            <label>
               <span>价格</span>
               <select name="price" defaultValue={filters.price}>
                 <option value="">全部价格</option>
@@ -204,42 +225,15 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
             </button>
           </form>
 
-          <div className="addresses-state-filter">
-            <div className="addresses-state-head">
-              <div>
-                <h2>州筛选</h2>
-                <p>州也是筛选条件，默认展示两行州入口，展开后查看全部州/地区。</p>
-              </div>
-              {filters.state ? (
-                <Link className="addresses-clear-link" href={buildAddressesPageUrl(filters, { state: '', page: 1 })}>
-                  清除州筛选
-                </Link>
-              ) : null}
-            </div>
-            <div className="addresses-state-grid">
-              {visibleStates.map((state) => (
-                <StateFilterLink filters={filters} key={state.code} state={state} />
-              ))}
-            </div>
-            {hiddenStates.length > 0 ? (
-              <details className="addresses-state-details">
-                <summary>
-                  展开全部 {data.states.length} 个州/地区
-                  <ChevronDown size={17} aria-hidden="true" />
-                </summary>
-                <div className="addresses-state-grid addresses-state-grid-more">
-                  {hiddenStates.map((state) => (
-                    <StateFilterLink filters={filters} key={state.code} state={state} />
-                  ))}
-                </div>
-              </details>
-            ) : null}
-          </div>
+          <Suspense fallback={<StateFilterPanelSkeleton />}>
+            <AddressStateFilter dataPromise={dataPromise} filters={filters} />
+          </Suspense>
 
           <div className="addresses-search-note">
             <span><ShieldCheck size={16} aria-hidden="true" /><strong>RDI / CMRA</strong> 来源于 Smarty 地址验证结果</span>
             <span><DollarSign size={16} aria-hidden="true" />价格用于初筛，详情页仍需结合用途判断</span>
             <span><RefreshCw size={16} aria-hidden="true" />地址、价格与邮箱编号范围每日监控更新</span>
+            <span><CreditCard size={16} aria-hidden="true" /><strong>USPS CMRA</strong> 与 <strong>C1 预审</strong> 支持筛选并在列表直接展示</span>
           </div>
         </section>
 
@@ -248,112 +242,25 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
             <div>
               <h2 id="address-list-title">全部地址列表</h2>
               <p>
-                结果列表展示地址、RDI、CMRA、价格和邮箱编号范围，
+                结果列表展示地址、RDI、CMRA、USPS CMRA、C1 预审、价格和邮箱编号范围，
                 方便进入详情页进一步判断。
               </p>
             </div>
-            <span className="addresses-update-pill">
-              <Database size={18} aria-hidden="true" />
-              显示 {data.start}-{data.end} / {formatNumber(data.total)}
-            </span>
+            <Suspense fallback={null}>
+              <AddressRangePill dataPromise={dataPromise} />
+            </Suspense>
           </div>
 
-          <div className="addresses-result-panel">
-            <div className="addresses-result-toolbar">
-              <div className="addresses-result-count">
-                找到 <strong>{formatNumber(data.total)}</strong> 个 Anytime Mailbox 地址
-                {data.selectedStateLabel ? <span> · {data.selectedStateLabel}</span> : null}
-              </div>
-            </div>
-            {data.items.length > 0 ? (
-              <div className="addresses-list" role="list">
-                <AddressRowClickState />
-                {data.items.map((address) => (
-                  <article className="addresses-row" data-address-row-id={address.id} key={address.id} role="listitem">
-                    <div className="addresses-main">
-                      <h3><a href={address.detailUrl} rel="noreferrer" target="_blank">{address.name}</a></h3>
-                      <p>{address.streetAddress}<br />{address.cityLine}</p>
-                    </div>
-                    <div className="addresses-data-cell"><strong>{address.stateLabel}</strong>州/地区</div>
-                    <div className="addresses-data-cell">
-                      <span className={address.rdi === 'Residential' ? 'addresses-badge good' : 'addresses-badge warn'}>
-                        {address.rdi}
-                      </span>
-                      RDI
-                    </div>
-                    <div className="addresses-data-cell">
-                      <span className={address.cmra === 'No' ? 'addresses-badge good' : 'addresses-badge warn'}>
-                        {address.cmra}
-                      </span>
-                      CMRA
-                    </div>
-                    <div className="addresses-data-cell"><strong>{address.price}</strong>价格</div>
-                    <div className="addresses-data-cell"><strong>{address.mailbox}</strong>邮箱编号</div>
-                    <div className="addresses-row-actions">
-                      <a className="addresses-detail-button" href={address.detailUrl} rel="noreferrer" target="_blank">
-                        查看详情
-                        <ArrowRight size={16} aria-hidden="true" />
-                      </a>
-                      <a className="addresses-photo-button" href={address.mapsUrl} rel="noreferrer" target="_blank">
-                        <MapPin size={16} aria-hidden="true" />
-                        查看照片
-                      </a>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="addresses-empty">
-                <strong>没有找到匹配地址</strong>
-                <p>可以减少关键词，或清除 RDI、CMRA、价格和州筛选后重新搜索。</p>
-                <div className="addresses-empty-actions">
-                  <Link href={buildAddressesPageUrl(filters, { q: '', state: '', rdi: '', cmra: '', price: '', page: 1 })}>
-                    <RefreshCw size={15} aria-hidden="true" />
-                    清除全部筛选
-                  </Link>
-                  <a href="#addresses-search-title">
-                    <Search size={15} aria-hidden="true" />
-                    重新搜索
-                  </a>
-                </div>
-              </div>
-            )}
-            <nav className="addresses-pagination" aria-label="地址列表分页">
-              <span>第 {data.page} 页，共 {data.totalPages} 页</span>
-              <div>
-                {data.page > 1 ? (
-                  <Link href={buildAddressesPageUrl(filters, { page: data.page - 1 })}>上一页</Link>
-                ) : (
-                  <span className="disabled">上一页</span>
-                )}
-                {paginationItems.map((item, index) => (
-                  item === 'ellipsis' ? (
-                    <span key={`ellipsis-${index}`}>...</span>
-                  ) : (
-                    <Link
-                      className={item === data.page ? 'active' : undefined}
-                      href={buildAddressesPageUrl(filters, { page: item })}
-                      key={item}
-                    >
-                      {item}
-                    </Link>
-                  )
-                ))}
-                {data.page < data.totalPages ? (
-                  <Link href={buildAddressesPageUrl(filters, { page: data.page + 1 })}>下一页</Link>
-                ) : (
-                  <span className="disabled">下一页</span>
-                )}
-              </div>
-            </nav>
-          </div>
+          <Suspense fallback={<AddressResultsSkeleton />}>
+            <AddressResults dataPromise={dataPromise} filters={filters} />
+          </Suspense>
         </section>
 
         <section className="addresses-inner addresses-section" aria-labelledby="addresses-seo-title">
           <div className="addresses-section-head">
             <div>
               <h2 id="addresses-seo-title">如何使用所有地址页面筛选美国住宅地址？</h2>
-              <p>这个页面面向搜索和浏览场景：先用关键词或州入口找到地址，再用 RDI、CMRA 和价格做二次过滤。</p>
+              <p>这个页面面向搜索和浏览场景：先用关键词或州入口找到地址，再用 RDI、CMRA、USPS CMRA、C1 预审和价格做二次过滤。</p>
             </div>
           </div>
           <div className="addresses-seo-grid">
@@ -395,27 +302,280 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
   );
 }
 
-function StateFilterLink({
-  filters,
-  state,
-}: {
-  filters: PublicAddressFilters;
-  state: { code: string; zhName: string; name: string; count: number };
-}) {
-  const isActive = filters.state === state.code;
+async function AddressStats({ dataPromise }: { dataPromise: Promise<PublicAddressesPageData> }) {
+  const data = await dataPromise;
 
   return (
-    <Link
-      aria-pressed={isActive}
-      className={isActive ? 'addresses-state-link active' : 'addresses-state-link'}
-      href={buildAddressesPageUrl(filters, { state: isActive ? '' : state.code, page: 1 })}
-    >
-      <span className="addresses-state-name">
-        {state.zhName}
-        <small>{state.name} ({state.code})</small>
-      </span>
-      <span className="addresses-state-count">{state.count}</span>
-    </Link>
+    <>
+      <div>
+        <span>收录地址</span>
+        <strong>{formatCompactCount(data.stats.totalAddresses)}</strong>
+      </div>
+      <div>
+        <span>住宅地址</span>
+        <strong>{formatCompactCount(data.stats.residentialAddresses)}</strong>
+      </div>
+      <div>
+        <span>州与地区入口</span>
+        <strong>{data.stats.stateCount}</strong>
+      </div>
+    </>
+  );
+}
+
+function AddressStatsFallback() {
+  return (
+    <>
+      <div>
+        <span>收录地址</span>
+        <strong>…</strong>
+      </div>
+      <div>
+        <span>住宅地址</span>
+        <strong>…</strong>
+      </div>
+      <div>
+        <span>州与地区入口</span>
+        <strong>…</strong>
+      </div>
+    </>
+  );
+}
+
+async function AddressStateFilter({
+  dataPromise,
+  filters,
+}: {
+  dataPromise: Promise<PublicAddressesPageData>;
+  filters: PublicAddressFilters;
+}) {
+  const data = await dataPromise;
+
+  return (
+    <StateFilterPanel
+      buildHref={(stateCode) => buildAddressesPageUrl(filters, { state: stateCode, page: 1 })}
+      selectedState={filters.state}
+      states={data.states}
+    />
+  );
+}
+
+async function AddressRangePill({ dataPromise }: { dataPromise: Promise<PublicAddressesPageData> }) {
+  const data = await dataPromise;
+
+  return (
+    <span className="addresses-update-pill">
+      <Database size={18} aria-hidden="true" />
+      显示 {data.start}-{data.end} / {formatNumber(data.total)}
+    </span>
+  );
+}
+
+function AddressResultsSkeleton() {
+  return (
+    <div className="addresses-result-panel">
+      <div className="addresses-skeleton" aria-busy="true" aria-live="polite" style={{ padding: 16 }}>
+        <span className="home-visually-hidden">正在加载地址列表…</span>
+        {Array.from({ length: 8 }).map((_, index) => (
+          <span className="addresses-skeleton-row" key={index} aria-hidden="true" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function AddressResults({
+  dataPromise,
+  filters,
+}: {
+  dataPromise: Promise<PublicAddressesPageData>;
+  filters: PublicAddressFilters;
+}) {
+  const data = await dataPromise;
+  const paginationItems = getPaginationItems(data.page, data.totalPages);
+  const clearAllHref = buildAddressesPageUrl(filters, {
+    q: '',
+    state: '',
+    rdi: '',
+    cmra: '',
+    usps: '',
+    c1: '',
+    price: '',
+    page: 1,
+  });
+  const chips: ActiveFilterChip[] = [];
+
+  if (filters.q) {
+    chips.push({
+      key: 'q',
+      label: '关键词',
+      value: filters.q,
+      removeHref: buildAddressesPageUrl(filters, { q: '', page: 1 }),
+    });
+  }
+
+  if (filters.state) {
+    chips.push({
+      key: 'state',
+      label: '州',
+      value: data.selectedStateLabel ?? filters.state,
+      removeHref: buildAddressesPageUrl(filters, { state: '', page: 1 }),
+    });
+  }
+
+  if (filters.rdi) {
+    chips.push({
+      key: 'rdi',
+      label: 'RDI',
+      value: filters.rdi === 'none' ? '无' : filters.rdi,
+      removeHref: buildAddressesPageUrl(filters, { rdi: '', page: 1 }),
+    });
+  }
+
+  if (filters.cmra) {
+    chips.push({
+      key: 'cmra',
+      label: 'CMRA',
+      value: filters.cmra === 'none' ? '无' : filters.cmra,
+      removeHref: buildAddressesPageUrl(filters, { cmra: '', page: 1 }),
+    });
+  }
+
+  if (filters.usps) {
+    chips.push({
+      key: 'usps',
+      label: 'USPS CMRA',
+      value: filters.usps,
+      removeHref: buildAddressesPageUrl(filters, { usps: '', page: 1 }),
+    });
+  }
+
+  if (filters.c1) {
+    chips.push({
+      key: 'c1',
+      label: 'C1 预审',
+      value: C1_PRECHECK_LABELS[filters.c1 as AddressC1Precheck] ?? filters.c1,
+      removeHref: buildAddressesPageUrl(filters, { c1: '', page: 1 }),
+    });
+  }
+
+  if (filters.price) {
+    chips.push({
+      key: 'price',
+      label: '价格',
+      value: priceFilterLabels[filters.price] ?? filters.price,
+      removeHref: buildAddressesPageUrl(filters, { price: '', page: 1 }),
+    });
+  }
+
+  return (
+    <div className="addresses-result-panel">
+      <div className="addresses-result-toolbar">
+        <div className="addresses-result-count">
+          找到 <strong>{formatNumber(data.total)}</strong> 个 Anytime Mailbox 地址
+        </div>
+        <ActiveFilterChips chips={chips} clearAllHref={clearAllHref} />
+      </div>
+      {data.items.length > 0 ? (
+        <div className="addresses-list" role="list">
+          <AddressRowClickState />
+          {data.items.map((address) => (
+            <article className="addresses-row" data-address-row-id={address.id} key={address.id} role="listitem">
+              <div className="addresses-main">
+                <h3><a href={address.detailUrl} rel="noreferrer" target="_blank">{address.name}</a></h3>
+                <p>{address.streetAddress}<br />{address.cityLine}</p>
+              </div>
+              <div className="addresses-data-cell"><strong>{address.stateLabel}</strong>州/地区</div>
+              <div className="addresses-data-cell">
+                <span className={address.rdi === 'Residential' ? 'addresses-badge good' : 'addresses-badge warn'}>
+                  {address.rdi}
+                </span>
+                RDI
+              </div>
+              <div className="addresses-data-cell">
+                <span className={address.cmra === 'No' ? 'addresses-badge good' : 'addresses-badge warn'}>
+                  {address.cmra}
+                </span>
+                CMRA
+              </div>
+              <div className="addresses-data-cell">
+                <span
+                  className={manualCheckBadgeClass(address.uspsCmra === 'N' ? 'good' : address.uspsCmra === 'Y' ? 'warn' : null)}
+                  title={address.uspsCmraUpdatedAt ? `更新时间 ${address.uspsCmraUpdatedAt}` : undefined}
+                >
+                  {address.uspsCmraLabel}
+                </span>
+                USPS CMRA
+              </div>
+              <div className="addresses-data-cell">
+                <span
+                  className={manualCheckBadgeClass(address.c1Precheck === 'pass' ? 'good' : address.c1Precheck === 'fail' ? 'warn' : null)}
+                  title={address.c1PrecheckUpdatedAt ? `更新时间 ${address.c1PrecheckUpdatedAt}` : undefined}
+                >
+                  {address.c1PrecheckLabel}
+                </span>
+                C1 预审
+              </div>
+              <div className="addresses-data-cell"><strong>{address.price}</strong>价格</div>
+              <div className="addresses-data-cell"><strong>{address.mailbox}</strong>邮箱编号</div>
+              <div className="addresses-row-actions">
+                <a className="addresses-detail-button" href={address.detailUrl} rel="noreferrer" target="_blank">
+                  查看详情
+                  <ArrowRight size={16} aria-hidden="true" />
+                </a>
+                <a className="addresses-photo-button" href={address.mapsUrl} rel="noreferrer" target="_blank">
+                  <MapPin size={16} aria-hidden="true" />
+                  查看照片
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="addresses-empty">
+          <strong>没有找到匹配地址</strong>
+          <p>可以减少关键词，或清除 RDI、CMRA、USPS CMRA、C1 预审、价格和州筛选后重新搜索。</p>
+          <div className="addresses-empty-actions">
+            <Link href={clearAllHref}>
+              <RefreshCw size={15} aria-hidden="true" />
+              清除全部筛选
+            </Link>
+            <a href="#addresses-search-title">
+              <Search size={15} aria-hidden="true" />
+              重新搜索
+            </a>
+          </div>
+        </div>
+      )}
+      <nav className="addresses-pagination" aria-label="地址列表分页">
+        <span>第 {data.page} 页，共 {data.totalPages} 页</span>
+        <div>
+          {data.page > 1 ? (
+            <Link href={buildAddressesPageUrl(filters, { page: data.page - 1 })}>上一页</Link>
+          ) : (
+            <span className="disabled">上一页</span>
+          )}
+          {paginationItems.map((item, index) => (
+            item === 'ellipsis' ? (
+              <span key={`ellipsis-${index}`}>...</span>
+            ) : (
+              <Link
+                className={item === data.page ? 'active' : undefined}
+                href={buildAddressesPageUrl(filters, { page: item })}
+                key={item}
+              >
+                {item}
+              </Link>
+            )
+          ))}
+          {data.page < data.totalPages ? (
+            <Link href={buildAddressesPageUrl(filters, { page: data.page + 1 })}>下一页</Link>
+          ) : (
+            <span className="disabled">下一页</span>
+          )}
+        </div>
+      </nav>
+    </div>
   );
 }
 
@@ -437,6 +597,10 @@ function getPaginationItems(currentPage: number, totalPages: number) {
   });
 
   return items;
+}
+
+function manualCheckBadgeClass(tone: 'good' | 'warn' | null) {
+  return tone ? `addresses-badge ${tone}` : 'addresses-badge muted';
 }
 
 function formatNumber(value: number) {

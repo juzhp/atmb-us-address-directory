@@ -81,6 +81,19 @@ export const US_STATES: UsStateDisplay[] = US_STATE_DATA.map(([code, name, zhNam
 
 const STATE_BY_CODE = new Map(US_STATES.map((state) => [state.code, state]));
 
+const STATE_CODE_BY_KEYWORD = new Map<string, string>();
+
+for (const [code, name, zhName] of US_STATE_DATA) {
+  for (const keyword of [code, name, zhName, ...(US_STATE_ALIASES[code] ?? [])]) {
+    STATE_CODE_BY_KEYWORD.set(keyword.toLowerCase(), code);
+  }
+}
+
+export function findUsStateCodeByKeyword(keyword: string): string | null {
+  const normalized = keyword.trim().toLowerCase();
+  return normalized ? (STATE_CODE_BY_KEYWORD.get(normalized) ?? null) : null;
+}
+
 export function getUsStateDisplay(code: string, fallbackName?: string): UsStateDisplay {
   const normalizedCode = code.trim().toUpperCase();
   const mapped = STATE_BY_CODE.get(normalizedCode);

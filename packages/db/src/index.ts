@@ -97,6 +97,10 @@ export function ensureDatabaseSchema(sqlite: Database.Database) {
       price_period TEXT NOT NULL DEFAULT 'month',
       rdi TEXT NOT NULL CHECK (rdi IN ('Residential', 'Commercial')),
       cmra TEXT NOT NULL CHECK (cmra IN ('Yes', 'No')),
+      usps_cmra TEXT CHECK (usps_cmra IS NULL OR usps_cmra IN ('Y', 'N')),
+      usps_cmra_updated_at TEXT,
+      c1_precheck TEXT CHECK (c1_precheck IS NULL OR c1_precheck IN ('pass', 'fail')),
+      c1_precheck_updated_at TEXT,
       smarty_raw TEXT,
       smarty_checked_at TEXT,
       mailbox_min INTEGER,
@@ -120,6 +124,8 @@ export function ensureDatabaseSchema(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS addresses_postal_code_idx ON addresses (postal_code);
     CREATE INDEX IF NOT EXISTS addresses_rdi_idx ON addresses (rdi);
     CREATE INDEX IF NOT EXISTS addresses_cmra_idx ON addresses (cmra);
+    CREATE INDEX IF NOT EXISTS addresses_usps_cmra_idx ON addresses (usps_cmra);
+    CREATE INDEX IF NOT EXISTS addresses_c1_precheck_idx ON addresses (c1_precheck);
     CREATE INDEX IF NOT EXISTS addresses_featured_idx ON addresses (is_featured);
     CREATE INDEX IF NOT EXISTS addresses_active_idx ON addresses (is_active);
     CREATE INDEX IF NOT EXISTS addresses_visible_idx ON addresses (is_visible);

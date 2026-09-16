@@ -1,10 +1,17 @@
 import Database from 'better-sqlite3';
-import { getUsStateDisplay } from '@atmb/shared';
+import {
+  C1_PRECHECK_LABELS,
+  findUsStateCodeByKeyword,
+  getUsStateDisplay,
+  type AddressC1Precheck,
+  type AddressUspsCmra,
+} from '@atmb/shared';
 
 export { buildAddressDetailRedirectUrl } from './referral-redirect';
 import { buildAddressDetailRedirectUrl } from './referral-redirect';
 
 export const PUBLIC_ADDRESS_PAGE_SIZE = 20;
+export const PUBLIC_VISIBLE_STATE_COUNT = 12;
 export const PUBLIC_ADDRESSES_RESULT_HASH = '#address-list-title';
 
 export interface PublicAddressFilters {
@@ -12,6 +19,8 @@ export interface PublicAddressFilters {
   state: string;
   rdi: string;
   cmra: string;
+  usps: string;
+  c1: string;
   price: string;
   page: number;
 }
@@ -25,6 +34,12 @@ export interface PublicAddressListItem {
   price: string;
   rdi: string;
   cmra: string;
+  uspsCmra: AddressUspsCmra | null;
+  uspsCmraLabel: string;
+  uspsCmraUpdatedAt: string | null;
+  c1Precheck: AddressC1Precheck | null;
+  c1PrecheckLabel: string;
+  c1PrecheckUpdatedAt: string | null;
   mailbox: string;
   detailUrl: string;
   mapsUrl: string;
@@ -71,6 +86,10 @@ interface AddressRow {
   priceCents: number;
   rdi: string | null;
   cmra: string | null;
+  uspsCmra: AddressUspsCmra | null;
+  uspsCmraUpdatedAt: string | null;
+  c1Precheck: AddressC1Precheck | null;
+  c1PrecheckUpdatedAt: string | null;
   mailboxMin: number | null;
   mailboxMax: number | null;
   updatedAt: string;
@@ -109,7 +128,7 @@ export async function getPublicAddressesPageData(filters: PublicAddressFilters):
       readonly: true,
     });
 
-    const states = listPublicStates(sqlite);
+    const states = listPublicStates(sqlite, filters);
     const selectedState = filters.state ? states.find((state) => state.code === filters.state) : null;
     const stats = readPublicAddressStats(sqlite);
     const { where, params } = buildAddressWhere(filters);
@@ -133,6 +152,10 @@ export async function getPublicAddressesPageData(filters: PublicAddressFilters):
           a.price_cents AS priceCents,
           a.rdi,
           a.cmra,
+          a.usps_cmra AS uspsCmra,
+          a.usps_cmra_updated_at AS uspsCmraUpdatedAt,
+          a.c1_precheck AS c1Precheck,
+          a.c1_precheck_updated_at AS c1PrecheckUpdatedAt,
           a.mailbox_min AS mailboxMin,
           a.mailbox_max AS mailboxMax,
           a.updated_at AS updatedAt
@@ -180,6 +203,8 @@ export function parsePublicAddressFilters(searchParams: SearchParams = {}): Publ
     state: normalizeState(firstParam(searchParams.state)),
     rdi,
     cmra,
+    usps: normalizeEnumParam(firstParam(searchParams.usps), ['Y', 'N']),
+    c1: normalizeEnumParam(firstParam(searchParams.c1), ['pass', 'fail']),
     price,
     page: normalizePage(firstParam(searchParams.page)),
   };
@@ -196,11 +221,43 @@ export function buildAddressesPageUrl(
   if (nextFilters.state) params.set('state', nextFilters.state);
   if (nextFilters.rdi) params.set('rdi', nextFilters.rdi);
   if (nextFilters.cmra) params.set('cmra', nextFilters.cmra);
+  if (nextFilters.usps) params.set('usps', nextFilters.usps);
+  if (nextFilters.c1) params.set('c1', nextFilters.c1);
   if (nextFilters.price) params.set('price', nextFilters.price);
   if (nextFilters.page > 1) params.set('page', String(nextFilters.page));
 
   const query = params.toString();
   return `${query ? `/addresses?${query}` : '/addresses'}${PUBLIC_ADDRESSES_RESULT_HASH}`;
+}
+
+export function formatPublicDateTime(value: string) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(value));
+}
+
+export function splitPublicStateLinks(states: PublicStateLink[], selectedState: string) {
+  const ranked = [...states].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'en'));
+  const visible = ranked.slice(0, PUBLIC_VISIBLE_STATE_COUNT);
+
+  if (selectedState && !visible.some((state) => state.code === selectedState)) {
+    const selected = states.find((state) => state.code === selectedState);
+
+    if (selected) {
+      visible.splice(Math.max(visible.length - 1, 0), 1, selected);
+    }
+  }
+
+  const visibleCodes = new Set(visible.map((state) => state.code));
+  const hidden = states.filter((state) => !visibleCodes.has(state.code));
+
+  return { visible, hidden };
 }
 
 export function formatPublicPrice(priceCents: number) {
@@ -233,6 +290,7 @@ function buildAddressWhere(filters: PublicAddressFilters) {
 
   if (filters.q) {
     const keyword = `%${escapeLike(filters.q)}%`;
+    const keywordStateCode = findUsStateCodeByKeyword(filters.q);
     where.push(`(
       a.name LIKE ? ESCAPE '\\'
       OR a.street_address LIKE ? ESCAPE '\\'
@@ -241,8 +299,13 @@ function buildAddressWhere(filters: PublicAddressFilters) {
       OR a.state LIKE ? ESCAPE '\\'
       OR a.postal_code LIKE ? ESCAPE '\\'
       OR a.full_address LIKE ? ESCAPE '\\'
+      ${keywordStateCode ? 'OR a.state = ?' : ''}
     )`);
     params.push(keyword, keyword, keyword, keyword, keyword, keyword, keyword);
+
+    if (keywordStateCode) {
+      params.push(keywordStateCode);
+    }
   }
 
   if (filters.state) {
@@ -264,6 +327,16 @@ function buildAddressWhere(filters: PublicAddressFilters) {
     params.push(filters.cmra);
   }
 
+  if (filters.usps) {
+    where.push('a.usps_cmra = ?');
+    params.push(filters.usps);
+  }
+
+  if (filters.c1) {
+    where.push('a.c1_precheck = ?');
+    params.push(filters.c1);
+  }
+
   if (filters.price === 'lt10') {
     where.push('a.price_cents < ?');
     params.push(1000);
@@ -281,7 +354,8 @@ function buildAddressWhere(filters: PublicAddressFilters) {
   };
 }
 
-function listPublicStates(sqlite: Database.Database) {
+function listPublicStates(sqlite: Database.Database, filters: PublicAddressFilters) {
+  const facetCounts = readPublicStateFacetCounts(sqlite, filters);
   const rows = sqlite
     .prepare(`
       SELECT
@@ -305,9 +379,18 @@ function listPublicStates(sqlite: Database.Database) {
       name: state.name,
       zhName: state.zhName,
       label: state.label,
-      count: row.count,
+      count: facetCounts.get(row.code) ?? 0,
     } satisfies PublicStateLink;
   });
+}
+
+function readPublicStateFacetCounts(sqlite: Database.Database, filters: PublicAddressFilters) {
+  const { where, params } = buildAddressWhere({ ...filters, state: '' });
+  const rows = sqlite
+    .prepare(`SELECT a.state AS code, COUNT(*) AS count FROM addresses a ${where} GROUP BY a.state`)
+    .all(...params) as Array<{ code: string; count: number }>;
+
+  return new Map(rows.map((row) => [row.code, row.count]));
 }
 
 function readPublicAddressStats(sqlite: Database.Database) {
@@ -343,6 +426,12 @@ function toPublicAddressListItem(row: AddressRow) {
     price: formatPublicPrice(row.priceCents),
     rdi: row.rdi ?? '无',
     cmra: row.cmra ?? '无',
+    uspsCmra: row.uspsCmra,
+    uspsCmraLabel: row.uspsCmra ?? '—',
+    uspsCmraUpdatedAt: row.uspsCmraUpdatedAt ? formatPublicDateTime(row.uspsCmraUpdatedAt) : null,
+    c1Precheck: row.c1Precheck,
+    c1PrecheckLabel: row.c1Precheck ? C1_PRECHECK_LABELS[row.c1Precheck] : '—',
+    c1PrecheckUpdatedAt: row.c1PrecheckUpdatedAt ? formatPublicDateTime(row.c1PrecheckUpdatedAt) : null,
     mailbox: formatPublicMailboxRange(row.mailboxMin, row.mailboxMax),
     detailUrl: buildAddressDetailRedirectUrl(row.anytimeUrl),
     mapsUrl: buildPublicGoogleMapsUrl(fullAddress),

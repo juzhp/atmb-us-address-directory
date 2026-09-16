@@ -69,6 +69,10 @@ export const addresses = sqliteTable(
     pricePeriod: text('price_period').notNull().default('month'),
     rdi: text('rdi', { enum: ['Residential', 'Commercial'] }).notNull(),
     cmra: text('cmra', { enum: ['Yes', 'No'] }).notNull(),
+    uspsCmra: text('usps_cmra', { enum: ['Y', 'N'] }),
+    uspsCmraUpdatedAt: text('usps_cmra_updated_at'),
+    c1Precheck: text('c1_precheck', { enum: ['pass', 'fail'] }),
+    c1PrecheckUpdatedAt: text('c1_precheck_updated_at'),
     smartyRaw: text('smarty_raw'),
     smartyCheckedAt: text('smarty_checked_at'),
     mailboxMin: integer('mailbox_min'),
@@ -93,6 +97,8 @@ export const addresses = sqliteTable(
     index('addresses_postal_code_idx').on(table.postalCode),
     index('addresses_rdi_idx').on(table.rdi),
     index('addresses_cmra_idx').on(table.cmra),
+    index('addresses_usps_cmra_idx').on(table.uspsCmra),
+    index('addresses_c1_precheck_idx').on(table.c1Precheck),
     index('addresses_featured_idx').on(table.isFeatured),
     index('addresses_active_idx').on(table.isActive),
     index('addresses_visible_idx').on(table.isVisible),
@@ -100,6 +106,8 @@ export const addresses = sqliteTable(
     index('addresses_updated_at_idx').on(table.updatedAt),
     check('addresses_rdi_check', sql`${table.rdi} IN ('Residential', 'Commercial')`),
     check('addresses_cmra_check', sql`${table.cmra} IN ('Yes', 'No')`),
+    check('addresses_usps_cmra_check', sql`${table.uspsCmra} IS NULL OR ${table.uspsCmra} IN ('Y', 'N')`),
+    check('addresses_c1_precheck_check', sql`${table.c1Precheck} IS NULL OR ${table.c1Precheck} IN ('pass', 'fail')`),
   ],
 );
 

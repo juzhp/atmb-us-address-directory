@@ -11,7 +11,7 @@ export const revalidate = 86400;
 export const metadata: Metadata = {
   title: '2026 Anytime Mailbox(ATMB) 注册教程 | 美国真实住宅地址筛选避坑（信用卡/开户必备）',
   description:
-    '手把手 Anytime Mailbox(ATMB) 注册教程：从选州、筛选 RDI Residential / CMRA No 真实住宅地址，到选套餐、支付、激活全流程，并教你用 RDI/CMRA/街景避开商业与 CMRA 地址。适合申请美国信用卡、银行开户、公司注册。',
+    '手把手 Anytime Mailbox(ATMB) 注册教程：从选州、筛选 RDI Residential / CMRA No 真实住宅地址，到选套餐、支付、激活全流程，并教你用 RDI/CMRA/C1 预审/街景避开商业与 CMRA 地址。适合申请美国信用卡、银行开户、公司注册。',
   alternates: {
     canonical: '/guide/anytime-mailbox-tutorial',
   },
@@ -80,7 +80,7 @@ const faqs = [
   {
     question: '手动筛选一个合规地址要多久？',
     answer:
-      '据公开教程分享，逐个用 USPS/Smarty 核对 RDI/CMRA 往往要一个多小时。本站已把 RDI/CMRA、价格、邮箱编号范围批量整理好，可直接筛选。',
+      '据公开教程分享，逐个用 USPS/Smarty 核对 RDI/CMRA 往往要一个多小时。本站已把 RDI/CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）、价格、邮箱编号范围批量整理好，可直接筛选。',
   },
   {
     question: '先月付还是年付？',
@@ -189,13 +189,13 @@ export default async function AnytimeMailboxTutorialPage() {
             <h2 id="filter-fast">三、手动逐个查太累：用工具几秒筛好</h2>
             <p>
               如果一个一个地址打开 USPS、Smarty 去核对 RDI/CMRA，公开教程里有人<strong>花了一个半小时</strong>才找到一个合规地址。
-              本站已经把全站 Anytime Mailbox 地址的 RDI、CMRA、价格与邮箱编号范围批量整理好，并默认过滤出 RDI Residential 候选，
+              本站已经把全站 Anytime Mailbox 地址的 RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）、价格与邮箱编号范围批量整理好，并默认过滤出 RDI Residential 候选，
               省去逐个查询的时间。
             </p>
             <div className="guide-cta">
               <div>
                 <strong>直接筛选已过滤 RDI Residential 的地址</strong>
-                <span>支持 CMRA、关键词与价格二次筛选，配合街景判断。</span>
+                <span>支持 CMRA、USPS CMRA、C1 预审、关键词与价格二次筛选，配合街景判断。</span>
               </div>
               <Link href="/residential-addresses">
                 去筛选住宅地址

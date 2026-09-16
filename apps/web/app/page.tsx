@@ -8,11 +8,13 @@ import {
   Camera,
   CheckCircle2,
   CircleAlert,
+  CreditCard,
   DatabaseZap,
   DollarSign,
   ExternalLink,
   Hash,
   Home,
+  Mailbox,
   MapPinned,
   RefreshCw,
   Search,
@@ -30,7 +32,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: '美国住宅地址筛选工具 | Anytime Mailbox(ATMB) 真实私人地址 RDI/CMRA 一键查',
   description:
-    '手动逐个用 USPS/Smarty 查 RDI/CMRA 要一个多小时？本站已批量筛好 Anytime Mailbox(ATMB) 美国真实私人住宅地址：按 RDI Residential、CMRA No、街景、价格、邮箱编号范围快速避开商业与 CMRA 地址，找到适合美国信用卡、银行开户、公司注册的地址。数据每日更新。',
+    '手动逐个用 USPS/Smarty 查 RDI/CMRA 要一个多小时？本站已批量筛好 Anytime Mailbox(ATMB) 美国真实私人住宅地址：按 RDI Residential、CMRA No、USPS CMRA、C1 预审（Capital One 地址预审核）、街景、价格、邮箱编号范围快速避开商业与 CMRA 地址，找到适合美国信用卡、银行开户、公司注册的地址。数据每日更新。',
   alternates: {
     canonical: '/',
   },
@@ -44,13 +46,16 @@ export const metadata: Metadata = {
     '美国虚拟地址',
     'RDI Residential',
     'CMRA',
+    'USPS CMRA',
+    'C1 预审',
+    'Capital One 地址预审',
     '美国信用卡地址',
     '美国银行开户地址',
     '美国地址筛选',
   ],
   openGraph: {
     title: '美国住宅地址筛选工具 | Anytime Mailbox(ATMB) 真实私人地址',
-    description: '已批量筛好 RDI Residential / CMRA No 的 Anytime Mailbox 美国真实住宅地址，省去逐个查询，适合美国信用卡与银行开户。',
+    description: '已批量筛好 RDI Residential / CMRA No 的 Anytime Mailbox 美国真实住宅地址，并标注 USPS CMRA 与 C1 预审（Capital One 地址预审核），省去逐个查询，适合美国信用卡与银行开户。',
     type: 'website',
     locale: 'zh_CN',
     images: [
@@ -65,7 +70,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '美国住宅地址筛选工具 | Anytime Mailbox(ATMB)',
-    description: '已批量筛好 RDI Residential / CMRA No 的美国真实住宅地址，适合美国信用卡与银行开户的第三方筛选工具。',
+    description: '已批量筛好 RDI Residential / CMRA No 的美国真实住宅地址，并标注 USPS CMRA 与 C1 预审，适合美国信用卡与银行开户的第三方筛选工具。',
     images: ['/assets/home/hero-residential-map-v4.png'],
   },
 };
@@ -91,6 +96,16 @@ const indicators = [
     icon: DatabaseZap,
     text: '邮箱编号范围可粗略反映该地址可能已有多少邮箱编号或用户使用，只作为拥挤度和风险判断的辅助信号。',
   },
+  {
+    title: 'USPS CMRA：Y / N',
+    icon: Mailbox,
+    text: 'USPS 侧的商业邮件接收代理标记。N 表示未被 USPS 标记为 CMRA，可与 Smarty 的 CMRA 字段互为参照。',
+  },
+  {
+    title: 'C1 预审：通过 / 不通过',
+    icon: CreditCard,
+    text: 'C1 预审即 Capital One 地址预审核。通过表示该地址可以用来提交 Capital One 申请，不通过表示提交时会被拦下；只反映地址能否提交，不代表申请一定获批。',
+  },
 ];
 
 const trustItems = [
@@ -101,7 +116,7 @@ const trustItems = [
   },
   {
     title: 'Smarty RDI / CMRA',
-    text: 'RDI 与 CMRA 字段来自 Smarty 数据',
+    text: 'RDI / CMRA 之外，另有 USPS CMRA 标记与 C1 预审结论',
     icon: ShieldCheck,
   },
   {
@@ -142,18 +157,38 @@ const decisionItems = [
     text: '范围较大时可能使用人数较多，只作为拥挤度和风险判断的参考之一。',
     icon: Hash,
   },
+  {
+    title: 'USPS CMRA',
+    text: 'N 更接近普通住宅场景，Y 需结合街景与用途判断。',
+    icon: Mailbox,
+  },
+  {
+    title: 'C1 预审',
+    text: '通过表示可用该地址提交 Capital One 申请，目标是 Capital One 的可优先查看。',
+    icon: CreditCard,
+  },
 ];
 
 const faqs = [
   {
     question: 'RDI = Residential 就一定适合吗？',
     answer:
-      '不一定。Residential 只是 Smarty 返回的地址用途辅助字段，仍需要结合 CMRA、街景、价格、ZIP 与邮箱编号范围综合判断。',
+      '不一定。Residential 只是 Smarty 返回的地址用途辅助字段，仍需要结合 CMRA、USPS CMRA、C1 预审、街景、价格、ZIP 与邮箱编号范围综合判断。',
   },
   {
     question: 'CMRA = Yes 是否代表不能用？',
     answer:
       '不一定，但它通常表示商业邮件接收代理相关地址。若目标是更接近真实住宅用途，CMRA = No 通常更值得优先查看。',
+  },
+  {
+    question: 'USPS CMRA 和 CMRA 有什么区别？',
+    answer:
+      'CMRA 来自 Smarty 地址验证结果，USPS CMRA 是 USPS 侧的标记；两者都是 N / No 时更接近普通住宅场景。',
+  },
+  {
+    question: 'C1 预审通过代表什么？',
+    answer:
+      'C1 预审是 Capital One 地址预审核。通过表示该地址可以用来提交 Capital One 申请，不通过表示提交时会被拦下。它只反映地址能否提交，不代表申请一定获批，也不代表其它银行或发卡方的结果。',
   },
   {
     question: '街景由谁判断？网站会自动给结论吗？',
@@ -209,13 +244,13 @@ export default async function HomePage() {
             </h1>
             <p className="home-hero-lede">
               手动逐个用 USPS / Smarty 核对 RDI、CMRA 往往要一个多小时。本站已批量筛好 Anytime Mailbox(ATMB) 美国真实住宅地址，
-              结合 RDI Residential、CMRA No、Google Maps 街景、价格与邮箱编号范围，帮你几秒缩小适合美国信用卡与银行开户的候选。
+              结合 RDI Residential、CMRA No、USPS CMRA、C1 预审（Capital One 地址预审核）、Google Maps 街景、价格与邮箱编号范围，帮你几秒缩小适合美国信用卡与银行开户的候选。
             </p>
             <div className="home-proof-list" aria-label="核心判断维度">
               <span><span className="home-proof-icon"><CheckCircle2 size={15} aria-hidden="true" /></span>RDI 区分 Residential / Commercial</span>
               <span><span className="home-proof-icon"><CheckCircle2 size={15} aria-hidden="true" /></span>CMRA 标记 Yes / No</span>
               <span><span className="home-proof-icon"><CheckCircle2 size={15} aria-hidden="true" /></span>点击 Google Maps 自行判断街景</span>
-              <span><span className="home-proof-icon"><CheckCircle2 size={15} aria-hidden="true" /></span>数据每日监控更新</span>
+              <span><span className="home-proof-icon"><CheckCircle2 size={15} aria-hidden="true" /></span>USPS CMRA / C1 预审 直接筛选</span>
             </div>
           </div>
           <div className="home-hero-visual" aria-hidden="true">
@@ -271,6 +306,7 @@ export default async function HomePage() {
             <span><ShieldCheck size={16} aria-hidden="true" /><strong>RDI / CMRA</strong> 来源于 Smarty 地址验证结果</span>
             <span><MapPinned size={16} aria-hidden="true" />街景通过 Google Maps 链接跳转后由用户自行判断</span>
             <span><RefreshCw size={16} aria-hidden="true" />地址、价格与邮箱编号范围每日监控更新</span>
+            <span><CreditCard size={16} aria-hidden="true" /><strong>USPS CMRA</strong> 与 <strong>C1 预审</strong> 可在地址列表中筛选并直接展示</span>
           </div>
         </section>
 
@@ -292,7 +328,7 @@ export default async function HomePage() {
         <section className="home-section" id="indicators" aria-labelledby="indicators-title">
           <div className="home-section-heading">
             <p className="site-eyebrow">判断指标</p>
-            <h2 id="indicators-title">我们使用的四个辅助判断指标</h2>
+            <h2 id="indicators-title">我们使用的六个辅助判断指标</h2>
             <p>这些字段用于帮助你更科学地筛选美国住宅地址，但它们仍是辅助判断，不等于最终承诺或保证。</p>
           </div>
           <div className="home-indicator-grid">
@@ -314,7 +350,7 @@ export default async function HomePage() {
             <div className="home-section-heading">
               <p className="site-eyebrow">真实精选</p>
               <h2 id="featured-title">精选住宅地址</h2>
-              <p>以下为后台标记为精选、且 RDI 为 Residential 的真实地址候选，用于展示价格、RDI、CMRA、ZIP 与邮箱编号范围等辅助判断字段。</p>
+              <p>以下为后台标记为精选、且 RDI 为 Residential 的真实地址候选，用于展示价格、RDI、CMRA、USPS CMRA、C1 预审、ZIP 与邮箱编号范围等辅助判断字段。</p>
             </div>
             <span className="home-update-pill">
               <RefreshCw size={18} aria-hidden="true" />
@@ -364,6 +400,18 @@ export default async function HomePage() {
                         <dt>邮箱编号</dt>
                         <dd>{address.mailbox}</dd>
                       </div>
+                      <div>
+                        <dt>USPS CMRA</dt>
+                        <dd title={address.uspsCmraUpdatedAt ? `更新时间 ${address.uspsCmraUpdatedAt}` : undefined}>
+                          {address.uspsCmraLabel}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>C1 预审</dt>
+                        <dd title={address.c1PrecheckUpdatedAt ? `更新时间 ${address.c1PrecheckUpdatedAt}` : undefined}>
+                          {address.c1PrecheckLabel}
+                        </dd>
+                      </div>
                     </dl>
                     <div className="home-card-actions">
                       <a href={address.detailUrl} rel="noreferrer" target="_blank">
@@ -394,7 +442,7 @@ export default async function HomePage() {
         <section className="home-section home-process" aria-labelledby="process-title">
           <div className="home-section-heading">
             <h2 id="process-title">如何综合判断一个美国住宅地址是否适合租用？</h2>
-            <p>先筛选州、RDI、CMRA，再进入地址详情看价格、ZIP、邮箱编号范围，并跳转 Google Maps 检查街景。</p>
+            <p>先筛选州、RDI、CMRA、USPS CMRA 与 C1 预审，再进入地址详情看价格、ZIP、邮箱编号范围，并跳转 Google Maps 检查街景。</p>
           </div>
           <div className="home-decision-strip">
             {decisionItems.map((item) => {

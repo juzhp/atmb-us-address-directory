@@ -90,6 +90,7 @@ interface SystemSettingsRow {
 }
 
 const SETTINGS_ID = 1;
+const PROXY_FAILURE_COOLDOWN_MS = 10 * 60 * 1000;
 
 export class HttpSmartyClient implements SmartyClient {
   async testConnection(credentials: { authId: string; authToken: string }) {
@@ -149,6 +150,9 @@ export class HttpProxyTester implements ProxyTester {
 }
 
 export class SettingsService {
+  // 进程内的代理冷却表：抓取时连不上的代理暂时不再被选中（单进程部署，无需落库）
+  private readonly proxyCooldownUntil = new Map<number, number>();
+
   constructor(
     private readonly database: DatabaseContext,
     private readonly config: ServerConfig,
@@ -400,13 +404,32 @@ export class SettingsService {
     return this.getProxy(id);
   }
 
+  /**
+   * 随机选一个可用代理：跳过最近一次测试失败的代理，以及最近抓取失败后仍在冷却期的代理。
+   * 全部代理都在冷却期时退化为在启用代理里随机，而不是直连暴露服务器 IP。
+   */
   getRandomActiveProxy(): CrawlProxy | null {
     const rows = this.database.sqlite
-      .prepare('SELECT id, url FROM proxy_library WHERE is_active = 1 ORDER BY id ASC')
+      .prepare("SELECT id, url FROM proxy_library WHERE is_active = 1 AND last_test_status <> 'failed' ORDER BY id ASC")
       .all() as Array<{ id: number; url: string }>;
 
     if (!rows.length) return null;
-    return rows[Math.floor(Math.random() * rows.length)] ?? null;
+
+    const now = Date.now();
+    const healthy = rows.filter((row) => (this.proxyCooldownUntil.get(row.id) ?? 0) <= now);
+    const candidates = healthy.length ? healthy : rows;
+
+    return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
+  }
+
+  reportProxyFailure(id: number, message: string) {
+    const now = Date.now();
+    if ((this.proxyCooldownUntil.get(id) ?? 0) > now) {
+      return;
+    }
+
+    this.proxyCooldownUntil.set(id, now + PROXY_FAILURE_COOLDOWN_MS);
+    console.warn(`Proxy ${id} temporarily disabled for ${PROXY_FAILURE_COOLDOWN_MS / 60000} minutes: ${message}`);
   }
 
   getProxy(id: number) {

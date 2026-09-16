@@ -11,12 +11,18 @@ const cmraSchema = z.enum(['Yes', 'No']);
 const rdiFilterSchema = z.enum(['Residential', 'Commercial', 'none']);
 const cmraFilterSchema = z.enum(['Yes', 'No', 'none']);
 const priceSchema = z.enum(['all', 'lt10', 'lt20', 'gte20']);
+const uspsCmraSchema = z.enum(['Y', 'N']);
+const c1PrecheckSchema = z.enum(['pass', 'fail']);
+const uspsCmraFilterSchema = z.enum(['Y', 'N', 'none']);
+const c1PrecheckFilterSchema = z.enum(['pass', 'fail', 'none']);
 
 const querySchema = z.object({
   keyword: z.string().optional(),
   state: z.string().optional(),
   rdi: rdiFilterSchema.optional(),
   cmra: cmraFilterSchema.optional(),
+  uspsCmra: uspsCmraFilterSchema.optional(),
+  c1Precheck: c1PrecheckFilterSchema.optional(),
   featured: z.enum(['true', 'false']).optional(),
   price: priceSchema.optional(),
   page: z.coerce.number().int().positive().optional(),
@@ -31,6 +37,8 @@ const updateSchema = z.object({
   postalCode: z.string().min(3).optional(),
   rdi: rdiSchema.optional(),
   cmra: cmraSchema.optional(),
+  uspsCmra: uspsCmraSchema.nullable().optional(),
+  c1Precheck: c1PrecheckSchema.nullable().optional(),
   priceCents: z.coerce.number().int().nonnegative().optional(),
   isFeatured: z.boolean().optional(),
   isVisible: z.boolean().optional(),
@@ -98,7 +106,15 @@ export function registerAddressRoutes(
       return reply.code(400).send({ message: '地址字段不正确' });
     }
 
-    const item = addressService.updateAddress(Number(id), parsed.data);
+    let item;
+    try {
+      item = addressService.updateAddress(Number(id), parsed.data);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'MANUAL_CHECK_REQUIRES_RESIDENTIAL') {
+        return reply.code(400).send({ message: '仅 RDI 为 Residential 的地址可设置 USPS CMRA / C1 预审' });
+      }
+      throw error;
+    }
 
     if (!item) {
       return reply.code(404).send({ message: '地址不存在' });

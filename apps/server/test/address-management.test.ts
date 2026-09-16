@@ -519,6 +519,96 @@ test('updates editable address fields without changing mailbox range', async (t)
   assert.equal(invalidResponse.statusCode, 400);
 });
 
+test('sets manual USPS CMRA / C1 precheck fields only on Residential addresses', async (t) => {
+  const { app } = await buildTestServer();
+  t.after(() => app.close());
+  const cookie = await loginCookie(app);
+
+  const madisonList = await app.inject({ method: 'GET', url: '/api/admin/addresses?keyword=Madison', headers: { cookie } });
+  const madison = madisonList.json().items[0] as { id: number; rdi: string };
+  assert.equal(madison.rdi, 'Residential');
+
+  const firstUpdate = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/addresses/${madison.id}`,
+    headers: { cookie },
+    payload: { uspsCmra: 'N', c1Precheck: 'pass' },
+  });
+  assert.equal(firstUpdate.statusCode, 200);
+  const first = firstUpdate.json().item;
+  assert.equal(first.uspsCmra, 'N');
+  assert.equal(first.c1Precheck, 'pass');
+  assert.equal(typeof first.uspsCmraUpdatedAt, 'string');
+  assert.equal(typeof first.c1PrecheckUpdatedAt, 'string');
+
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const unchangedUpdate = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/addresses/${madison.id}`,
+    headers: { cookie },
+    payload: { uspsCmra: 'N', c1Precheck: 'pass', priceCents: 1899 },
+  });
+  assert.equal(unchangedUpdate.statusCode, 200);
+  assert.equal(unchangedUpdate.json().item.uspsCmraUpdatedAt, first.uspsCmraUpdatedAt);
+  assert.equal(unchangedUpdate.json().item.c1PrecheckUpdatedAt, first.c1PrecheckUpdatedAt);
+
+  const filtered = await app.inject({
+    method: 'GET',
+    url: '/api/admin/addresses?uspsCmra=N&c1Precheck=pass',
+    headers: { cookie },
+  });
+  assert.deepEqual(filtered.json().items.map((item: { id: number }) => item.id), [madison.id]);
+
+  const noneMatch = await app.inject({ method: 'GET', url: '/api/admin/addresses?uspsCmra=Y', headers: { cookie } });
+  assert.deepEqual(noneMatch.json().items, []);
+
+  const unset = await app.inject({
+    method: 'GET',
+    url: '/api/admin/addresses?uspsCmra=none&c1Precheck=none',
+    headers: { cookie },
+  });
+  const unsetItems = unset.json().items as Array<{ id: number; uspsCmra: string | null; c1Precheck: string | null }>;
+  assert.ok(unsetItems.length > 0);
+  assert.ok(unsetItems.every((item) => item.uspsCmra === null && item.c1Precheck === null && item.id !== madison.id));
+
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const cleared = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/addresses/${madison.id}`,
+    headers: { cookie },
+    payload: { uspsCmra: null, c1Precheck: null },
+  });
+  assert.equal(cleared.statusCode, 200);
+  assert.equal(cleared.json().item.uspsCmra, null);
+  assert.equal(cleared.json().item.c1Precheck, null);
+  assert.equal(typeof cleared.json().item.uspsCmraUpdatedAt, 'string');
+  assert.notEqual(cleared.json().item.uspsCmraUpdatedAt, first.uspsCmraUpdatedAt);
+  assert.notEqual(cleared.json().item.c1PrecheckUpdatedAt, first.c1PrecheckUpdatedAt);
+
+  const birminghamList = await app.inject({ method: 'GET', url: '/api/admin/addresses?keyword=Birmingham', headers: { cookie } });
+  const birmingham = birminghamList.json().items.find((item: { rdi: string }) => item.rdi === 'Commercial') as { id: number };
+  assert.ok(birmingham, 'expected a Commercial seed address');
+
+  for (const payload of [{ uspsCmra: 'Y' }, { c1Precheck: 'pass' }]) {
+    const rejected = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/addresses/${birmingham.id}`,
+      headers: { cookie },
+      payload,
+    });
+    assert.equal(rejected.statusCode, 400);
+    assert.match(rejected.json().message, /仅 RDI 为 Residential/);
+  }
+
+  const invalidEnum = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/addresses/${madison.id}`,
+    headers: { cookie },
+    payload: { uspsCmra: 'Yes' },
+  });
+  assert.equal(invalidEnum.statusCode, 400);
+});
+
 test('records only price changes for admin address edits', async (t) => {
   const databaseUrl = join(process.cwd(), `.address-events-${Date.now()}.sqlite`);
   rmSync(databaseUrl, { force: true });

@@ -214,7 +214,7 @@ export default async function Usps1583GuidePage() {
             <div className="guide-cta">
               <div>
                 <strong>还没选好地址？先筛选真实住宅地址</strong>
-                <span>已过滤 RDI Residential 的 Anytime Mailbox 地址，配合 CMRA 与街景判断。</span>
+                <span>已过滤 RDI Residential 的 Anytime Mailbox 地址，配合 CMRA、USPS CMRA、C1 预审与街景判断。</span>
               </div>
               <Link href="/residential-addresses">
                 去筛选住宅地址

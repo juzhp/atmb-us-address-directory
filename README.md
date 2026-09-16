@@ -7,8 +7,8 @@
 ## 主要功能
 
 - 公开首页、所有地址页、住宅地址页，优先考虑 SEO 和性能。
-- 支持关键词、州、RDI、CMRA、价格筛选地址。
-- 地址卡展示价格、ZIP、RDI、CMRA、邮箱编号范围。
+- 支持关键词、州、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）、价格筛选地址。
+- 地址卡展示价格、ZIP、RDI、CMRA、USPS CMRA、C1 预审、邮箱编号范围。
 - 查看详情跳转 Anytime Mailbox 地址页。
 - 查看照片跳转 Google Maps，由用户自行判断街景。
 - 后台支持地址管理、任务管理、系统设置和登录认证。

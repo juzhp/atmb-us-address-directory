@@ -31,20 +31,20 @@ const testEnv = {
   WEB_ORIGIN: 'http://localhost:3000',
 };
 
-test('HTTP crawl fetcher varies request header profiles between requests', async () => {
+test('HTTP crawl fetcher keeps one header profile across requests', async () => {
   const getMock = mock.method(axios, 'get', async (_url: string, _config: unknown) => ({
     status: 200,
     data: '<html></html>',
     headers: { 'content-type': 'text/html; charset=utf-8' },
   }));
   const fetcher = new HttpCrawlFetcher({
-    random: randomSequence([0, 0]),
+    random: randomSequence([0.9, 0, 0.5]),
     requestDelayMs: { min: 0, max: 0 },
   });
 
   try {
     await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
-    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa/alabama', { referer: 'https://www.anytimemailbox.com/l/usa' });
   } finally {
     getMock.mock.restore();
   }
@@ -54,9 +54,10 @@ test('HTTP crawl fetcher varies request header profiles between requests', async
 
   assert.ok(firstHeaders);
   assert.ok(secondHeaders);
-  assert.notEqual(firstHeaders['User-Agent'], secondHeaders['User-Agent']);
-  assert.equal(firstHeaders['Sec-Fetch-Mode'], 'navigate');
-  assert.equal(secondHeaders['Sec-Fetch-Mode'], 'navigate');
+  assert.equal(firstHeaders['User-Agent'], secondHeaders['User-Agent']);
+  assert.equal(firstHeaders['Sec-Fetch-Site'], 'none');
+  assert.equal(secondHeaders['Sec-Fetch-Site'], 'same-site');
+  assert.equal(secondHeaders.Referer, 'https://www.anytimemailbox.com/l/usa');
 });
 
 test('HTTP crawl fetcher waits a jittered delay before requests', async () => {
@@ -133,12 +134,13 @@ test('HTTP crawl fetcher retries once with curl after Axios returns 403', async 
       },
     };
   });
-  const curlCalls: Array<{ url: string; headers: Record<string, string> }> = [];
+  const curlCalls: Array<{ url: string; headers: Record<string, string>; proxyUrl: string | null }> = [];
   const fetcher = new HttpCrawlFetcher({
     random: () => 0,
     requestDelayMs: { min: 0, max: 0 },
+    proxyProvider: () => ({ id: 7, url: 'http://user:pass@127.0.0.1:8080' }),
     curlFetch: async (url, options) => {
-      curlCalls.push({ url, headers: options.headers });
+      curlCalls.push({ url, headers: options.headers, proxyUrl: options.proxy?.url ?? null });
 
       return {
         url,
@@ -158,6 +160,7 @@ test('HTTP crawl fetcher retries once with curl after Axios returns 403', async 
     assert.equal(curlCalls.length, 1);
     assert.equal(curlCalls[0]?.url, 'https://www.anytimemailbox.com/l/usa');
     assert.ok(curlCalls[0]?.headers['User-Agent']);
+    assert.equal(curlCalls[0]?.proxyUrl, 'http://user:pass@127.0.0.1:8080');
   } finally {
     getMock.mock.restore();
   }
@@ -193,7 +196,7 @@ test('HTTP crawl fetcher applies a random active proxy to Axios requests', async
   });
 });
 
-test('HTTP crawl fetcher retries TLS ECONNRESET ten times with five second delays and the same proxy', async () => {
+test('HTTP crawl fetcher retries network errors with exponential backoff and a fresh proxy per attempt', async () => {
   const configs: unknown[] = [];
   const delays: number[] = [];
   let calls = 0;
@@ -220,7 +223,7 @@ test('HTTP crawl fetcher retries TLS ECONNRESET ten times with five second delay
     },
     proxyProvider: () => {
       proxyProviderCalls += 1;
-      return { id: 1, url: 'http://user:pass@127.0.0.1:8080' };
+      return { id: proxyProviderCalls, url: `http://user:pass@127.0.0.1:${8080 + proxyProviderCalls}` };
     },
   });
 
@@ -229,16 +232,18 @@ test('HTTP crawl fetcher retries TLS ECONNRESET ten times with five second delay
 
     assert.equal(result.status, 200);
     assert.equal(calls, 4);
-    assert.equal(proxyProviderCalls, 1);
-    assert.deepEqual(delays, [5000, 5000, 5000]);
-    const firstProxy = JSON.stringify((configs[0] as { proxy?: unknown }).proxy);
-    assert.ok(configs.every((config) => JSON.stringify((config as { proxy?: unknown }).proxy) === firstProxy));
+    assert.equal(proxyProviderCalls, 4);
+    assert.deepEqual(delays, [2000, 4000, 8000]);
+    assert.deepEqual(
+      configs.map((config) => (config as { proxy?: { port?: number } }).proxy?.port),
+      [8081, 8082, 8083, 8084],
+    );
   } finally {
     getMock.mock.restore();
   }
 });
 
-test('HTTP crawl fetcher fails after ten TLS ECONNRESET retries', async () => {
+test('HTTP crawl fetcher fails after exhausting network retries', async () => {
   const delays: number[] = [];
   let calls = 0;
   const getMock = mock.method(axios, 'get', async () => {
@@ -263,9 +268,127 @@ test('HTTP crawl fetcher fails after ten TLS ECONNRESET retries', async () => {
       },
     );
 
-    assert.equal(calls, 11);
-    assert.equal(delays.length, 10);
-    assert.ok(delays.every((delayMs) => delayMs === 5000));
+    assert.equal(calls, 5);
+    assert.deepEqual(delays, [2000, 4000, 8000, 16000]);
+  } finally {
+    getMock.mock.restore();
+  }
+});
+
+test('HTTP crawl fetcher retries request timeouts and server errors', async () => {
+  const delays: number[] = [];
+  let calls = 0;
+  const getMock = mock.method(axios, 'get', async () => {
+    calls += 1;
+
+    if (calls === 1) {
+      throw { isAxiosError: true, code: 'ECONNABORTED', message: 'timeout of 20000ms exceeded' };
+    }
+    if (calls === 2) {
+      throw { isAxiosError: true, response: { status: 503, headers: {}, data: '' } };
+    }
+
+    return {
+      status: 200,
+      data: '<html></html>',
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    };
+  });
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    sleep: async (delayMs) => {
+      delays.push(delayMs);
+    },
+  });
+
+  try {
+    const result = await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+
+    assert.equal(result.status, 200);
+    assert.equal(calls, 3);
+    assert.deepEqual(delays, [2000, 4000]);
+  } finally {
+    getMock.mock.restore();
+  }
+});
+
+test('HTTP crawl fetcher pauses every request after a 429 response', async () => {
+  const delays: number[] = [];
+  let calls = 0;
+  const getMock = mock.method(axios, 'get', async () => {
+    calls += 1;
+
+    if (calls === 1) {
+      throw { isAxiosError: true, response: { status: 429, headers: { 'retry-after': '120' }, data: '' } };
+    }
+
+    return {
+      status: 200,
+      data: '<html></html>',
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    };
+  });
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    now: () => 0,
+    sleep: async (delayMs) => {
+      delays.push(delayMs);
+    },
+  });
+
+  try {
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa/alabama');
+
+    assert.equal(calls, 3);
+    assert.deepEqual(delays, [2000, 120000, 120000]);
+  } finally {
+    getMock.mock.restore();
+  }
+});
+
+test('HTTP crawl fetcher reports proxy connection failures and switches proxy on retry', async () => {
+  const configs: unknown[] = [];
+  const reported: Array<{ proxyId: number; code: string | undefined }> = [];
+  let calls = 0;
+  const getMock = mock.method(axios, 'get', async (_url: string, config: unknown) => {
+    configs.push(config);
+    calls += 1;
+
+    if (calls === 1) {
+      throw { isAxiosError: true, code: 'ECONNREFUSED', message: 'connect ECONNREFUSED' };
+    }
+
+    return {
+      status: 200,
+      data: '<html></html>',
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    };
+  });
+  let proxyProviderCalls = 0;
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    sleep: async () => {},
+    proxyProvider: () => {
+      proxyProviderCalls += 1;
+      return { id: proxyProviderCalls, url: `http://127.0.0.1:${8080 + proxyProviderCalls}` };
+    },
+    onProxyFailure: (proxy, error) => {
+      reported.push({ proxyId: proxy.id, code: (error as { code?: string }).code });
+    },
+  });
+
+  try {
+    await fetcher.fetchHtml('https://www.anytimemailbox.com/l/usa');
+
+    assert.deepEqual(reported, [{ proxyId: 1, code: 'ECONNREFUSED' }]);
+    assert.deepEqual(
+      configs.map((config) => (config as { proxy?: { port?: number } }).proxy?.port),
+      [8081, 8082],
+    );
   } finally {
     getMock.mock.restore();
   }
@@ -881,8 +1004,13 @@ test('pauses during address fetch and resumes without refetching staged addresse
   const stagedAfterPause = (harness.database.sqlite
     .prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?')
     .get(task.id) as { count: number }).count;
+  const detailedAfterPause = (harness.database.sqlite
+    .prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ? AND myear_url IS NOT NULL')
+    .get(task.id) as { count: number }).count;
   assert.equal(pausedTask?.status, 'paused');
-  assert.equal(stagedAfterPause, 1);
+  // 州页读完就写入全部占位行，暂停前只有第一个地址拿到了详情
+  assert.equal(stagedAfterPause, 2);
+  assert.equal(detailedAfterPause, 1);
 
   harness.taskService.resumeTask(task.id);
   await harness.pipeline.runTask(task.id);
@@ -1064,6 +1192,197 @@ test('calculates whether automatic system tasks are due from settings', () => {
     false,
   );
 });
+
+test('records per-address fetch failures without failing fetch_addresses or removing the address', async () => {
+  const addresses = tenFixtureAddresses();
+  const failingUrl = addresses[3]!.detailUrl;
+  const baseFetcher = createFixtureFetcher(addresses);
+  let stateFetches = 0;
+  const fetcher: CrawlFetcher = {
+    async fetchHtml(url, options) {
+      if (url === stateUrl) stateFetches += 1;
+      if (url === failingUrl) throw new Error('socket hang up');
+      return baseFetcher.fetchHtml(url, options);
+    },
+  };
+  const smartyCalls: SmartyLookupInput[][] = [];
+  const harness = buildHarness(addresses, {
+    async lookupAddresses(_credentials, inputs) {
+      smartyCalls.push(inputs);
+      return inputs.map((input) => residentialResult(input));
+    },
+  }, { fetcher });
+
+  insertAddress(harness.database, {
+    name: 'Test 3',
+    slug: 'test-3',
+    anytimeUrl: failingUrl,
+    streetAddress: '103 Test St',
+    city: 'Huntsville',
+    state: 'AL',
+    postalCode: '35801',
+    priceCents: 1200,
+    rdi: 'Residential',
+    cmra: 'No',
+    smartyCheckedAt: '2026-06-01T00:00:00.000Z',
+  });
+
+  const task = harness.taskService.createManualTask({ createdBy: 'Test Admin' });
+  await harness.pipeline.runTask(task.id);
+
+  const fetchAddresses = harness.database.sqlite
+    .prepare("SELECT result_status AS resultStatus, error_message AS errorMessage FROM crawl_subtasks WHERE task_id = ? AND task_type = 'fetch_addresses'")
+    .get(task.id) as { resultStatus: string; errorMessage: string | null };
+  const failedStage = harness.database.sqlite
+    .prepare('SELECT crawl_status AS crawlStatus, error_message AS errorMessage, myear_url AS myearUrl FROM crawl_discovered_addresses WHERE task_id = ? AND anytime_url = ?')
+    .get(task.id, failingUrl) as { crawlStatus: string; errorMessage: string | null; myearUrl: string | null };
+  const existing = harness.database.sqlite
+    .prepare('SELECT is_active AS isActive FROM addresses WHERE anytime_url = ?')
+    .get(failingUrl) as { isActive: number };
+
+  assert.equal(stateFetches, 1);
+  assert.equal(fetchAddresses.resultStatus, 'success');
+  assert.match(fetchAddresses.errorMessage ?? '', /1\/10 个地址抓取失败/);
+  assert.equal(failedStage.crawlStatus, 'discovered');
+  assert.match(failedStage.errorMessage ?? '', /^抓取失败: socket hang up/);
+  assert.equal(failedStage.myearUrl, null);
+  assert.equal(smartyCalls.flat().length, 9);
+  assert.equal(existing.isActive, 1);
+  assertTaskCompleted(harness.database, task.id);
+});
+
+test('stops fetch_addresses once failures exceed the tolerance and resumes from staged rows', async () => {
+  const addresses = tenFixtureAddresses();
+  const failingUrls = new Set([addresses[2]!.detailUrl, addresses[5]!.detailUrl]);
+  const baseFetcher = createFixtureFetcher(addresses);
+  const detailFetches = new Map<string, number>();
+  let stateFetches = 0;
+  let failing = true;
+  const fetcher: CrawlFetcher = {
+    async fetchHtml(url, options) {
+      if (url === stateUrl) stateFetches += 1;
+      if (addresses.some((address) => address.detailUrl === url)) {
+        detailFetches.set(url, (detailFetches.get(url) ?? 0) + 1);
+      }
+      if (failing && failingUrls.has(url)) throw new Error('timeout of 20000ms exceeded');
+      return baseFetcher.fetchHtml(url, options);
+    },
+  };
+  const harness = buildHarness(addresses, {
+    async lookupAddresses(_credentials, inputs) {
+      return inputs.map((input) => residentialResult(input));
+    },
+  }, { fetcher });
+
+  const task = harness.taskService.createManualTask({ createdBy: 'Test Admin' });
+  await assert.rejects(() => harness.pipeline.runTask(task.id), /2\/10 个地址处理失败，超过容忍上限已终止/);
+
+  const firstRun = harness.database.sqlite
+    .prepare("SELECT result_status AS resultStatus FROM crawl_subtasks WHERE task_id = ? AND task_type = 'fetch_addresses'")
+    .get(task.id) as { resultStatus: string };
+  const stagedCount = (harness.database.sqlite
+    .prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?')
+    .get(task.id) as { count: number }).count;
+  assert.equal(firstRun.resultStatus, 'failed');
+  assert.equal(stagedCount, 10);
+
+  failing = false;
+  assert.ok(harness.taskService.resumeTask(task.id));
+  await harness.pipeline.runTask(task.id);
+
+  const importedCount = (harness.database.sqlite.prepare('SELECT COUNT(*) AS count FROM addresses').get() as { count: number }).count;
+  assert.equal(stateFetches, 1);
+  assert.equal(detailFetches.get(addresses[0]!.detailUrl), 1);
+  assert.equal(detailFetches.get(addresses[2]!.detailUrl), 2);
+  assert.equal(importedCount, 10);
+  assertTaskCompleted(harness.database, task.id);
+});
+
+test('records mailbox fetch failures without failing fetch_mailbox_numbers', async () => {
+  const addresses = tenFixtureAddresses();
+  const failingSignupUrl = addresses[4]!.signupUrl;
+  const baseFetcher = createFixtureFetcher(addresses);
+  const fetcher: CrawlFetcher = {
+    async fetchHtml(url, options) {
+      if (url === failingSignupUrl) throw new Error('connect ETIMEDOUT');
+      return baseFetcher.fetchHtml(url, options);
+    },
+  };
+  const smartyCalls: SmartyLookupInput[][] = [];
+  const harness = buildHarness(addresses, {
+    async lookupAddresses(_credentials, inputs) {
+      smartyCalls.push(inputs);
+      return inputs.map((input) => residentialResult(input));
+    },
+  }, { fetcher });
+
+  const task = harness.taskService.createManualTask({ createdBy: 'Test Admin' });
+  await harness.pipeline.runTask(task.id);
+
+  const fetchMailbox = harness.database.sqlite
+    .prepare("SELECT result_status AS resultStatus, error_message AS errorMessage FROM crawl_subtasks WHERE task_id = ? AND task_type = 'fetch_mailbox_numbers'")
+    .get(task.id) as { resultStatus: string; errorMessage: string | null };
+  const failedStage = harness.database.sqlite
+    .prepare('SELECT mailbox_numbers_json AS mailboxNumbersJson, error_message AS errorMessage, imported_address_id AS importedAddressId FROM crawl_discovered_addresses WHERE task_id = ? AND anytime_url = ?')
+    .get(task.id, addresses[4]!.detailUrl) as { mailboxNumbersJson: string | null; errorMessage: string | null; importedAddressId: number | null };
+  const importedCount = (harness.database.sqlite.prepare('SELECT COUNT(*) AS count FROM addresses').get() as { count: number }).count;
+
+  assert.equal(fetchMailbox.resultStatus, 'success');
+  assert.match(fetchMailbox.errorMessage ?? '', /1\/10 个地址的邮箱编号抓取失败/);
+  assert.equal(failedStage.mailboxNumbersJson, null);
+  assert.match(failedStage.errorMessage ?? '', /^抓取失败: connect ETIMEDOUT/);
+  assert.equal(failedStage.importedAddressId, null);
+  assert.equal(smartyCalls.flat().length, 9);
+  assert.equal(importedCount, 9);
+  assertTaskCompleted(harness.database, task.id);
+});
+
+test('proxy selection skips proxies that failed their last test or a recent request', () => {
+  const harness = buildHarness([], {
+    async lookupAddresses() {
+      return [];
+    },
+  });
+  const failedTest = harness.settingsService.createProxy({ url: 'http://127.0.0.1:8081' });
+  const second = harness.settingsService.createProxy({ url: 'http://127.0.0.1:8082' });
+  const third = harness.settingsService.createProxy({ url: 'http://127.0.0.1:8083' });
+  harness.database.sqlite
+    .prepare("UPDATE proxy_library SET last_test_status = 'failed' WHERE id = ?")
+    .run(failedTest.id);
+  const pickIds = () => new Set(Array.from({ length: 40 }, () => harness.settingsService.getRandomActiveProxy()?.id));
+
+  assert.deepEqual([...pickIds()].sort(), [second.id, third.id].sort());
+
+  harness.settingsService.reportProxyFailure(second.id, 'connect ECONNREFUSED');
+  assert.deepEqual([...pickIds()], [third.id]);
+
+  harness.settingsService.reportProxyFailure(third.id, 'connect ETIMEDOUT');
+  const whileAllCooling = pickIds();
+  assert.ok(whileAllCooling.size >= 1);
+  assert.ok(!whileAllCooling.has(failedTest.id));
+  assert.ok(!whileAllCooling.has(undefined));
+});
+
+function tenFixtureAddresses() {
+  return Array.from({ length: 10 }, (_, index) => crawledAddress({
+    name: `Test ${index}`,
+    detailUrl: `https://locations.anytimemailbox.com/l/usa/alabama/test-${index}`,
+    street: `${100 + index} Test St`,
+    city: 'Huntsville',
+    zip: '35801',
+    price: 'US$ 12.00',
+    mailboxNumbers: ['1', '3'],
+  }));
+}
+
+function residentialResult(input: SmartyLookupInput): SmartyLookupResult {
+  return {
+    inputId: input.inputId,
+    rdi: 'Residential',
+    cmra: 'No',
+    raw: { metadata: { rdi: 'Residential' }, analysis: { dpv_cmra: 'N' } },
+  };
+}
 
 function createTlsResetError() {
   return {

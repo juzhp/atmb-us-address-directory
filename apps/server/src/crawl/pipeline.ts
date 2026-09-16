@@ -46,9 +46,11 @@ export interface CrawlFetcher {
 export interface HttpCrawlFetcherOptions {
   random?: () => number;
   requestDelayMs?: { min: number; max: number };
-  sleep?: (delayMs: number) => Promise<void>;
+  sleep?: (delayMs: number, signal?: AbortSignal) => Promise<void>;
+  now?: () => number;
   curlFetch?: (url: string, options: { headers: Record<string, string>; proxy?: CrawlProxy | null; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
   proxyProvider?: () => CrawlProxy | null;
+  onProxyFailure?: (proxy: CrawlProxy, error: unknown) => void;
 }
 
 export interface SmartyCredentials {
@@ -166,8 +168,39 @@ const CURL_META_MARKER = '\\n__ATMB_CURL_META__';
 
 const DEFAULT_START_URL = 'https://www.anytimemailbox.com/l/usa';
 const DEFAULT_REQUEST_DELAY_MS = Object.freeze({ min: 200, max: 900 });
-const NETWORK_RETRY_DELAY_MS = 5000;
-const MAX_NETWORK_RETRIES = 10;
+const REQUEST_TIMEOUT_MS = 20000;
+const MAX_NETWORK_RETRIES = 4;
+const NETWORK_RETRY_BASE_DELAY_MS = 2000;
+const NETWORK_RETRY_MAX_DELAY_MS = 30000;
+const RATE_LIMIT_COOLDOWN_MS = 90 * 1000;
+const RATE_LIMIT_MAX_COOLDOWN_MS = 5 * 60 * 1000;
+const SMARTY_MAX_RETRIES = 2;
+const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRYABLE_NETWORK_CODES = new Set([
+  'ECONNRESET',
+  'ECONNABORTED',
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+  'EPROTO',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'EAI_AGAIN',
+  'EPIPE',
+  'ERR_NETWORK',
+]);
+const PROXY_FAILURE_CODES = new Set([
+  'ECONNREFUSED',
+  'ETIMEDOUT',
+  'ECONNABORTED',
+  'ECONNRESET',
+  'EPROTO',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'EAI_AGAIN',
+]);
+// 单个子任务内允许跳过的地址失败比例：低于该比例记录失败并继续，超过则终止子任务
+const ITEM_FAILURE_RATIO_LIMIT = 0.1;
+const FETCH_FAILURE_PREFIX = '抓取失败: ';
 const CRAWL_HEADER_PROFILES = Object.freeze([
   DEFAULT_CRAWL_HEADERS,
   Object.freeze({
@@ -195,6 +228,7 @@ export class CrawlPipeline {
   constructor(private readonly options: CrawlPipelineOptions) {
     this.fetcher = options.fetcher ?? new HttpCrawlFetcher({
       proxyProvider: () => options.settingsService.getRandomActiveProxy(),
+      onProxyFailure: (proxy, error) => options.settingsService.reportProxyFailure(proxy.id, errorMessage(error)),
     });
     this.smartyClient = options.smartyClient ?? new HttpSmartyLookupClient();
     this.startUrl = options.startUrl ?? DEFAULT_START_URL;
@@ -202,7 +236,6 @@ export class CrawlPipeline {
   }
 
   async runTask(taskId: number, runOptions: RunTaskOptions = {}) {
-    let locations: LocationWithState[] = [];
     const hasFetchStates = this.options.taskService.hasSubtask(taskId, 'fetch_states');
     const hasFetchNames = this.options.taskService.hasSubtask(taskId, 'fetch_names');
     const hasFetchAddresses = this.options.taskService.hasSubtask(taskId, 'fetch_addresses');
@@ -219,22 +252,15 @@ export class CrawlPipeline {
         : [];
 
       const needsAddressEntries = hasFetchAddresses && !this.options.taskService.isSubtaskSuccessful(taskId, 'fetch_addresses');
-      const needsLocationNames = hasFetchNames && (needsAddressEntries || !this.options.taskService.isSubtaskSuccessful(taskId, 'fetch_names'));
-      if (needsLocationNames) {
-        locations = this.options.taskService.isSubtaskSuccessful(taskId, 'fetch_names')
-          ? await this.fetchLocationNames(taskId, states, runOptions)
-          : await this.runSubtask(taskId, 'fetch_names', () => this.fetchLocationNames(taskId, states, runOptions), runOptions);
+      if (hasFetchNames && !this.options.taskService.isSubtaskSuccessful(taskId, 'fetch_names')) {
+        await this.runSubtask(taskId, 'fetch_names', () => this.fetchLocationNames(taskId, states, runOptions), runOptions);
+      } else if (hasFetchNames && needsAddressEntries && !this.hasCompleteStagedLocations(taskId)) {
+        // 续跑时 staged 行不完整（例如旧版本任务）才重新读取州页，否则直接从 staged 行续抓
+        await this.fetchLocationNames(taskId, states, runOptions);
       }
 
       if (needsAddressEntries) {
-        await this.runSubtask(
-          taskId,
-          'fetch_addresses',
-          () => hasFetchNames
-            ? this.fetchAddressDetails(taskId, locations, runOptions)
-            : this.fetchStagedAddressDetails(taskId, runOptions),
-          runOptions,
-        );
+        await this.runSubtask(taskId, 'fetch_addresses', () => this.fetchStagedAddressDetails(taskId, runOptions), runOptions);
       }
 
       if (hasFetchMailboxNumbers && !this.options.taskService.isSubtaskSuccessful(taskId, 'fetch_mailbox_numbers')) {
@@ -396,93 +422,46 @@ export class CrawlPipeline {
       throw new Error('No address entries parsed from Anytime Mailbox state pages');
     }
 
-    return locations;
+    // 州页读完立刻为每个地址写占位行：续跑只需补抓缺详情的行，且抓取失败的地址不会被误判为已下线
+    this.stageLocationPlaceholders(taskId, locations);
+
+    return locations.length;
   }
 
-  private getExistingStageUrls(taskId: number) {
-    const rows = this.options.database.sqlite
-      .prepare('SELECT anytime_url AS anytimeUrl, myear_url AS myearUrl FROM crawl_discovered_addresses WHERE task_id = ?')
-      .all(taskId) as Array<{ anytimeUrl: string; myearUrl: string | null }>;
+  private stageLocationPlaceholders(taskId: number, locations: LocationWithState[]) {
+    const now = new Date().toISOString();
+    const insert = this.options.database.sqlite.prepare(`
+      INSERT INTO crawl_discovered_addresses (
+        task_id, source, source_id, state_name, state, state_url, state_location_count,
+        name, slug, anytime_url, signup_url, myear_url, country, city, street_address,
+        postal_code, full_address, normalized_address_key, price_cents, price_currency,
+        price_period, crawl_status, created_at, updated_at
+      ) VALUES (
+        @taskId, 'anytimemailbox', @sourceId, @stateName, @state, @stateUrl, @stateLocationCount,
+        @name, @slug, @anytimeUrl, NULL, NULL, 'United States', @city, @streetAddress,
+        @postalCode, @fullAddress, @normalizedAddressKey, @priceCents, 'USD',
+        'month', 'discovered', @now, @now
+      )
+      ON CONFLICT(task_id, anytime_url) DO UPDATE SET
+        state_url = excluded.state_url,
+        state_location_count = excluded.state_location_count,
+        name = excluded.name,
+        price_cents = excluded.price_cents,
+        updated_at = excluded.updated_at
+    `);
 
-    return new Map(rows.map((row) => [row.anytimeUrl, row]));
-  }
+    this.options.database.sqlite.transaction(() => {
+      for (const { state, location } of locations) {
+        const parsed = parseListAddress(location.address);
+        const addressState = parsed.state || state.code;
+        // 列表页地址解析不出来时先写空值占位，详情抓取成功后会被覆盖
+        const fallback = {
+          streetAddress: parsed.streetAddress,
+          city: parsed.city,
+          postalCode: parsed.postalCode ?? '',
+        };
 
-  private async fetchAddressDetails(taskId: number, locations: LocationWithState[], runOptions: RunTaskOptions) {
-    const existingUrls = this.getExistingStageUrls(taskId);
-
-    await this.mapWithConcurrency(locations, async ({ state, location }) => {
-      await this.checkTaskControl(taskId, 'fetch_addresses', runOptions);
-      const existing = existingUrls.get(location.url);
-      if (existing?.myearUrl) {
-        return;
-      }
-
-      const detailResult = await this.fetcher.fetchHtml(location.url, {
-        referer: state.url,
-        signal: runOptions.signal,
-      });
-      const detail = parseLocationDetail(detailResult.html, location.url);
-
-      if (!detail.myearUrl) {
-        this.markAddressDetailSkipped(taskId, state, location, createMissingSignupMessage(location.url, detailResult));
-        return;
-      }
-
-      const fallback = parseListAddress(location.address);
-      const streetAddress = detail.address || fallback.streetAddress;
-      const city = detail.city || fallback.city;
-      const addressState = detail.state || fallback.state || state.code;
-      const postalCode = detail.zip || fallback.postalCode;
-      const country = detail.country || 'United States';
-
-      if (!streetAddress || !city || !addressState || !postalCode) {
-        throw new Error(`Unable to parse address detail: ${location.url}`);
-      }
-
-      const fullAddress = detail.detailAddress
-        || `${streetAddress} ${city}, ${addressState} ${postalCode} ${country}`;
-      const priceCents = parsePriceCents(location.price);
-      const normalizedKey = normalizeAddressKey({
-        streetAddress,
-        city,
-        state: addressState,
-        postalCode,
-      });
-      const now = new Date().toISOString();
-
-      this.options.database.sqlite
-        .prepare(`
-          INSERT INTO crawl_discovered_addresses (
-            task_id, source, source_id, state_name, state, state_url, state_location_count,
-            name, slug, anytime_url, signup_url, myear_url, country, city, street_address,
-            postal_code, full_address, normalized_address_key, price_cents, price_currency,
-            price_period, crawl_status, created_at, updated_at
-          ) VALUES (
-            @taskId, 'anytimemailbox', @sourceId, @stateName, @state, @stateUrl, @stateLocationCount,
-            @name, @slug, @anytimeUrl, @signupUrl, @myearUrl, @country, @city, @streetAddress,
-            @postalCode, @fullAddress, @normalizedAddressKey, @priceCents, 'USD',
-            'month', 'discovered', @now, @now
-          )
-          ON CONFLICT(task_id, anytime_url) DO UPDATE SET
-            source_id = excluded.source_id,
-            state_name = excluded.state_name,
-            state = excluded.state,
-            state_url = excluded.state_url,
-            state_location_count = excluded.state_location_count,
-            name = excluded.name,
-            slug = excluded.slug,
-            signup_url = excluded.signup_url,
-            myear_url = excluded.myear_url,
-            country = excluded.country,
-            city = excluded.city,
-            street_address = excluded.street_address,
-            postal_code = excluded.postal_code,
-            full_address = excluded.full_address,
-            normalized_address_key = excluded.normalized_address_key,
-            price_cents = excluded.price_cents,
-            updated_at = excluded.updated_at
-        `)
-        .run({
+        insert.run({
           taskId,
           sourceId: sourceIdFromUrl(location.url),
           stateName: state.name,
@@ -490,20 +469,160 @@ export class CrawlPipeline {
           stateUrl: state.url,
           stateLocationCount: state.count,
           name: location.name,
-          slug: slugify(`${location.name}-${city}-${addressState}-${postalCode}`),
+          slug: slugify(`${location.name}-${fallback.city}-${addressState}-${fallback.postalCode}`),
           anytimeUrl: location.url,
-          signupUrl: detail.myearUrl,
-          myearUrl: detail.myearUrl,
-          country,
-          city,
-          streetAddress,
-          postalCode,
-          fullAddress,
-          normalizedAddressKey: normalizedKey,
-          priceCents,
+          city: fallback.city,
+          streetAddress: fallback.streetAddress,
+          postalCode: fallback.postalCode,
+          fullAddress: `${fallback.streetAddress} ${fallback.city}, ${addressState} ${fallback.postalCode} United States`,
+          normalizedAddressKey: normalizeAddressKey({
+            streetAddress: fallback.streetAddress,
+            city: fallback.city,
+            state: addressState,
+            postalCode: fallback.postalCode,
+          }),
+          priceCents: parsePriceCents(location.price),
           now,
-      });
+        });
+      }
+    })();
+  }
+
+  private hasCompleteStagedLocations(taskId: number) {
+    const staged = (this.options.database.sqlite
+      .prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?')
+      .get(taskId) as { count: number }).count;
+    const expected = (this.options.database.sqlite
+      .prepare('SELECT COALESCE(SUM(location_count), 0) AS count FROM states WHERE anytime_url IS NOT NULL')
+      .get() as { count: number }).count;
+
+    return staged > 0 && staged >= expected;
+  }
+
+  private async fetchAddressDetails(taskId: number, locations: LocationWithState[], runOptions: RunTaskOptions) {
+    const failures = await this.mapWithConcurrency(locations, async ({ state, location }) => {
+      await this.checkTaskControl(taskId, 'fetch_addresses', runOptions);
+
+      try {
+        await this.fetchAddressDetail(taskId, state, location, runOptions);
+      } catch (error) {
+        if (isTaskControlError(error)) {
+          throw error;
+        }
+        this.markStageFetchFailed(taskId, location.url, error);
+        throw error;
+      }
+    }, { maxFailures: allowedItemFailures(locations.length) });
+
+    return failures.length > 0
+      ? `${failures.length}/${locations.length} 个地址抓取失败已跳过，重试或下次任务会重新抓取`
+      : undefined;
+  }
+
+  private async fetchAddressDetail(taskId: number, state: StateWithCode, location: ParsedLocation, runOptions: RunTaskOptions) {
+    const detailResult = await this.fetcher.fetchHtml(location.url, {
+      referer: state.url,
+      signal: runOptions.signal,
     });
+    const detail = parseLocationDetail(detailResult.html, location.url);
+
+    if (!detail.myearUrl) {
+      this.markAddressDetailSkipped(taskId, state, location, createMissingSignupMessage(location.url, detailResult));
+      return;
+    }
+
+    const fallback = parseListAddress(location.address);
+    const streetAddress = detail.address || fallback.streetAddress;
+    const city = detail.city || fallback.city;
+    const addressState = detail.state || fallback.state || state.code;
+    const postalCode = detail.zip || fallback.postalCode;
+    const country = detail.country || 'United States';
+
+    if (!streetAddress || !city || !addressState || !postalCode) {
+      throw new Error(`Unable to parse address detail: ${location.url}`);
+    }
+
+    const fullAddress = detail.detailAddress
+      || `${streetAddress} ${city}, ${addressState} ${postalCode} ${country}`;
+    const priceCents = parsePriceCents(location.price);
+    const normalizedKey = normalizeAddressKey({
+      streetAddress,
+      city,
+      state: addressState,
+      postalCode,
+    });
+    const now = new Date().toISOString();
+
+    this.options.database.sqlite
+      .prepare(`
+        INSERT INTO crawl_discovered_addresses (
+          task_id, source, source_id, state_name, state, state_url, state_location_count,
+          name, slug, anytime_url, signup_url, myear_url, country, city, street_address,
+          postal_code, full_address, normalized_address_key, price_cents, price_currency,
+          price_period, crawl_status, created_at, updated_at
+        ) VALUES (
+          @taskId, 'anytimemailbox', @sourceId, @stateName, @state, @stateUrl, @stateLocationCount,
+          @name, @slug, @anytimeUrl, @signupUrl, @myearUrl, @country, @city, @streetAddress,
+          @postalCode, @fullAddress, @normalizedAddressKey, @priceCents, 'USD',
+          'month', 'discovered', @now, @now
+        )
+        ON CONFLICT(task_id, anytime_url) DO UPDATE SET
+          source_id = excluded.source_id,
+          state_name = excluded.state_name,
+          state = excluded.state,
+          state_url = excluded.state_url,
+          state_location_count = excluded.state_location_count,
+          name = excluded.name,
+          slug = excluded.slug,
+          signup_url = excluded.signup_url,
+          myear_url = excluded.myear_url,
+          country = excluded.country,
+          city = excluded.city,
+          street_address = excluded.street_address,
+          postal_code = excluded.postal_code,
+          full_address = excluded.full_address,
+          normalized_address_key = excluded.normalized_address_key,
+          price_cents = excluded.price_cents,
+          crawl_status = 'discovered',
+          error_message = NULL,
+          updated_at = excluded.updated_at
+      `)
+      .run({
+        taskId,
+        sourceId: sourceIdFromUrl(location.url),
+        stateName: state.name,
+        state: addressState,
+        stateUrl: state.url,
+        stateLocationCount: state.count,
+        name: location.name,
+        slug: slugify(`${location.name}-${city}-${addressState}-${postalCode}`),
+        anytimeUrl: location.url,
+        signupUrl: detail.myearUrl,
+        myearUrl: detail.myearUrl,
+        country,
+        city,
+        streetAddress,
+        postalCode,
+        fullAddress,
+        normalizedAddressKey: normalizedKey,
+        priceCents,
+        now,
+      });
+  }
+
+  private markStageFetchFailed(taskId: number, anytimeUrl: string, error: unknown) {
+    this.options.database.sqlite
+      .prepare(`
+        UPDATE crawl_discovered_addresses
+        SET error_message = @errorMessage, updated_at = @updatedAt
+        WHERE task_id = @taskId AND anytime_url = @anytimeUrl
+      `)
+      .run({
+        taskId,
+        anytimeUrl,
+        errorMessage: `${FETCH_FAILURE_PREFIX}${errorMessage(error)}`.slice(0, 1000),
+        updatedAt: new Date().toISOString(),
+      });
   }
 
   private async fetchStagedAddressDetails(taskId: number, runOptions: RunTaskOptions) {
@@ -522,7 +641,9 @@ export class CrawlPipeline {
           price_cents AS priceCents
         FROM crawl_discovered_addresses
         WHERE task_id = ?
-          AND crawl_status <> 'skipped'
+          AND crawl_status = 'discovered'
+          AND myear_url IS NULL
+        ORDER BY id ASC
       `)
       .all(taskId) as Array<{
         stateName: string;
@@ -552,7 +673,7 @@ export class CrawlPipeline {
       },
     }));
 
-    await this.fetchAddressDetails(taskId, locations, runOptions);
+    return this.fetchAddressDetails(taskId, locations, runOptions);
   }
 
   private markAddressDetailSkipped(taskId: number, state: StateWithCode, location: ParsedLocation, errorMessage: string) {
@@ -639,43 +760,64 @@ export class CrawlPipeline {
       `)
       .all(taskId) as Array<{ id: number; anytimeUrl: string; myearUrl: string | null }>;
 
-    await this.mapWithConcurrency(rows, async (row) => {
+    const failures = await this.mapWithConcurrency(rows, async (row) => {
       await this.checkTaskControl(taskId, 'fetch_mailbox_numbers', runOptions);
-      const myearUrl = row.myearUrl || await this.refetchMailboxSignupUrl(row.id, row.anytimeUrl, runOptions);
 
-      if (!myearUrl) {
-        throw new Error(`Unable to parse mailbox signup link: ${row.anytimeUrl}`);
+      try {
+        await this.fetchMailboxNumbersForRow(row, runOptions);
+      } catch (error) {
+        if (isTaskControlError(error)) {
+          throw error;
+        }
+        this.markStageFetchFailed(taskId, row.anytimeUrl, error);
+        throw error;
       }
+    }, { maxFailures: allowedItemFailures(rows.length) });
 
-      const result = await this.fetcher.fetchHtml(myearUrl, {
-        referer: row.anytimeUrl,
-        preserveRedirectCookies: true,
-        signal: runOptions.signal,
-      });
-      const mailbox = parseMailboxNumberRange(result.html);
-      const now = new Date().toISOString();
+    return failures.length > 0
+      ? `${failures.length}/${rows.length} 个地址的邮箱编号抓取失败已跳过，重试或下次任务会重新抓取`
+      : undefined;
+  }
 
-      this.options.database.sqlite
-        .prepare(`
-          UPDATE crawl_discovered_addresses
-          SET
-            mailbox_min = @mailboxMin,
-            mailbox_max = @mailboxMax,
-            mailbox_count = @mailboxCount,
-            mailbox_numbers_json = @mailboxNumbersJson,
-            crawl_status = 'mailbox_fetched',
-            updated_at = @updatedAt
-          WHERE id = @id
-        `)
-        .run({
-          id: row.id,
-          mailboxMin: mailbox.mailboxMin,
-          mailboxMax: mailbox.mailboxMax,
-          mailboxCount: mailbox.mailboxNumbers.length,
-          mailboxNumbersJson: JSON.stringify(mailbox.mailboxNumbers),
-          updatedAt: now,
-      });
+  private async fetchMailboxNumbersForRow(
+    row: { id: number; anytimeUrl: string; myearUrl: string | null },
+    runOptions: RunTaskOptions,
+  ) {
+    const myearUrl = row.myearUrl || await this.refetchMailboxSignupUrl(row.id, row.anytimeUrl, runOptions);
+
+    if (!myearUrl) {
+      throw new Error(`Unable to parse mailbox signup link: ${row.anytimeUrl}`);
+    }
+
+    const result = await this.fetcher.fetchHtml(myearUrl, {
+      referer: row.anytimeUrl,
+      preserveRedirectCookies: true,
+      signal: runOptions.signal,
     });
+    const mailbox = parseMailboxNumberRange(result.html);
+    const now = new Date().toISOString();
+
+    this.options.database.sqlite
+      .prepare(`
+        UPDATE crawl_discovered_addresses
+        SET
+          mailbox_min = @mailboxMin,
+          mailbox_max = @mailboxMax,
+          mailbox_count = @mailboxCount,
+          mailbox_numbers_json = @mailboxNumbersJson,
+          crawl_status = 'mailbox_fetched',
+          error_message = NULL,
+          updated_at = @updatedAt
+        WHERE id = @id
+      `)
+      .run({
+        id: row.id,
+        mailboxMin: mailbox.mailboxMin,
+        mailboxMax: mailbox.mailboxMax,
+        mailboxCount: mailbox.mailboxNumbers.length,
+        mailboxNumbersJson: JSON.stringify(mailbox.mailboxNumbers),
+        updatedAt: now,
+      });
   }
 
   private applyMailboxUpdatesToImportedAddresses(taskId: number) {
@@ -882,6 +1024,7 @@ export class CrawlPipeline {
         FROM crawl_discovered_addresses
         WHERE task_id = ?
           AND crawl_status <> 'skipped'
+          AND error_message IS NULL
         ORDER BY id ASC
       `)
       .all(taskId) as StageRow[];
@@ -1255,7 +1398,18 @@ export class CrawlPipeline {
       .run(addressId, eventType, oldValue, newValue, new Date().toISOString());
   }
 
-  private async mapWithConcurrency<T>(items: T[], mapper: (item: T) => Promise<void>) {
+  /**
+   * 并发处理 items。maxFailures 为 0 时任一失败即终止（默认）；
+   * 大于 0 时记录失败继续处理，失败数超过 maxFailures 才终止。
+   * 暂停/停止/中断错误始终立即终止。
+   */
+  private async mapWithConcurrency<T>(
+    items: T[],
+    mapper: (item: T) => Promise<void>,
+    options: { maxFailures?: number } = {},
+  ) {
+    const maxFailures = options.maxFailures ?? 0;
+    const failures: Array<{ item: T; error: unknown }> = [];
     let stopped = false;
     const workers = Array.from({ length: Math.min(this.concurrency, items.length || 1) }, async (_, workerIndex) => {
       for (let index = workerIndex; index < items.length; index += this.concurrency) {
@@ -1263,36 +1417,70 @@ export class CrawlPipeline {
           return;
         }
         const item = items[index];
-        if (item !== undefined) {
-          try {
-            await mapper(item);
-          } catch (error) {
-            // 任一 worker 出错即终止其它 worker，避免任务已失败后继续抓取/写库
+        if (item === undefined) {
+          continue;
+        }
+
+        try {
+          await mapper(item);
+        } catch (error) {
+          if (stopped) {
+            return;
+          }
+          if (isTaskControlError(error) || maxFailures === 0) {
             stopped = true;
             throw error;
+          }
+
+          failures.push({ item, error });
+          if (failures.length > maxFailures) {
+            stopped = true;
+            throw new Error(
+              `${failures.length}/${items.length} 个地址处理失败，超过容忍上限已终止；最近错误：${errorMessage(error)}`,
+            );
           }
         }
       }
     });
 
-    await Promise.all(workers);
+    // 等所有 worker 收尾（含进行中的请求）后再抛错，避免任务已判失败仍有请求在跑
+    const results = await Promise.allSettled(workers);
+    const rejected = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (rejected) {
+      throw rejected.reason;
+    }
+
+    return failures;
   }
+}
+
+interface FetchAttempt {
+  // undefined 表示尚未选择代理；跳转链会预先选好代理并在各跳之间沿用
+  proxy: CrawlProxy | null | undefined;
 }
 
 export class HttpCrawlFetcher implements CrawlFetcher {
   private readonly random: () => number;
   private readonly requestDelayMs: { min: number; max: number };
-  private readonly sleep: (delayMs: number) => Promise<void>;
+  private readonly sleep: (delayMs: number, signal?: AbortSignal) => Promise<void>;
+  private readonly now: () => number;
   private readonly curlFetch: (url: string, options: { headers: Record<string, string>; proxy?: CrawlProxy | null; signal?: AbortSignal }) => Promise<CrawlFetchResult>;
   private readonly proxyProvider: () => CrawlProxy | null;
-  private lastHeaderProfileIndex: number | null = null;
+  private readonly onProxyFailure: (proxy: CrawlProxy, error: unknown) => void;
+  private readonly headerProfile: Record<string, string>;
+  private rateLimitedUntil = 0;
 
   constructor(options: HttpCrawlFetcherOptions = {}) {
     this.random = options.random ?? Math.random;
     this.requestDelayMs = options.requestDelayMs ?? DEFAULT_REQUEST_DELAY_MS;
-    this.sleep = options.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
+    this.sleep = options.sleep ?? sleepWithSignal;
+    this.now = options.now ?? Date.now;
     this.curlFetch = options.curlFetch ?? defaultCurlFetch;
     this.proxyProvider = options.proxyProvider ?? (() => null);
+    this.onProxyFailure = options.onProxyFailure ?? (() => {});
+    // 整个抓取会话固定一个 UA：同一 IP 上 UA 来回切换是明显的机器人特征
+    this.headerProfile = CRAWL_HEADER_PROFILES[Math.floor(safeRandom(this.random) * CRAWL_HEADER_PROFILES.length)]
+      ?? DEFAULT_CRAWL_HEADERS;
   }
 
   async fetchHtml(url: string, options: CrawlFetchOptions = {}): Promise<CrawlFetchResult> {
@@ -1302,25 +1490,23 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   }
 
   private async fetchSingle(url: string, options: CrawlFetchOptions) {
-    await this.waitBeforeRequest();
-
     const headers = this.headersForRequest(options);
-    const proxy = this.proxyProvider();
+    const attempt: FetchAttempt = { proxy: undefined };
 
     try {
-      const response = await this.axiosGetWithNetworkRetry(url, {
-        timeout: 15000,
+      const response = await this.requestWithRetry(url, options, attempt, (proxy) => ({
+        timeout: REQUEST_TIMEOUT_MS,
         maxRedirects: 5,
         responseType: 'text',
         transformResponse: [(data) => data],
         headers,
         ...axiosProxyOption(proxy),
         signal: options.signal,
-      });
+      }));
 
       return responseToFetchResult(url, url, response);
     } catch (error) {
-      const fallback = await this.fetchWithCurlFallback(url, headers, proxy, options.signal, error);
+      const fallback = await this.fetchWithCurlFallback(url, headers, attempt.proxy ?? null, options.signal, error);
       if (fallback) return fallback;
 
       throw normalizeCrawlFetchError(url, error);
@@ -1330,21 +1516,20 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   private async fetchWithRedirectCookies(url: string, options: CrawlFetchOptions) {
     const cookieStore = new Map<string, string>();
     let currentUrl = new URL(url);
+    // 同一条跳转链沿用同一个代理和 UA，cookie 才不会跨 IP 触发风控；只有请求重试时才换代理
+    const attempt: FetchAttempt = { proxy: this.proxyProvider() };
 
     for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
       const cookieHeader = createCookieHeader(cookieStore);
       const headers = this.headersForRequest(options);
-      const proxy = this.proxyProvider();
       if (cookieHeader) {
         headers.Cookie = headers.Cookie ? `${headers.Cookie}; ${cookieHeader}` : cookieHeader;
       }
 
-      await this.waitBeforeRequest();
-
       let response;
       try {
-        response = await this.axiosGetWithNetworkRetry(currentUrl.toString(), {
-          timeout: 15000,
+        response = await this.requestWithRetry(currentUrl.toString(), options, attempt, (proxy) => ({
+          timeout: REQUEST_TIMEOUT_MS,
           maxRedirects: 0,
           responseType: 'text',
           transformResponse: [(data) => data],
@@ -1352,9 +1537,9 @@ export class HttpCrawlFetcher implements CrawlFetcher {
           headers,
           ...axiosProxyOption(proxy),
           signal: options.signal,
-        });
+        }));
       } catch (error) {
-        const fallback = await this.fetchWithCurlFallback(currentUrl.toString(), headers, proxy, options.signal, error);
+        const fallback = await this.fetchWithCurlFallback(currentUrl.toString(), headers, attempt.proxy ?? null, options.signal, error);
         if (fallback) return fallback;
 
         throw normalizeCrawlFetchError(currentUrl.toString(), error);
@@ -1374,24 +1559,69 @@ export class HttpCrawlFetcher implements CrawlFetcher {
   }
 
   private headersForRequest(options: CrawlFetchOptions) {
-    this.lastHeaderProfileIndex = selectCrawlHeaderProfileIndex(this.random, this.lastHeaderProfileIndex);
-    return headersForRequest(options, CRAWL_HEADER_PROFILES[this.lastHeaderProfileIndex] ?? DEFAULT_CRAWL_HEADERS);
-  }
+    const headers: Record<string, string> = {
+      ...this.headerProfile,
+      ...(options.headers ?? {}),
+    };
 
-  private async axiosGetWithNetworkRetry(url: string, config: AxiosRequestConfig) {
-    for (let retryCount = 0; retryCount <= MAX_NETWORK_RETRIES; retryCount += 1) {
-      try {
-        return await axios.get(url, config);
-      } catch (error) {
-        if (!isRetryableNetworkError(error) || retryCount === MAX_NETWORK_RETRIES) {
-          throw error;
-        }
-        await this.sleep(NETWORK_RETRY_DELAY_MS);
-      }
+    if (options.referer) {
+      headers.Referer = options.referer;
+      headers['Sec-Fetch-Site'] = 'same-site';
     }
 
-    throw new Error(`Unable to fetch ${url}`);
-  }  private async fetchWithCurlFallback(
+    return headers;
+  }
+
+  /**
+   * 带重试的请求：超时、连接失败、429/5xx 都会指数退避后重试，每次重试换一个代理；
+   * 收到 429 后所有请求统一暂停一段时间，避免在限流窗口内继续撞。
+   */
+  private async requestWithRetry(
+    url: string,
+    options: CrawlFetchOptions,
+    attempt: FetchAttempt,
+    buildConfig: (proxy: CrawlProxy | null) => AxiosRequestConfig,
+  ) {
+    for (let retryCount = 0; ; retryCount += 1) {
+      if (retryCount > 0 || attempt.proxy === undefined) {
+        attempt.proxy = this.proxyProvider();
+      }
+      const proxy = attempt.proxy ?? null;
+
+      await this.waitBeforeRequest(options.signal);
+
+      try {
+        return await axios.get(url, buildConfig(proxy));
+      } catch (error) {
+        if (options.signal?.aborted || isAbortError(error)) {
+          throw error;
+        }
+
+        this.recordRequestFailure(proxy, error);
+
+        if (!isRetryableFetchError(error) || retryCount >= MAX_NETWORK_RETRIES) {
+          throw error;
+        }
+
+        await this.sleep(networkRetryDelayMs(retryCount), options.signal);
+        throwIfAborted(options.signal);
+      }
+    }
+  }
+
+  private recordRequestFailure(proxy: CrawlProxy | null, error: unknown) {
+    if (axios.isAxiosError(error) && Number(error.response?.status) === 429) {
+      const cooldownMs = retryAfterMs(error.response?.headers) ?? RATE_LIMIT_COOLDOWN_MS;
+      this.rateLimitedUntil = Math.max(this.rateLimitedUntil, this.now() + cooldownMs);
+      return;
+    }
+
+    if (proxy && isProxyConnectionFailure(error)) {
+      this.onProxyFailure(proxy, error);
+    }
+  }
+
+  private async fetchWithCurlFallback(
     url: string,
     headers: Record<string, string>,
     proxy: CrawlProxy | null,
@@ -1408,19 +1638,28 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     }
   }
 
-  private async waitBeforeRequest() {
+  private async waitBeforeRequest(signal: AbortSignal | undefined) {
+    const cooldownMs = this.rateLimitedUntil - this.now();
+    if (cooldownMs > 0) {
+      await this.sleep(cooldownMs, signal);
+      throwIfAborted(signal);
+    }
+
     const min = Math.max(0, this.requestDelayMs.min);
     const max = Math.max(min, this.requestDelayMs.max);
     if (max === 0) return;
 
     const delayMs = Math.round(min + safeRandom(this.random) * (max - min));
     if (delayMs > 0) {
-      await this.sleep(delayMs);
+      await this.sleep(delayMs, signal);
+      throwIfAborted(signal);
     }
   }
 }
 
 export class HttpSmartyLookupClient implements SmartyLookupClient {
+  constructor(private readonly sleep: (delayMs: number) => Promise<void> = sleepWithSignal) {}
+
   async lookupAddresses(credentials: SmartyCredentials, inputs: SmartyLookupInput[], options: RunTaskOptions = {}) {
     const payload = inputs.map((input) => {
       const street = formatSmartyStreet(input.streetAddress);
@@ -1435,20 +1674,7 @@ export class HttpSmartyLookupClient implements SmartyLookupClient {
         candidates: 10,
       };
     });
-    const response = await axios.post('https://us-street.api.smarty.com/street-address', payload, {
-      params: {
-        'auth-id': credentials.authId,
-        'auth-token': credentials.authToken,
-      },
-      timeout: 20000,
-      validateStatus: () => true,
-      signal: options.signal,
-    });
-
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Smarty returned ${response.status}`);
-    }
-
+    const response = await this.postWithRetry(payload, credentials, options);
     const candidates = Array.isArray(response.data) ? response.data : [];
     const byInputId = new Map<string, unknown>();
     for (const candidate of candidates) {
@@ -1480,6 +1706,38 @@ export class HttpSmartyLookupClient implements SmartyLookupClient {
             error: 'Smarty result missing valid RDI/CMRA',
           };
     });
+  }
+
+  private async postWithRetry(payload: unknown, credentials: SmartyCredentials, options: RunTaskOptions) {
+    for (let retryCount = 0; ; retryCount += 1) {
+      let response;
+
+      try {
+        response = await axios.post('https://us-street.api.smarty.com/street-address', payload, {
+          params: {
+            'auth-id': credentials.authId,
+            'auth-token': credentials.authToken,
+          },
+          timeout: 20000,
+          validateStatus: () => true,
+          signal: options.signal,
+        });
+      } catch (error) {
+        if (options.signal?.aborted || isAbortError(error) || !isRetryableFetchError(error) || retryCount >= SMARTY_MAX_RETRIES) {
+          throw error;
+        }
+        await this.sleep(networkRetryDelayMs(retryCount));
+        continue;
+      }
+
+      if (response.status >= 200 && response.status < 300) {
+        return response;
+      }
+      if (!RETRYABLE_HTTP_STATUSES.has(response.status) || retryCount >= SMARTY_MAX_RETRIES) {
+        throw new Error(`Smarty returned ${response.status}`);
+      }
+      await this.sleep(networkRetryDelayMs(retryCount));
+    }
   }
 }
 
@@ -1672,29 +1930,6 @@ function axiosProxyOption(proxy: CrawlProxy | null) {
   return proxy ? { proxy: proxyUrlToAxiosProxy(proxy.url) } : {};
 }
 
-function headersForRequest(options: CrawlFetchOptions, profile: Record<string, string>) {
-  const headers: Record<string, string> = {
-    ...profile,
-    ...(options.headers ?? {}),
-  };
-
-  if (options.referer) {
-    headers.Referer = options.referer;
-  }
-
-  return headers;
-}
-
-function selectCrawlHeaderProfileIndex(random: () => number, previousIndex: number | null) {
-  const total = CRAWL_HEADER_PROFILES.length;
-  if (total <= 1 || previousIndex === null) {
-    return Math.min(total - 1, Math.floor(safeRandom(random) * total));
-  }
-
-  const candidate = Math.floor(safeRandom(random) * (total - 1));
-  return candidate >= previousIndex ? candidate + 1 : candidate;
-}
-
 function safeRandom(random: () => number) {
   const value = random();
   return Number.isFinite(value) ? Math.max(0, Math.min(0.999999, value)) : 0;
@@ -1704,10 +1939,83 @@ function isAxiosForbiddenError(error: unknown) {
   return axios.isAxiosError(error) && Number(error.response?.status) === 403;
 }
 
-function isRetryableNetworkError(error: unknown) {
-  if (!axios.isAxiosError(error)) return false;
+function axiosErrorCode(error: unknown) {
+  if (!axios.isAxiosError(error)) return undefined;
   const code = error.code ?? (error.cause as { code?: unknown } | undefined)?.code;
-  return code === 'ECONNRESET';
+  return typeof code === 'string' ? code : undefined;
+}
+
+function isRetryableFetchError(error: unknown) {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.response) {
+    return RETRYABLE_HTTP_STATUSES.has(Number(error.response.status));
+  }
+
+  const code = axiosErrorCode(error);
+  return code !== undefined && RETRYABLE_NETWORK_CODES.has(code);
+}
+
+function isProxyConnectionFailure(error: unknown) {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.response) {
+    return Number(error.response.status) === 407;
+  }
+
+  const code = axiosErrorCode(error);
+  return code !== undefined && PROXY_FAILURE_CODES.has(code);
+}
+
+function networkRetryDelayMs(retryCount: number) {
+  return Math.min(NETWORK_RETRY_BASE_DELAY_MS * 2 ** retryCount, NETWORK_RETRY_MAX_DELAY_MS);
+}
+
+function retryAfterMs(headers: unknown) {
+  const value = responseHeaderValue(headers, 'retry-after');
+  if (!value) return undefined;
+
+  const seconds = Number(value);
+  const delayMs = Number.isFinite(seconds)
+    ? seconds * 1000
+    : Date.parse(value) - Date.now();
+
+  return Number.isFinite(delayMs) && delayMs > 0
+    ? Math.min(delayMs, RATE_LIMIT_MAX_COOLDOWN_MS)
+    : undefined;
+}
+
+function allowedItemFailures(total: number) {
+  return Math.floor(total * ITEM_FAILURE_RATIO_LIMIT);
+}
+
+function isTaskControlError(error: unknown) {
+  return error instanceof TaskPausedError || error instanceof TaskStoppedError || isAbortError(error);
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function sleepWithSignal(delayMs: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+
+    const timer = setTimeout(finish, delayMs);
+    function finish() {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', finish);
+      resolve();
+    }
+    signal?.addEventListener('abort', finish, { once: true });
+  });
+}
+
+function throwIfAborted(signal: AbortSignal | undefined) {
+  if (signal?.aborted) {
+    throw Object.assign(new Error('canceled'), { name: 'AbortError', code: 'ERR_CANCELED' });
+  }
 }
 
 async function defaultCurlFetch(url: string, options: { headers: Record<string, string>; proxy?: CrawlProxy | null; signal?: AbortSignal }): Promise<CrawlFetchResult> {
@@ -1723,6 +2031,10 @@ async function defaultCurlFetch(url: string, options: { headers: Record<string, 
     '20',
     '--compressed',
   ];
+
+  if (options.proxy) {
+    args.push('--proxy', options.proxy.url);
+  }
 
   for (const [name, value] of Object.entries(options.headers)) {
     args.push('-H', `${name}: ${value}`);

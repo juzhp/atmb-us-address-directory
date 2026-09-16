@@ -1,16 +1,21 @@
 'use client';
 
 import type {
+  AddressC1Precheck,
+  AddressC1PrecheckFilter,
   AddressCmra,
   AddressCmraFilter,
   AddressPriceFilter,
   AddressRdi,
   AddressRdiFilter,
+  AddressUspsCmra,
+  AddressUspsCmraFilter,
   AdminAddressListItem,
   AdminAddressListResponse,
   AdminAddressStats,
   AdminStateOption,
 } from '@atmb/shared';
+import { C1_PRECHECK_LABELS } from '@atmb/shared';
 import { Edit3, ImageUp, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
 
@@ -23,6 +28,8 @@ interface Filters {
   state: string;
   rdi: '' | AddressRdiFilter;
   cmra: '' | AddressCmraFilter;
+  uspsCmra: '' | AddressUspsCmraFilter;
+  c1Precheck: '' | AddressC1PrecheckFilter;
   price: AddressPriceFilter;
   featured: '' | 'true' | 'false';
 }
@@ -32,6 +39,8 @@ const initialFilters: Filters = {
   state: '',
   rdi: '',
   cmra: '',
+  uspsCmra: '',
+  c1Precheck: '',
   price: 'all',
   featured: '',
 };
@@ -71,6 +80,8 @@ export function AddressManagement() {
     if (appliedFilters.state) params.set('state', appliedFilters.state);
     if (appliedFilters.rdi) params.set('rdi', appliedFilters.rdi);
     if (appliedFilters.cmra) params.set('cmra', appliedFilters.cmra);
+    if (appliedFilters.uspsCmra) params.set('uspsCmra', appliedFilters.uspsCmra);
+    if (appliedFilters.c1Precheck) params.set('c1Precheck', appliedFilters.c1Precheck);
     if (appliedFilters.price !== 'all') params.set('price', appliedFilters.price);
     if (appliedFilters.featured) params.set('featured', appliedFilters.featured);
     return params.toString();
@@ -345,6 +356,24 @@ export function AddressManagement() {
           </select>
         </label>
         <label>
+          <span>USPS CMRA</span>
+          <select value={filters.uspsCmra} onChange={(event) => changeFilter('uspsCmra', event.target.value as Filters['uspsCmra'])}>
+            <option value="">全部</option>
+            <option value="Y">Y</option>
+            <option value="N">N</option>
+            <option value="none">未设置</option>
+          </select>
+        </label>
+        <label>
+          <span>C1 预审</span>
+          <select value={filters.c1Precheck} onChange={(event) => changeFilter('c1Precheck', event.target.value as Filters['c1Precheck'])}>
+            <option value="">全部</option>
+            <option value="pass">通过</option>
+            <option value="fail">不通过</option>
+            <option value="none">未设置</option>
+          </select>
+        </label>
+        <label>
           <span>价格</span>
           <select value={filters.price} onChange={(event) => changeFilter('price', event.target.value as AddressPriceFilter)}>
             <option value="all">全部</option>
@@ -394,6 +423,8 @@ export function AddressManagement() {
                 <th>州 / ZIP</th>
                 <th>RDI</th>
                 <th>CMRA</th>
+                <th>USPS CMRA</th>
+                <th>C1 预审</th>
                 <th>精选</th>
                 <th>价格</th>
                 <th>邮箱编号范围</th>
@@ -438,6 +469,20 @@ export function AddressManagement() {
                     <Badge tone={item.cmra === 'No' ? 'green' : 'amber'}>{item.cmra ?? '无'}</Badge>
                   </td>
                   <td>
+                    {item.uspsCmra ? (
+                      <Badge title={manualCheckTitle(item.uspsCmraUpdatedAt)} tone={item.uspsCmra === 'N' ? 'green' : 'amber'}>
+                        {item.uspsCmra}
+                      </Badge>
+                    ) : '未设置'}
+                  </td>
+                  <td>
+                    {item.c1Precheck ? (
+                      <Badge title={manualCheckTitle(item.c1PrecheckUpdatedAt)} tone={item.c1Precheck === 'pass' ? 'green' : 'amber'}>
+                        {C1_PRECHECK_LABELS[item.c1Precheck]}
+                      </Badge>
+                    ) : '未设置'}
+                  </td>
+                  <td>
                     <Badge tone={item.isFeatured ? 'green' : 'amber'}>{item.isFeatured ? '精选' : '未精选'}</Badge>
                   </td>
                   <td>
@@ -463,7 +508,7 @@ export function AddressManagement() {
               ))}
               {list && list.items.length === 0 ? (
                 <tr>
-                  <td className="admin-empty-cell" colSpan={11}>
+                  <td className="admin-empty-cell" colSpan={13}>
                     暂无符合条件的地址
                   </td>
                 </tr>
@@ -556,8 +601,8 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Badge({ children, tone }: { children: ReactNode; tone: 'green' | 'amber' | 'blue' }) {
-  return <span className={`admin-badge ${tone}`}>{children}</span>;
+function Badge({ children, title, tone }: { children: ReactNode; title?: string; tone: 'green' | 'amber' | 'blue' }) {
+  return <span className={`admin-badge ${tone}`} title={title}>{children}</span>;
 }
 
 function AddressEditDialog({
@@ -572,6 +617,7 @@ function AddressEditDialog({
   const [form, setForm] = useState(item);
   const [message, setMessage] = useState('');
   const [isPending, startTransition] = useTransition();
+  const canSetManualChecks = form.rdi === 'Residential';
 
   function setValue<K extends keyof AdminAddressListItem>(key: K, value: AdminAddressListItem[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -593,6 +639,8 @@ function AddressEditDialog({
           postalCode: form.postalCode,
           ...(form.rdi ? { rdi: form.rdi } : {}),
           ...(form.cmra ? { cmra: form.cmra } : {}),
+          uspsCmra: form.uspsCmra ?? null,
+          c1Precheck: form.c1Precheck ?? null,
           priceCents: form.priceCents,
           isFeatured: form.isFeatured,
           isVisible: form.isVisible,
@@ -601,7 +649,8 @@ function AddressEditDialog({
       });
 
       if (!response.ok) {
-        setMessage('保存失败，请检查字段。');
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        setMessage(body?.message ?? '保存失败，请检查字段。');
         return;
       }
 
@@ -699,6 +748,32 @@ function AddressEditDialog({
             </select>
           </label>
           <label>
+            <span>USPS CMRA</span>
+            <select
+              disabled={!canSetManualChecks}
+              value={form.uspsCmra ?? ''}
+              onChange={(event) => setValue('uspsCmra', (event.target.value || null) as AddressUspsCmra | null)}
+            >
+              <option value="">未设置</option>
+              <option value="Y">Y</option>
+              <option value="N">N</option>
+            </select>
+            <small>{manualCheckHint(canSetManualChecks, form.uspsCmraUpdatedAt)}</small>
+          </label>
+          <label>
+            <span>C1 预审</span>
+            <select
+              disabled={!canSetManualChecks}
+              value={form.c1Precheck ?? ''}
+              onChange={(event) => setValue('c1Precheck', (event.target.value || null) as AddressC1Precheck | null)}
+            >
+              <option value="">未设置</option>
+              <option value="pass">通过</option>
+              <option value="fail">不通过</option>
+            </select>
+            <small>{manualCheckHint(canSetManualChecks, form.c1PrecheckUpdatedAt)}</small>
+          </label>
+          <label>
             <span>价格（美分）</span>
             <input
               type="number"
@@ -774,6 +849,26 @@ function AddressEditDialog({
 
 function formatPrice(cents: number) {
   return `US$ ${(cents / 100).toFixed(2)}`;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(value));
+}
+
+function manualCheckTitle(updatedAt: string | null) {
+  return updatedAt ? `更新时间 ${formatDateTime(updatedAt)}` : undefined;
+}
+
+function manualCheckHint(canSet: boolean, updatedAt: string | null) {
+  if (!canSet) return '仅 RDI 为 Residential 时可设置';
+  return updatedAt ? `更新时间 ${formatDateTime(updatedAt)}` : '尚未设置';
 }
 
 function formatDate(value: string) {

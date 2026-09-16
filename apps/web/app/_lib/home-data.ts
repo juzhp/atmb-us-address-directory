@@ -1,8 +1,14 @@
 import Database from 'better-sqlite3';
-import { getUsStateDisplay } from '@atmb/shared';
+import {
+  C1_PRECHECK_LABELS,
+  getUsStateDisplay,
+  type AddressC1Precheck,
+  type AddressUspsCmra,
+} from '@atmb/shared';
 
 export { buildAddressDetailRedirectUrl } from './referral-redirect';
 import { buildAddressDetailRedirectUrl } from './referral-redirect';
+import { formatPublicDateTime } from './public-address-data';
 
 export interface HomeStateOption {
   code: string;
@@ -27,6 +33,10 @@ export interface HomeFeaturedAddress {
   price: string;
   rdi: 'Residential' | 'Commercial';
   cmra: 'Yes' | 'No';
+  uspsCmraLabel: string;
+  uspsCmraUpdatedAt: string | null;
+  c1PrecheckLabel: string;
+  c1PrecheckUpdatedAt: string | null;
   mailbox: string;
   imageUrl: string | null;
   detailUrl: string;
@@ -52,6 +62,10 @@ interface FeaturedAddressRow {
   priceCents: number;
   rdi: 'Residential' | 'Commercial';
   cmra: 'Yes' | 'No';
+  uspsCmra: AddressUspsCmra | null;
+  uspsCmraUpdatedAt: string | null;
+  c1Precheck: AddressC1Precheck | null;
+  c1PrecheckUpdatedAt: string | null;
   mailboxMin: number | null;
   mailboxMax: number | null;
   imageUrl: string | null;
@@ -134,6 +148,10 @@ function listFeaturedAddresses(sqlite: Database.Database) {
         a.price_cents AS priceCents,
         a.rdi,
         a.cmra,
+        a.usps_cmra AS uspsCmra,
+        a.usps_cmra_updated_at AS uspsCmraUpdatedAt,
+        a.c1_precheck AS c1Precheck,
+        a.c1_precheck_updated_at AS c1PrecheckUpdatedAt,
         a.mailbox_min AS mailboxMin,
         a.mailbox_max AS mailboxMax,
         img.public_url AS imageUrl
@@ -166,6 +184,10 @@ function listFeaturedAddresses(sqlite: Database.Database) {
       price: formatHomePrice(row.priceCents),
       rdi: row.rdi,
       cmra: row.cmra,
+      uspsCmraLabel: row.uspsCmra ?? '—',
+      uspsCmraUpdatedAt: row.uspsCmraUpdatedAt ? formatPublicDateTime(row.uspsCmraUpdatedAt) : null,
+      c1PrecheckLabel: row.c1Precheck ? C1_PRECHECK_LABELS[row.c1Precheck] : '—',
+      c1PrecheckUpdatedAt: row.c1PrecheckUpdatedAt ? formatPublicDateTime(row.c1PrecheckUpdatedAt) : null,
       mailbox: formatMailboxRange(row.mailboxMin, row.mailboxMax),
       imageUrl: row.imageUrl,
       detailUrl: buildAddressDetailRedirectUrl(row.anytimeUrl),

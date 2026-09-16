@@ -22,6 +22,14 @@ export type AddressCmra = 'Yes' | 'No';
 export type AddressRdiFilter = AddressRdi | 'none';
 export type AddressCmraFilter = AddressCmra | 'none';
 export type AddressPriceFilter = 'all' | 'lt10' | 'lt20' | 'gte20';
+export type AddressUspsCmra = 'Y' | 'N';
+export type AddressC1Precheck = 'pass' | 'fail';
+export type AddressUspsCmraFilter = AddressUspsCmra | 'none';
+export type AddressC1PrecheckFilter = AddressC1Precheck | 'none';
+export const C1_PRECHECK_LABELS: Record<AddressC1Precheck, string> = {
+  pass: '通过',
+  fail: '不通过',
+};
 
 export interface AdminAddressListItem {
   recordSource: 'address' | 'discovered';
@@ -43,6 +51,10 @@ export interface AdminAddressListItem {
   pricePeriod: string;
   rdi: AddressRdi | null;
   cmra: AddressCmra | null;
+  uspsCmra: AddressUspsCmra | null;
+  uspsCmraUpdatedAt: string | null;
+  c1Precheck: AddressC1Precheck | null;
+  c1PrecheckUpdatedAt: string | null;
   mailboxMin: number | null;
   mailboxMax: number | null;
   mailboxCount: number | null;
