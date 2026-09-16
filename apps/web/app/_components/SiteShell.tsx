@@ -28,6 +28,7 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
             </Link>
             <div className="site-nav-dropdown" role="menu" aria-label="教程">
               <Link role="menuitem" href="/guide/anytime-mailbox-tutorial">Anytime Mailbox 注册教程</Link>
+              <Link role="menuitem" href="/guide/us-residential-address-verification">美国住宅地址验证教程</Link>
               <Link role="menuitem" href="/guide/usps-form-1583">USPS Form 1583 公证教程</Link>
             </div>
           </div>
@@ -56,6 +57,7 @@ export function SiteFooter() {
           <Link href="/addresses">所有地址</Link>
           <Link href="/residential-addresses">住宅地址</Link>
           <Link href="/guide/anytime-mailbox-tutorial">注册教程</Link>
+          <Link href="/guide/us-residential-address-verification">地址验证</Link>
           <Link href="/guide/usps-form-1583">1583 公证</Link>
           <Link href="/#faq">FAQ</Link>
         </nav>

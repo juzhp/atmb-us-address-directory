@@ -38,6 +38,7 @@ test('sitemap route lists current public SEO pages with production urls', async 
       `${siteUrl}/residential-addresses`,
       `${siteUrl}/guide/anytime-mailbox-tutorial`,
       `${siteUrl}/guide/usps-form-1583`,
+      `${siteUrl}/guide/us-residential-address-verification`,
     ],
   );
   assert.equal(sitemap[0].priority, 1);

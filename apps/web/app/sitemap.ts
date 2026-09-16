@@ -8,6 +8,7 @@ const publicRoutes = [
   { path: '/residential-addresses', priority: 0.9 },
   { path: '/guide/anytime-mailbox-tutorial', priority: 0.8 },
   { path: '/guide/usps-form-1583', priority: 0.8 },
+  { path: '/guide/us-residential-address-verification', priority: 0.8 },
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {

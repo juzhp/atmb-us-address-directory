@@ -252,6 +252,16 @@ export default async function ResidentialAddressesPage({ searchParams }: Residen
               );
             })}
           </div>
+          <div className="guide-cta">
+            <div>
+              <strong>不确定某个地址能不能用？看四步核验教程</strong>
+              <span>Capital One 地址预审、Smarty RDI/CMRA、USPS CMRA、Google 街景，附通过与被拒的截图样例。</span>
+            </div>
+            <Link href="/guide/us-residential-address-verification">
+              查看地址验证教程
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
         </section>
 
         <section className="addresses-inner addresses-section" id="faq" aria-labelledby="residential-faq-title">
