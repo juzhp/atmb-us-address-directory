@@ -228,6 +228,13 @@ export default async function ResidentialAddressesPage({ searchParams }: Residen
             </Suspense>
           </div>
 
+          <div className="guide-callout addresses-list-notice" role="note">
+            <strong>购买前请再手动核验一次。</strong>
+            列表里的 RDI、CMRA、USPS CMRA 与 C1 预审都是辅助判断，各家数据库随时可能变化。下单前建议按
+            <Link href="/guide/us-residential-address-verification">《美国住宅地址验证四步教程》</Link>
+            自己再查一遍 Capital One 预审、Smarty、USPS 和街景。
+          </div>
+
           <Suspense fallback={<ResidentialResultsSkeleton />}>
             <ResidentialResults dataPromise={dataPromise} filters={filters} />
           </Suspense>

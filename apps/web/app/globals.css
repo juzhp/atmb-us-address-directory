@@ -6246,6 +6246,19 @@ a {
   transform: translateY(1px);
 }
 
+.addresses-list-notice {
+  margin: 0 0 16px;
+}
+
+.addresses-list-notice strong {
+  color: var(--teal-dark);
+}
+
+.addresses-list-notice a {
+  color: var(--teal-dark);
+  font-weight: 700;
+}
+
 .guide-figure {
   margin: 18px 0 22px;
 }
