@@ -8,6 +8,18 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://usaddres.com'),
   title: 'Anytime Mailbox住宅地址指南',
   description: '筛选 Anytime Mailbox(ATMB) 美国真实私人住宅地址：RDI/CMRA、USPS CMRA、C1 预审、街景、价格一站筛查，适合美国信用卡与银行开户。',
+  openGraph: {
+    type: 'website',
+    locale: 'zh_CN',
+    images: [
+      {
+        url: '/assets/home/og-home-v1.png',
+        width: 1200,
+        height: 630,
+        alt: '美国住宅地址筛选工具：批量筛好 RDI / CMRA，并标注 USPS CMRA 与 C1 预审',
+      },
+    ],
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

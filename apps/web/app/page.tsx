@@ -60,10 +60,10 @@ export const metadata: Metadata = {
     locale: 'zh_CN',
     images: [
       {
-        url: '/assets/home/hero-residential-map-v4.png',
-        width: 1536,
-        height: 1024,
-        alt: '美国住宅地址筛选数据地图界面',
+        url: '/assets/home/og-home-v1.png',
+        width: 1200,
+        height: 630,
+        alt: '美国住宅地址筛选工具：批量筛好 RDI / CMRA，并标注 USPS CMRA 与 C1 预审',
       },
     ],
   },
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '美国住宅地址筛选工具 | Anytime Mailbox(ATMB)',
     description: '已批量筛好 RDI Residential / CMRA No 的美国真实住宅地址，并标注 USPS CMRA 与 C1 预审，适合美国信用卡与银行开户的第三方筛选工具。',
-    images: ['/assets/home/hero-residential-map-v4.png'],
+    images: ['/assets/home/og-home-v1.png'],
   },
 };
 
