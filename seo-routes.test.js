@@ -45,3 +45,18 @@ test('sitemap route lists current public SEO pages with production urls', async 
   assert.equal(sitemap[1].changeFrequency, 'daily');
   assert.equal(sitemap[2].changeFrequency, 'daily');
 });
+
+test('llms.txt route serves markdown with an h1 and the public page list', async () => {
+  const route = await import('./apps/web/app/llms.txt/route.ts');
+  const response = route.GET();
+  const body = await response.text();
+
+  assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
+  assert.match(body, /^# .+/);
+  assert.equal(body.match(/^# /gm).length, 1);
+
+  const sitemapRoute = await import('./apps/web/app/sitemap.ts');
+  for (const entry of sitemapRoute.default()) {
+    assert.ok(body.includes(entry.url), `llms.txt is missing ${entry.url}`);
+  }
+});

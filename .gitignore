@@ -33,6 +33,7 @@ Thumbs.db
 
 .history/
 .vscode/
+.playwright-mcp/
 design/
 
 .codex/
