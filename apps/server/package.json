@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "patch:rdi-cmra": "tsx src/scripts/patch-rdi-cmra-from-admin-locations.ts",
+    "images:webp": "tsx src/scripts/convert-address-images-to-webp.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "pretest": "npm run build --workspace @atmb/shared && npm run build --workspace @atmb/db",
     "test": "node --import tsx --test test/**/*.test.ts"
@@ -26,6 +27,7 @@
     "fastify": "^5.8.5",
     "node-cron": "^4.2.1",
     "p-queue": "^9.3.0",
+    "sharp": "^0.34.5",
     "zod": "^4.4.3"
   }
 }

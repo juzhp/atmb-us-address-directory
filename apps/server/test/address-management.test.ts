@@ -673,7 +673,10 @@ test('uploads a street view image with a random static file name', async (t) => 
   });
   const address = listResponse.json().items[0];
   const boundary = '----atmb-test-boundary';
-  const png = Buffer.from('89504e470d0a1a0a', 'hex');
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  );
   const payload = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="street.png"\r\nContent-Type: image/png\r\n\r\n`),
     png,
@@ -692,7 +695,8 @@ test('uploads a street view image with a random static file name', async (t) => 
 
   assert.equal(response.statusCode, 200);
   const image = response.json().image;
-  assert.match(image.fileName, /^[a-f0-9-]+\.png$/);
+  assert.match(image.fileName, /^[a-f0-9-]+\.webp$/);
+  assert.equal(image.mimeType, 'image/webp');
   assert.equal(image.publicUrl, `/uploads/address-images/${image.fileName}`);
   assert.ok(existsSync(join(uploadDir, image.fileName)));
 

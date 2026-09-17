@@ -133,7 +133,7 @@ export function registerAddressRoutes(
     }
 
     try {
-      const image = addressService.uploadStreetViewImage({
+      const image = await addressService.uploadStreetViewImage({
         addressId: Number(id),
         buffer: await file.toBuffer(),
         originalFileName: file.filename,

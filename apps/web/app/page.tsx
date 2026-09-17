@@ -367,7 +367,7 @@ export default async function HomePage() {
                       alt={`${address.name} 街景图`}
                       width={640}
                       height={360}
-                      sizes="(max-width: 900px) 100vw, 25vw"
+                      unoptimized
                     />
                   ) : (
                     <div className="home-address-image-placeholder">

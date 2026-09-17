@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import sharp from 'sharp';
 import type { DatabaseContext } from '@atmb/db';
 import type {
   AddressC1Precheck,
@@ -428,16 +429,14 @@ export class AddressService {
     };
   }
 
-  uploadStreetViewImage(input: UploadImageInput) {
+  async uploadStreetViewImage(input: UploadImageInput) {
     const address = this.getAddress(input.addressId);
 
     if (!address) {
       return null;
     }
 
-    const extension = extensionForMime(input.mimeType, input.originalFileName);
-
-    if (!extension) {
+    if (!extensionForMime(input.mimeType, input.originalFileName)) {
       throw new Error('INVALID_IMAGE_TYPE');
     }
 
@@ -445,11 +444,19 @@ export class AddressService {
       throw new Error('IMAGE_TOO_LARGE');
     }
 
+    let optimized: Buffer;
+
+    try {
+      optimized = await optimizeAddressImage(input.buffer);
+    } catch {
+      throw new Error('INVALID_IMAGE_TYPE');
+    }
+
     mkdirSync(input.uploadDir, { recursive: true });
-    const fileName = `${randomUUID()}${extension}`;
+    const fileName = `${randomUUID()}.webp`;
     const publicUrl = `${input.publicBase.replace(/\/$/, '')}/${fileName}`;
     const filePath = join(input.uploadDir, fileName);
-    writeFileSync(filePath, input.buffer);
+    writeFileSync(filePath, optimized);
     const now = new Date().toISOString();
 
     this.database.sqlite
@@ -467,8 +474,8 @@ export class AddressService {
         fileName,
         publicUrl,
         input.originalFileName,
-        input.mimeType,
-        input.buffer.length,
+        'image/webp',
+        optimized.length,
         `${address.name} 街景图`,
         now,
         now,
@@ -480,8 +487,8 @@ export class AddressService {
       fileName,
       publicUrl,
       originalFileName: input.originalFileName,
-      mimeType: input.mimeType,
-      sizeBytes: input.buffer.length,
+      mimeType: 'image/webp',
+      sizeBytes: optimized.length,
     };
   }
 
@@ -535,6 +542,14 @@ function toListItem(row: AddressRow): AdminAddressListItem {
 function scalar(sqlite: DatabaseContext['sqlite'], sql: string) {
   const row = sqlite.prepare(sql).get() as { 'COUNT(*)': number };
   return row['COUNT(*)'];
+}
+
+export async function optimizeAddressImage(buffer: Buffer) {
+  return sharp(buffer)
+    .rotate()
+    .resize({ width: 1280, withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
 }
 
 function extensionForMime(mimeType: string, originalFileName: string) {
