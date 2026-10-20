@@ -1979,8 +1979,13 @@ test('offline iPostal1 export is staged with ATMB de-duplication and imported by
   };
   const expectedStats = { states: 1, parsed: 2, skippedAtmb: 1, staged: 1, warnings: ['CA (12): Cloudflare challenge'] };
 
-  // 预览只统计不写库
-  assert.deepEqual(harness.pipeline.previewIpostal1Export(exportData), expectedStats);
+  // 预览只统计不写库，并给出去重对照
+  const preview = harness.pipeline.previewIpostal1Export(exportData);
+  assert.deepEqual(preview.stats, expectedStats);
+  assert.equal(preview.duplicates.length, 1);
+  assert.equal(preview.duplicates[0]?.ipostal1.storeId, '2996');
+  assert.equal(preview.duplicates[0]?.atmb.anytimeUrl, 'https://locations.anytimemailbox.com/l/usa/alabama/madison-hwy-72');
+  assert.deepEqual(preview.staged.map((row) => row.storeId), ['4723']);
   assert.equal((harness.database.sqlite.prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses').get() as { count: number }).count, 0);
 
   const stats = harness.pipeline.importIpostal1Export(task.id, exportData);

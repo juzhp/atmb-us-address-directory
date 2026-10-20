@@ -1141,6 +1141,45 @@ a {
   padding: 24px 24px 4px;
 }
 
+.admin-confirm-dialog.wide {
+  width: min(1040px, 100%);
+  max-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-confirm-content {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 24px 0;
+}
+
+.admin-import-details-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.admin-import-details-tabs button {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.admin-import-details-tabs button.active {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.admin-import-details .admin-pagination {
+  min-height: 48px;
+  padding: 0;
+  font-size: 13px;
+}
+
 .admin-confirm-dialog h2 {
   margin: 0 0 10px;
   color: #071a3f;

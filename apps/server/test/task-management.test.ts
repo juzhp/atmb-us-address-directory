@@ -714,6 +714,8 @@ test('previews an iPostal1 offline export and only creates the task after confir
   assert.match(previewBody.uploadId, /^[0-9a-f-]{36}$/);
   assert.equal(previewBody.fetchedAt, '2026-10-21T08:30:00Z');
   assert.deepEqual(previewBody.stats, expectedStats);
+  assert.deepEqual(previewBody.details.duplicates, []);
+  assert.deepEqual(previewBody.details.staged.map((row: { storeId: string }) => row.storeId), ['2996', '3597']);
   assert.equal(await countTasks(), tasksBefore);
 
   // 取消：丢弃后无法再确认

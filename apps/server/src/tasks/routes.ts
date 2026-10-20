@@ -144,13 +144,18 @@ export function registerTaskRoutes(
       });
     }
 
-    const stats = crawlPipeline.previewIpostal1Export(exportData);
+    const preview = crawlPipeline.previewIpostal1Export(exportData);
     const uploadId = randomUUID();
 
     prunePendingImports();
-    pendingImports.set(uploadId, { exportData, stats, createdAt: Date.now() });
+    pendingImports.set(uploadId, { exportData, stats: preview.stats, createdAt: Date.now() });
 
-    return { uploadId, fetchedAt: exportData.fetchedAt, stats };
+    return {
+      uploadId,
+      fetchedAt: exportData.fetchedAt,
+      stats: preview.stats,
+      details: { duplicates: preview.duplicates, staged: preview.staged },
+    };
   });
 
   // 人工确认后：创建只含 sync_smarty 的 iPostal1 任务、写入暂存并进入执行队列

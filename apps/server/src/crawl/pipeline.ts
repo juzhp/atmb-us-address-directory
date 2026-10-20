@@ -24,6 +24,38 @@ export interface Ipostal1ImportStats {
   staged: number;
   warnings: string[];
 }
+
+export interface Ipostal1ImportAddress {
+  storeId: string;
+  name: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  detailUrl: string;
+}
+
+interface AtmbDuplicateRow {
+  id: number;
+  name: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  anytimeUrl: string;
+}
+
+// 预览时给人工核对去重结果：跳过的 iPostal1 地址与其匹配到的 ATMB 地址并排
+export interface Ipostal1ImportDuplicate {
+  ipostal1: Ipostal1ImportAddress;
+  atmb: AtmbDuplicateRow;
+}
+
+export interface Ipostal1ImportPreview {
+  stats: Ipostal1ImportStats;
+  duplicates: Ipostal1ImportDuplicate[];
+  staged: Ipostal1ImportAddress[];
+}
 import type { SettingsService } from '../settings/service.js';
 import type { TaskService } from '../tasks/service.js';
 import {
@@ -364,7 +396,7 @@ export class CrawlPipeline {
         signal: runOptions.signal,
       });
       const { count, locations } = parseIpostal1MailCenters(result.html, state.code);
-      const unique = this.filterOutAtmbDuplicates(state.code, locations);
+      const { unique } = this.filterOutAtmbDuplicates(state.code, locations);
 
       skipped += locations.length - unique.length;
       discovered += unique.length;
@@ -380,8 +412,14 @@ export class CrawlPipeline {
   }
 
   // 离线导出（线上出口被 Cloudflare 拦截时由外部抓取）：先预览统计给人工确认，确认后再 staging 到任务上，由 sync_smarty 子任务完成校验与导入
-  previewIpostal1Export(exportData: Ipostal1Export): Ipostal1ImportStats {
-    return this.prepareIpostal1Export(exportData).stats;
+  previewIpostal1Export(exportData: Ipostal1Export): Ipostal1ImportPreview {
+    const prepared = this.prepareIpostal1Export(exportData);
+
+    return {
+      stats: prepared.stats,
+      duplicates: prepared.duplicates,
+      staged: prepared.batches.flatMap((batch) => batch.locations),
+    };
   }
 
   importIpostal1Export(taskId: number, exportData: Ipostal1Export): Ipostal1ImportStats {
@@ -400,6 +438,7 @@ export class CrawlPipeline {
   private prepareIpostal1Export(exportData: Ipostal1Export) {
     const stats: Ipostal1ImportStats = { states: 0, parsed: 0, skippedAtmb: 0, staged: 0, warnings: [...exportData.skipped] };
     const batches: Array<{ state: Ipostal1State; stateLocationCount: number; locations: Ipostal1Location[] }> = [];
+    const duplicates: Ipostal1ImportDuplicate[] = [];
 
     for (const entry of exportData.states) {
       let parsed;
@@ -416,36 +455,49 @@ export class CrawlPipeline {
         stateId: entry.stateId,
         url: buildIpostal1StateUrl('223', entry.stateId),
       };
-      const unique = this.filterOutAtmbDuplicates(entry.code, parsed.locations);
+      const deduped = this.filterOutAtmbDuplicates(entry.code, parsed.locations);
 
       stats.states += 1;
       stats.parsed += parsed.locations.length;
-      stats.skippedAtmb += parsed.locations.length - unique.length;
-      stats.staged += unique.length;
-      batches.push({ state, stateLocationCount: parsed.count ?? parsed.locations.length, locations: unique });
+      stats.skippedAtmb += deduped.duplicates.length;
+      stats.staged += deduped.unique.length;
+      duplicates.push(...deduped.duplicates);
+      batches.push({ state, stateLocationCount: parsed.count ?? parsed.locations.length, locations: deduped.unique });
     }
 
-    return { stats, batches };
+    return { stats, batches, duplicates };
   }
 
   // ATMB 已收录（且仍活跃）的物理地址不在 iPostal1 重复收录
   private filterOutAtmbDuplicates(stateCode: string, locations: Ipostal1Location[]) {
+    const unique: Ipostal1Location[] = [];
+    const duplicates: Ipostal1ImportDuplicate[] = [];
+
     if (locations.length === 0) {
-      return locations;
+      return { unique, duplicates };
     }
 
     const existing = this.options.database.sqlite
       .prepare(`
-        SELECT street_address AS streetAddress, city, state, postal_code AS postalCode
+        SELECT id, name, street_address AS streetAddress, city, state, postal_code AS postalCode, anytime_url AS anytimeUrl
         FROM addresses
         WHERE source = 'anytimemailbox'
           AND is_active = 1
           AND state = ?
       `)
-      .all(stateCode) as Array<{ streetAddress: string; city: string; state: string; postalCode: string }>;
-    const atmbKeys = new Set(existing.map((row) => normalizeAddressKey(row)));
+      .all(stateCode) as AtmbDuplicateRow[];
+    const atmbByKey = new Map(existing.map((row) => [normalizeAddressKey(row), row]));
 
-    return locations.filter((location) => !atmbKeys.has(normalizeAddressKey(location)));
+    for (const location of locations) {
+      const atmb = atmbByKey.get(normalizeAddressKey(location));
+      if (atmb) {
+        duplicates.push({ ipostal1: location, atmb });
+      } else {
+        unique.push(location);
+      }
+    }
+
+    return { unique, duplicates };
   }
 
   // iPostal1 没有详情页和邮箱编号，staging 时地址已完整，直接标为 mailbox_fetched（待 Smarty），sync_smarty 进度才会计入

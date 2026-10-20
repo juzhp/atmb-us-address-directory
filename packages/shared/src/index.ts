@@ -208,11 +208,38 @@ export interface AdminIpostal1ImportStats {
   warnings: string[];
 }
 
-// 上传后仅解析与统计，等人工确认后才创建任务
+export interface AdminIpostal1ImportAddress {
+  storeId: string;
+  name: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  detailUrl: string;
+}
+
+export interface AdminIpostal1ImportDuplicate {
+  ipostal1: AdminIpostal1ImportAddress;
+  atmb: {
+    id: number;
+    name: string;
+    streetAddress: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    anytimeUrl: string;
+  };
+}
+
+// 上传后仅解析与统计，等人工确认后才创建任务；details 供人工核对去重结果
 export interface AdminIpostal1ImportPreviewResponse {
   uploadId: string;
   fetchedAt: string | null;
   stats: AdminIpostal1ImportStats;
+  details: {
+    duplicates: AdminIpostal1ImportDuplicate[];
+    staged: AdminIpostal1ImportAddress[];
+  };
 }
 
 export interface AdminIpostal1ImportResponse {

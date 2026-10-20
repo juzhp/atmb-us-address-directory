@@ -492,6 +492,8 @@ export function TaskManagement() {
         <AdminConfirmDialog
           title="确认导入 iPostal1 离线数据？"
           description={<Ipostal1ImportSummary preview={importPreview} />}
+          content={<Ipostal1ImportDetails details={importPreview.details} />}
+          size="wide"
           confirmText="创建导入任务"
           isPending={isConfirmingImport}
           onCancel={cancelIpostal1Import}
@@ -758,6 +760,98 @@ function Ipostal1ImportSummary({ preview }: { preview: AdminIpostal1ImportPrevie
       ) : null}
       <span>确认后会创建 iPostal1 任务并进入执行队列，开始同步 Smarty（消耗额度）；取消则不保留任何数据。</span>
     </span>
+  );
+}
+
+const IMPORT_DETAILS_PAGE_SIZE = 50;
+
+// 临时核对用：分页列出“判定为 ATMB 重复而跳过”的对照和“将写入待同步”的地址，避免几千行一次渲染卡住页面
+function Ipostal1ImportDetails({ details }: { details: AdminIpostal1ImportPreviewResponse['details'] }) {
+  const [view, setView] = useState<'duplicates' | 'staged'>(details.duplicates.length > 0 ? 'duplicates' : 'staged');
+  const [page, setPage] = useState(1);
+  const rows = view === 'duplicates' ? details.duplicates : details.staged;
+  const totalPages = Math.max(1, Math.ceil(rows.length / IMPORT_DETAILS_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * IMPORT_DETAILS_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + IMPORT_DETAILS_PAGE_SIZE);
+
+  function switchView(next: 'duplicates' | 'staged') {
+    setView(next);
+    setPage(1);
+  }
+
+  return (
+    <div className="admin-import-details">
+      <div className="admin-import-details-tabs">
+        <button className={view === 'duplicates' ? 'active' : undefined} type="button" onClick={() => switchView('duplicates')}>
+          跳过（ATMB 已收录）{details.duplicates.length}
+        </button>
+        <button className={view === 'staged' ? 'active' : undefined} type="button" onClick={() => switchView('staged')}>
+          将写入待同步 {details.staged.length}
+        </button>
+      </div>
+      <div className="admin-table-wrap">
+        <table className="admin-address-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>iPostal1 地址</th>
+              {view === 'duplicates' ? <th>匹配到的 ATMB 地址</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {view === 'duplicates'
+              ? (pageRows as AdminIpostal1ImportPreviewResponse['details']['duplicates']).map((row, index) => (
+                <tr key={row.ipostal1.storeId}>
+                  <td>{start + index + 1}</td>
+                  <td>
+                    <a className="address-table-link" href={row.ipostal1.detailUrl} rel="noreferrer" target="_blank">
+                      {row.ipostal1.streetAddress}
+                      <br />
+                      {row.ipostal1.city}, {row.ipostal1.state} {row.ipostal1.postalCode}
+                    </a>
+                  </td>
+                  <td>
+                    <a className="address-table-link" href={row.atmb.anytimeUrl} rel="noreferrer" target="_blank">
+                      {row.atmb.name}
+                      <br />
+                      {row.atmb.streetAddress}
+                      <br />
+                      {row.atmb.city}, {row.atmb.state} {row.atmb.postalCode}
+                    </a>
+                  </td>
+                </tr>
+              ))
+              : (pageRows as AdminIpostal1ImportPreviewResponse['details']['staged']).map((row, index) => (
+                <tr key={row.storeId}>
+                  <td>{start + index + 1}</td>
+                  <td>
+                    <a className="address-table-link" href={row.detailUrl} rel="noreferrer" target="_blank">
+                      {row.name}
+                      <br />
+                      {row.streetAddress}
+                      <br />
+                      {row.city}, {row.state} {row.postalCode}
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            {rows.length === 0 ? (
+              <tr>
+                <td className="admin-empty-cell" colSpan={view === 'duplicates' ? 3 : 2}>没有记录</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+      <div className="admin-pagination">
+        <span>共 {rows.length} 条，第 {currentPage} / {totalPages} 页</span>
+        <div>
+          <button disabled={currentPage <= 1} type="button" onClick={() => setPage(currentPage - 1)}>上一页</button>
+          <button disabled={currentPage >= totalPages} type="button" onClick={() => setPage(currentPage + 1)}>下一页</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
