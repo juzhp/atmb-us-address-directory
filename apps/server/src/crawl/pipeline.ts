@@ -4,9 +4,16 @@ import { execFile } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import type { AddressCmra, AddressRdi, AdminSubtaskType } from '@atmb/shared';
+import type { AddressCmra, AddressRdi, AddressSource, AdminSubtaskType } from '@atmb/shared';
 
 import { proxyUrlToAxiosProxy, type CrawlProxy } from '../proxy.js';
+import {
+  IPOSTAL1_LOCATIONS_URL,
+  listIpostal1States,
+  parseIpostal1MailCenters,
+  type Ipostal1Location,
+  type Ipostal1State,
+} from './ipostal1-parser.js';
 import type { SettingsService } from '../settings/service.js';
 import type { TaskService } from '../tasks/service.js';
 import {
@@ -117,6 +124,8 @@ interface LocationWithState {
 interface StageRow {
   id: number;
   taskId: number;
+  source: AddressSource;
+  sourceId: string | null;
   name: string;
   slug: string;
   anytimeUrl: string;
@@ -149,6 +158,7 @@ interface StageRow {
 
 interface AddressCacheRow {
   id: number;
+  source: string;
   anytimeUrl: string;
   name: string;
   streetAddress: string;
@@ -236,6 +246,10 @@ export class CrawlPipeline {
   }
 
   async runTask(taskId: number, runOptions: RunTaskOptions = {}) {
+    if (this.options.taskService.getTaskPlatform(taskId) === 'ipostal1') {
+      return this.runIpostal1Task(taskId, runOptions);
+    }
+
     const hasFetchStates = this.options.taskService.hasSubtask(taskId, 'fetch_states');
     const hasFetchNames = this.options.taskService.hasSubtask(taskId, 'fetch_names');
     const hasFetchAddresses = this.options.taskService.hasSubtask(taskId, 'fetch_addresses');
@@ -285,10 +299,149 @@ export class CrawlPipeline {
     }
 
     if (hasFetchStates && hasFetchNames && hasSyncSmarty) {
-      this.markMissingAddressesRemoved(taskId);
+      this.markMissingAddressesRemoved(taskId, 'anytimemailbox');
       this.refreshStateCounts();
     }
     this.options.taskService.completeTask(taskId);
+  }
+
+  // iPostal1 没有州表、详情页和邮箱编号：fetch_names 直接从州接口拿到完整地址并 staging，随后 sync_smarty
+  private async runIpostal1Task(taskId: number, runOptions: RunTaskOptions) {
+    const hasFetchNames = this.options.taskService.hasSubtask(taskId, 'fetch_names');
+    const hasSyncSmarty = this.options.taskService.hasSubtask(taskId, 'sync_smarty');
+
+    try {
+      if (hasFetchNames && !this.options.taskService.isSubtaskSuccessful(taskId, 'fetch_names')) {
+        await this.runSubtask(taskId, 'fetch_names', () => this.fetchIpostal1Locations(taskId, runOptions), runOptions);
+      }
+
+      if (hasSyncSmarty && !this.options.taskService.isSubtaskSuccessful(taskId, 'sync_smarty')) {
+        await this.runSubtask(taskId, 'sync_smarty', async () => {
+          const synced = await this.syncSmarty(taskId, runOptions);
+          return synced.pendingCount === 0 ? 'No new Smarty addresses' : null;
+        }, runOptions);
+      }
+    } catch (error) {
+      if (error instanceof TaskPausedError || error instanceof TaskStoppedError) {
+        return;
+      }
+      this.options.taskService.completeTask(taskId);
+      throw error;
+    }
+
+    if (hasFetchNames && hasSyncSmarty) {
+      this.markMissingAddressesRemoved(taskId, 'ipostal1');
+    }
+    this.options.taskService.completeTask(taskId);
+  }
+
+  // 州列表是内置常量（入口页的州按钮由前端 JS 渲染，服务端 HTML 里拿不到），每州一次 JSON 请求
+  private async fetchIpostal1Locations(taskId: number, runOptions: RunTaskOptions) {
+    const states = listIpostal1States();
+    let discovered = 0;
+    let skipped = 0;
+
+    await this.mapWithConcurrency(states, async (state) => {
+      await this.checkTaskControl(taskId, 'fetch_names', runOptions);
+      const result = await this.fetcher.fetchHtml(state.url, {
+        referer: IPOSTAL1_LOCATIONS_URL,
+        headers: {
+          Accept: 'application/json, text/javascript, */*; q=0.01',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Sec-Fetch-Dest': 'empty',
+          'Sec-Fetch-Mode': 'cors',
+        },
+        signal: runOptions.signal,
+      });
+      const { count, locations } = parseIpostal1MailCenters(result.html, state.code);
+      const unique = this.filterOutAtmbDuplicates(state.code, locations);
+
+      skipped += locations.length - unique.length;
+      discovered += unique.length;
+      // 按州即时 staging：续跑时靠 (task_id, anytime_url) 唯一键幂等
+      this.stageIpostal1Locations(taskId, state, count ?? locations.length, unique);
+    });
+
+    if (discovered === 0 && skipped === 0) {
+      throw new Error('No address entries parsed from iPostal1 state endpoints');
+    }
+
+    return `Discovered ${discovered} address entries, skipped ${skipped} already listed on ATMB`;
+  }
+
+  // ATMB 已收录（且仍活跃）的物理地址不在 iPostal1 重复收录
+  private filterOutAtmbDuplicates(stateCode: string, locations: Ipostal1Location[]) {
+    if (locations.length === 0) {
+      return locations;
+    }
+
+    const existing = this.options.database.sqlite
+      .prepare(`
+        SELECT street_address AS streetAddress, city, state, postal_code AS postalCode
+        FROM addresses
+        WHERE source = 'anytimemailbox'
+          AND is_active = 1
+          AND state = ?
+      `)
+      .all(stateCode) as Array<{ streetAddress: string; city: string; state: string; postalCode: string }>;
+    const atmbKeys = new Set(existing.map((row) => normalizeAddressKey(row)));
+
+    return locations.filter((location) => !atmbKeys.has(normalizeAddressKey(location)));
+  }
+
+  private stageIpostal1Locations(taskId: number, state: Ipostal1State, stateLocationCount: number, locations: Ipostal1Location[]) {
+    if (locations.length === 0) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const insert = this.options.database.sqlite.prepare(`
+      INSERT INTO crawl_discovered_addresses (
+        task_id, source, source_id, state_name, state, state_url, state_location_count,
+        name, slug, anytime_url, signup_url, myear_url, country, city, street_address,
+        postal_code, full_address, normalized_address_key, price_cents, price_currency,
+        price_period, crawl_status, created_at, updated_at
+      ) VALUES (
+        @taskId, 'ipostal1', @sourceId, @stateName, @state, @stateUrl, @stateLocationCount,
+        @name, @slug, @anytimeUrl, NULL, NULL, 'United States', @city, @streetAddress,
+        @postalCode, @fullAddress, @normalizedAddressKey, @priceCents, 'USD',
+        'month', 'discovered', @now, @now
+      )
+      ON CONFLICT(task_id, anytime_url) DO UPDATE SET
+        state_url = excluded.state_url,
+        state_location_count = excluded.state_location_count,
+        name = excluded.name,
+        city = excluded.city,
+        street_address = excluded.street_address,
+        postal_code = excluded.postal_code,
+        full_address = excluded.full_address,
+        normalized_address_key = excluded.normalized_address_key,
+        price_cents = excluded.price_cents,
+        updated_at = excluded.updated_at
+    `);
+
+    this.options.database.sqlite.transaction(() => {
+      for (const location of locations) {
+        insert.run({
+          taskId,
+          sourceId: location.storeId,
+          stateName: state.name,
+          state: location.state,
+          stateUrl: state.url,
+          stateLocationCount,
+          name: location.name,
+          slug: slugify(`${location.name}-${location.city}-${location.state}-${location.postalCode}`),
+          anytimeUrl: location.detailUrl,
+          city: location.city,
+          streetAddress: location.streetAddress,
+          postalCode: location.postalCode,
+          fullAddress: `${location.streetAddress} ${location.city}, ${location.state} ${location.postalCode} United States`,
+          normalizedAddressKey: normalizeAddressKey(location),
+          priceCents: location.priceCents,
+          now,
+        });
+      }
+    })();
   }
 
   private async runSubtask<T>(
@@ -993,6 +1146,8 @@ export class CrawlPipeline {
         SELECT
           id,
           task_id AS taskId,
+          source,
+          source_id AS sourceId,
           name,
           slug,
           anytime_url AS anytimeUrl,
@@ -1035,6 +1190,7 @@ export class CrawlPipeline {
       .prepare(`
         SELECT
           id,
+          source,
           anytime_url AS anytimeUrl,
           name,
           street_address AS streetAddress,
@@ -1064,6 +1220,7 @@ export class CrawlPipeline {
       .prepare(`
         SELECT
           id,
+          source,
           anytime_url AS anytimeUrl,
           name,
           street_address AS streetAddress,
@@ -1196,16 +1353,16 @@ export class CrawlPipeline {
     }
 
     const now = new Date().toISOString();
-    const target = row.smartySourceAddressId
-      ? this.getAddressById(row.smartySourceAddressId)
-      : this.getAddressByAnytimeUrl(row.anytimeUrl);
+    const cached = row.smartySourceAddressId ? this.getAddressById(row.smartySourceAddressId) : undefined;
+    // Smarty 缓存命中的行属于其它平台时只复用 rdi/cmra，不把它改写成本平台的地址
+    const target = cached && cached.source === row.source ? cached : this.getAddressByAnytimeUrl(row.anytimeUrl);
 
     if (target) {
       this.options.database.sqlite
         .prepare(`
           UPDATE addresses
           SET
-            source = 'anytimemailbox',
+            source = @source,
             source_id = @sourceId,
             name = @name,
             slug = @slug,
@@ -1262,7 +1419,7 @@ export class CrawlPipeline {
           is_featured, is_active, is_visible, status_note, last_crawled_at, first_seen_at,
           removed_at, created_at, updated_at
         ) VALUES (
-          'anytimemailbox', @sourceId, @name, @slug, @anytimeUrl, @signupUrl, NULL,
+          @source, @sourceId, @name, @slug, @anytimeUrl, @signupUrl, NULL,
           @country, @state, @stateName, @city, @streetAddress, @postalCode, @fullAddress,
           @priceCents, @priceCurrency, @pricePeriod, @rdi, @cmra, @smartyRaw, @smartyCheckedAt,
           @mailboxMin, @mailboxMax, @mailboxCount, @mailboxNumbersJson,
@@ -1287,6 +1444,7 @@ export class CrawlPipeline {
       .prepare(`
         SELECT
           id,
+          source,
           anytime_url AS anytimeUrl,
           name,
           street_address AS streetAddress,
@@ -1310,6 +1468,7 @@ export class CrawlPipeline {
       .prepare(`
         SELECT
           id,
+          source,
           anytime_url AS anytimeUrl,
           name,
           street_address AS streetAddress,
@@ -1338,19 +1497,19 @@ export class CrawlPipeline {
       .run(addressId, new Date().toISOString(), stageId);
   }
 
-  private markMissingAddressesRemoved(taskId: number) {
+  private markMissingAddressesRemoved(taskId: number, source: AddressSource) {
     const now = new Date().toISOString();
     const missingRows = this.options.database.sqlite
       .prepare(`
         SELECT id, anytime_url AS anytimeUrl
         FROM addresses
-        WHERE source = 'anytimemailbox'
+        WHERE source = @source
           AND is_active = 1
           AND anytime_url NOT IN (
-            SELECT anytime_url FROM crawl_discovered_addresses WHERE task_id = ?
+            SELECT anytime_url FROM crawl_discovered_addresses WHERE task_id = @taskId
           )
       `)
-      .all(taskId) as Array<{ id: number; anytimeUrl: string }>;
+      .all({ taskId, source }) as Array<{ id: number; anytimeUrl: string }>;
 
     const update = this.options.database.sqlite.prepare(`
       UPDATE addresses
@@ -1373,11 +1532,11 @@ export class CrawlPipeline {
       SET
         active_address_count = (
           SELECT COUNT(*) FROM addresses
-          WHERE state = @code AND is_active = 1
+          WHERE source = 'anytimemailbox' AND state = @code AND is_active = 1
         ),
         residential_count = (
           SELECT COUNT(*) FROM addresses
-          WHERE state = @code AND is_active = 1 AND is_visible = 1 AND rdi = 'Residential'
+          WHERE source = 'anytimemailbox' AND state = @code AND is_active = 1 AND is_visible = 1 AND rdi = 'Residential'
         ),
         updated_at = @updatedAt
       WHERE code = @code
@@ -1837,7 +1996,8 @@ function chunkSmartyInputs(inputs: SmartyLookupInput[]) {
 
 function addressSqlValues(row: StageRow) {
   return {
-    sourceId: sourceIdFromUrl(row.anytimeUrl),
+    source: row.source,
+    sourceId: row.sourceId ?? sourceIdFromUrl(row.anytimeUrl),
     name: row.name,
     slug: row.slug,
     anytimeUrl: row.anytimeUrl,

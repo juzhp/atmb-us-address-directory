@@ -1,31 +1,38 @@
-export const REFERRAL_URL = 'https://anytimemailbox.referralrock.com/l/1RENHONGLIU21/';
-export const REFERRAL_COOKIE_NAME = 'atmb_referral_visited';
+import { PLATFORMS, type PlatformInfo } from '@atmb/shared';
+
+export const REFERRAL_URL = PLATFORMS.anytimemailbox.referralUrl;
+export const REFERRAL_COOKIE_NAME = PLATFORMS.anytimemailbox.referralCookieName;
 export const REFERRAL_COOKIE_VALUE = '1';
 export const REFERRAL_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 const ADDRESS_DETAIL_REDIRECT_PATH = '/go/address-detail';
-const ALLOWED_ANYTIME_DETAIL_HOSTS = new Set([
-  'www.anytimemailbox.com',
-  'locations.anytimemailbox.com',
-]);
 
 export function buildAddressDetailRedirectUrl(target: string) {
   return `${ADDRESS_DETAIL_REDIRECT_PATH}?target=${encodeURIComponent(target)}`;
 }
 
-export function isAllowedAnytimeDetailUrl(target: string) {
+// 按目标域名找到对应平台（推广链接与 cookie 名），不认识的域名返回 null
+export function resolveReferralPlatform(target: string): PlatformInfo | null {
   try {
     const url = new URL(target);
 
-    return url.protocol === 'https:' && ALLOWED_ANYTIME_DETAIL_HOSTS.has(url.hostname);
+    if (url.protocol !== 'https:') {
+      return null;
+    }
+
+    return Object.values(PLATFORMS).find((platform) => platform.detailHosts.includes(url.hostname)) ?? null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export function hasReferralVisitedCookie(cookieHeader: string | null) {
+export function isAllowedAnytimeDetailUrl(target: string) {
+  return resolveReferralPlatform(target) === PLATFORMS.anytimemailbox;
+}
+
+export function hasReferralVisitedCookie(cookieHeader: string | null, cookieName = REFERRAL_COOKIE_NAME) {
   return (cookieHeader ?? '')
     .split(';')
     .map((part) => part.trim())
-    .some((part) => part === `${REFERRAL_COOKIE_NAME}=${REFERRAL_COOKIE_VALUE}`);
+    .some((part) => part === `${cookieName}=${REFERRAL_COOKIE_VALUE}`);
 }

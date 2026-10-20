@@ -17,6 +17,31 @@ export interface LoginResponse {
   user: AdminUserProfile;
 }
 
+export const ADDRESS_SOURCES = ['anytimemailbox', 'ipostal1'] as const;
+export type AddressSource = (typeof ADDRESS_SOURCES)[number];
+
+export interface PlatformInfo {
+  label: string;
+  detailHosts: readonly string[];
+  referralUrl: string;
+  referralCookieName: string;
+}
+
+export const PLATFORMS: Record<AddressSource, PlatformInfo> = {
+  anytimemailbox: {
+    label: 'ATMB',
+    detailHosts: ['www.anytimemailbox.com', 'locations.anytimemailbox.com'],
+    referralUrl: 'https://anytimemailbox.referralrock.com/l/1RENHONGLIU21/',
+    referralCookieName: 'atmb_referral_visited',
+  },
+  ipostal1: {
+    label: 'iPostal1',
+    detailHosts: ['ipostal1.com', 'www.ipostal1.com'],
+    referralUrl: 'https://ipostal1.com/?ref=7904',
+    referralCookieName: 'ipostal1_referral_visited',
+  },
+};
+
 export type AddressRdi = 'Residential' | 'Commercial';
 export type AddressCmra = 'Yes' | 'No';
 export type AddressRdiFilter = AddressRdi | 'none';
@@ -35,6 +60,7 @@ export interface AdminAddressListItem {
   recordSource: 'address' | 'discovered';
   canEdit: boolean;
   id: number;
+  source: AddressSource;
   name: string;
   anytimeUrl: string;
   signupUrl: string | null;
@@ -162,6 +188,7 @@ export interface AdminTaskListItem {
   batchCode: string;
   generatedAt: string;
   createdType: AdminTaskCreatedType;
+  platform: AddressSource;
   status: AdminTaskStatus;
   note: string | null;
   createdBy: string;

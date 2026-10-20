@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-type SiteNavKey = 'home' | 'addresses' | 'residential' | 'guide' | 'faq';
+type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'guide' | 'faq';
 
 function navClass(active: SiteNavKey, key: SiteNavKey) {
   return active === key ? 'site-nav-active' : undefined;
@@ -18,6 +18,7 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
           <a className="site-nav-recommend" href="/go/get-us-residential-address" rel="noreferrer" target="_blank">获得美国住宅地址</a>
           <Link className={navClass(active, 'addresses')} href="/addresses">所有地址</Link>
           <Link className={navClass(active, 'residential')} href="/residential-addresses">住宅地址</Link>
+          <Link className={navClass(active, 'ipostal1')} href="/ipostal1">iPostal1 地址</Link>
           <div className="site-nav-group">
             <Link
               className={navClass(active, 'guide')}
@@ -56,6 +57,7 @@ export function SiteFooter() {
         <nav aria-label="页脚导航">
           <Link href="/addresses">所有地址</Link>
           <Link href="/residential-addresses">住宅地址</Link>
+          <Link href="/ipostal1">iPostal1 地址</Link>
           <Link href="/guide/anytime-mailbox-tutorial">注册教程</Link>
           <Link href="/guide/us-residential-address-verification">地址验证</Link>
           <Link href="/guide/usps-form-1583">1583 公证</Link>

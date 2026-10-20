@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { ADDRESS_SOURCES } from '@atmb/shared';
 
 import type { AuthService } from '../auth/service.js';
 import type { TaskExecutorLike } from './scheduler.js';
@@ -26,6 +27,7 @@ const querySchema = z.object({
 
 const createSchema = z.object({
   note: z.string().max(500).optional(),
+  platform: z.enum(ADDRESS_SOURCES).optional(),
 });
 
 const subtaskQuerySchema = z.object({
@@ -73,6 +75,7 @@ export function registerTaskRoutes(
     const item = taskService.createManualTask({
       createdBy: user.displayName || user.username,
       note: parsed.data.note,
+      platform: parsed.data.platform,
     });
 
     void taskExecutor?.enqueue(item.id);

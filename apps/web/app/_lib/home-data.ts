@@ -158,7 +158,8 @@ function listFeaturedAddresses(sqlite: Database.Database) {
       FROM addresses a
       LEFT JOIN address_images img
         ON img.address_id = a.id AND img.is_primary = 1
-      WHERE a.is_active = 1
+      WHERE a.source = 'anytimemailbox'
+        AND a.is_active = 1
         AND a.is_visible = 1
         AND a.is_featured = 1
         AND a.rdi = 'Residential'
@@ -208,6 +209,7 @@ function listStateOptions(sqlite: Database.Database) {
       FROM states s
       INNER JOIN addresses a
         ON a.state = s.code
+       AND a.source = 'anytimemailbox'
        AND a.is_active = 1
        AND a.is_visible = 1
       GROUP BY s.code, s.name

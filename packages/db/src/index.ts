@@ -131,6 +131,7 @@ export function ensureDatabaseSchema(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS addresses_visible_idx ON addresses (is_visible);
     CREATE INDEX IF NOT EXISTS addresses_price_cents_idx ON addresses (price_cents);
     CREATE INDEX IF NOT EXISTS addresses_updated_at_idx ON addresses (updated_at);
+    CREATE INDEX IF NOT EXISTS addresses_source_idx ON addresses (source);
 
     CREATE TABLE IF NOT EXISTS address_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,6 +170,7 @@ export function ensureDatabaseSchema(sqlite: Database.Database) {
       batch_code TEXT NOT NULL UNIQUE,
       generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       created_type TEXT NOT NULL CHECK (created_type IN ('manual', 'system')),
+      platform TEXT NOT NULL DEFAULT 'anytimemailbox',
       status TEXT NOT NULL DEFAULT 'running'
         CHECK (status IN ('running', 'pause_requested', 'paused', 'stop_requested', 'stopped', 'completed')),
       note TEXT,

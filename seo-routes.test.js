@@ -36,6 +36,7 @@ test('sitemap route lists current public SEO pages with production urls', async 
       `${siteUrl}/`,
       `${siteUrl}/addresses`,
       `${siteUrl}/residential-addresses`,
+      `${siteUrl}/ipostal1`,
       `${siteUrl}/guide/anytime-mailbox-tutorial`,
       `${siteUrl}/guide/usps-form-1583`,
       `${siteUrl}/guide/us-residential-address-verification`,

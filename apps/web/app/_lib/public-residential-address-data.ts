@@ -20,7 +20,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export async function getPublicResidentialAddressesPageData(
   filters: PublicResidentialAddressFilters,
 ): Promise<PublicAddressesPageData> {
-  return getPublicAddressesPageData(toAddressFilters(filters));
+  return getPublicAddressesPageData(toAddressFilters(filters), 'anytimemailbox');
 }
 
 export function parsePublicResidentialAddressFilters(

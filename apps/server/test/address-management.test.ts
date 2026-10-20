@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import Database from 'better-sqlite3';
 
+import { createDatabase, ensureDatabaseSchema } from '@atmb/db';
+
+import { AddressService } from '../src/addresses/service.ts';
 import { createServer } from '../src/server.ts';
 
 const testEnv = {
@@ -763,4 +766,38 @@ test('changes admin password and supports the fixed referral redirect', async (t
   const referralCookieHeader = Array.isArray(referralCookie) ? referralCookie[0] : referralCookie;
   assert.match(referralCookieHeader ?? '', /atmb_referral_visited=1/);
   assert.match(referralCookieHeader ?? '', /Max-Age=2592000/);
+});
+
+test('filters admin addresses by platform and exposes source', () => {
+  const database = createDatabase({ url: ':memory:' });
+  ensureDatabaseSchema(database.sqlite);
+  const service = new AddressService(database);
+  const insert = database.sqlite.prepare(`
+    INSERT INTO addresses (
+      source, source_id, name, slug, anytime_url, country, state, state_name, city, street_address,
+      postal_code, full_address, price_cents, rdi, cmra, smarty_checked_at
+    ) VALUES (
+      @source, @sourceId, @name, @slug, @anytimeUrl, 'United States', 'AK', 'Alaska', 'Anchorage', @street,
+      '99503', @street || ' Anchorage, AK 99503 United States', 999, 'Commercial', 'Yes', '2026-06-01T00:00:00.000Z'
+    )
+  `);
+
+  try {
+    insert.run({ source: 'anytimemailbox', sourceId: 'anchorage', name: 'ATMB Anchorage', slug: 'atmb-anchorage', anytimeUrl: 'https://www.anytimemailbox.com/l/usa/alaska/anchorage', street: '1 Atmb Way' });
+    insert.run({ source: 'ipostal1', sourceId: '2996', name: 'Anchorage - 3300 Arctic Blvd', slug: 'anchorage-arctic', anytimeUrl: 'https://ipostal1.com/secure_checkout.php?stID=2996', street: '3300 Arctic Blvd Suite 201' });
+
+    const all = service.listAddresses({});
+    assert.deepEqual(all.items.map((item) => item.source).sort(), ['anytimemailbox', 'ipostal1']);
+
+    const ipostal1 = service.listAddresses({ platform: 'ipostal1' });
+    assert.equal(ipostal1.total, 1);
+    assert.equal(ipostal1.items[0]?.source, 'ipostal1');
+    assert.equal(ipostal1.items[0]?.anytimeUrl, 'https://ipostal1.com/secure_checkout.php?stID=2996');
+
+    const atmb = service.listAddresses({ platform: 'anytimemailbox' });
+    assert.equal(atmb.total, 1);
+    assert.equal(atmb.items[0]?.source, 'anytimemailbox');
+  } finally {
+    database.sqlite.close();
+  }
 });

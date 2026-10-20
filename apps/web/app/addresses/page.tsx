@@ -122,7 +122,7 @@ interface AddressesPageProps {
 export default async function AddressesPage({ searchParams }: AddressesPageProps) {
   const params = searchParams ? await searchParams : {};
   const filters = parsePublicAddressFilters(params);
-  const dataPromise = getPublicAddressesPageData(filters);
+  const dataPromise = getPublicAddressesPageData(filters, 'anytimemailbox');
   const headCode = await getPublicHeadCode();
 
   return (

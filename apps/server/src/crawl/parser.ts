@@ -224,7 +224,7 @@ function normalizeComparable(value: string) {
     .replace(/\s+/g, ' ');
 }
 
-function textWithBreaks(
+export function textWithBreaks(
   $: cheerio.CheerioAPI,
   element: cheerio.Cheerio<any>,
 ) {
@@ -279,7 +279,7 @@ function isMailboxPlaceholderRow($: cheerio.CheerioAPI, element: unknown) {
   return item.find('.t-placeholder').length > 0 && /MAILBOX/i.test(item.text());
 }
 
-function parseCityStateZip(value: string) {
+export function parseCityStateZip(value: string) {
   const text = normalizeText(value);
   const match = text.match(/^(.+?),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
 

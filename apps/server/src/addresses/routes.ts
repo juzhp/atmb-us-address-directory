@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { ADDRESS_SOURCES } from '@atmb/shared';
 
 import type { ServerConfig } from '../auth/config.js';
 import type { TaskExecutorLike } from '../tasks/scheduler.js';
@@ -25,6 +26,7 @@ const querySchema = z.object({
   c1Precheck: c1PrecheckFilterSchema.optional(),
   featured: z.enum(['true', 'false']).optional(),
   price: priceSchema.optional(),
+  platform: z.enum(ADDRESS_SOURCES).optional(),
   page: z.coerce.number().int().positive().optional(),
   pageSize: z.coerce.number().int().positive().optional(),
 });

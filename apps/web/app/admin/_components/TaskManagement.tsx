@@ -1,6 +1,7 @@
 'use client';
 
 import type {
+  AddressSource,
   AdminSubtaskListItem,
   AdminSubtaskType,
   AdminTaskProgress,
@@ -11,6 +12,7 @@ import type {
   AdminTaskStatus,
   AdminTaskSubtasksResponse,
 } from '@atmb/shared';
+import { ADDRESS_SOURCES, PLATFORMS } from '@atmb/shared';
 import { AlertCircle, Clock3, Eye, PauseCircle, PlayCircle, RefreshCw, Search, Square, Trash2 } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
 
@@ -58,6 +60,7 @@ export function TaskManagement() {
   const [selectedTask, setSelectedTask] = useState<AdminTaskListItem | null>(null);
   const [subtaskPage, setSubtaskPage] = useState(1);
   const [subtasks, setSubtasks] = useState<AdminTaskSubtasksResponse | null>(null);
+  const [createPlatform, setCreatePlatform] = useState<AddressSource>('anytimemailbox');
   const [confirmCreateOpen, setConfirmCreateOpen] = useState(false);
   const [taskPendingDeletion, setTaskPendingDeletion] = useState<AdminTaskListItem | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -149,7 +152,10 @@ export function TaskManagement() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ note: '手动创建任务' }),
+        body: JSON.stringify({
+          note: createPlatform === 'anytimemailbox' ? '手动创建任务' : `手动创建任务（${PLATFORMS[createPlatform].label}）`,
+          platform: createPlatform,
+        }),
       });
 
       if (!response.ok) {
@@ -243,6 +249,14 @@ export function TaskManagement() {
             <RefreshCw size={16} aria-hidden="true" />
             刷新任务
           </button>
+          <label className="admin-inline-field">
+            <span>平台</span>
+            <select value={createPlatform} onChange={(event) => setCreatePlatform(event.target.value as AddressSource)}>
+              {ADDRESS_SOURCES.map((source) => (
+                <option key={source} value={source}>{PLATFORMS[source].label}</option>
+              ))}
+            </select>
+          </label>
           <button className="primary" disabled={isPending} type="button" onClick={() => setConfirmCreateOpen(true)}>
             <Clock3 size={16} aria-hidden="true" />
             手动创建任务
@@ -322,6 +336,7 @@ export function TaskManagement() {
                 <th>任务批次</th>
                 <th>任务生成时间</th>
                 <th>任务创建</th>
+                <th>平台</th>
                 <th>状态</th>
                 <th>子任务</th>
                 <th>操作</th>
@@ -340,6 +355,9 @@ export function TaskManagement() {
                       {createdTypeLabel(task.createdType)}
                     </Badge>
                     <span className="task-created-by">{task.createdBy}</span>
+                  </td>
+                  <td>
+                    <Badge tone={task.platform === 'ipostal1' ? 'blue' : 'green'}>{PLATFORMS[task.platform]?.label ?? task.platform}</Badge>
                   </td>
                   <td>
                     <Badge tone={taskStatusTone(task.status)}>
@@ -362,7 +380,7 @@ export function TaskManagement() {
               ))}
               {list && list.items.length === 0 ? (
                 <tr>
-                  <td className="admin-empty-cell" colSpan={6}>暂无符合条件的任务</td>
+                  <td className="admin-empty-cell" colSpan={7}>暂无符合条件的任务</td>
                 </tr>
               ) : null}
             </tbody>
@@ -388,8 +406,10 @@ export function TaskManagement() {
       ) : null}
       {confirmCreateOpen ? (
         <AdminConfirmDialog
-          title="确认创建手动任务？"
-          description="系统会创建一批新的抓取任务，并开始获取州、名称、地址、邮箱编号和 Smarty 数据。"
+          title={`确认创建 ${PLATFORMS[createPlatform].label} 手动任务？`}
+          description={createPlatform === 'ipostal1'
+            ? '系统会创建 iPostal1 抓取任务：从 iPostal1 各州接口获取地址（跳过 ATMB 已收录的地址），然后同步 Smarty 数据。'
+            : '系统会创建一批新的抓取任务，并开始获取州、名称、地址、邮箱编号和 Smarty 数据。'}
           confirmText="创建任务"
           isPending={isPending}
           onCancel={() => setConfirmCreateOpen(false)}
@@ -531,6 +551,7 @@ function SubtasksDialog({
         <div className="task-dialog-summary">
           <SummaryItem label="任务生成时间" value={formatDateTime(task.generatedAt)} />
           <SummaryItem label="创建方式" value={createdTypeLabel(task.createdType)} />
+          <SummaryItem label="平台" value={PLATFORMS[task.platform]?.label ?? task.platform} />
           <SummaryItem label="待执行数" value={String(task.pendingCount)} />
           <SummaryItem label="成功数" value={String(task.successCount)} />
           <SummaryItem label="失败数" value={String(task.failedCount)} />

@@ -10,6 +10,7 @@ import type {
   AddressCmraFilter,
   AddressPriceFilter,
   AddressRdi,
+  AddressSource,
   AddressRdiFilter,
   AddressUspsCmra,
   AddressUspsCmraFilter,
@@ -28,6 +29,7 @@ export interface AddressQuery {
   c1Precheck?: AddressC1PrecheckFilter;
   featured?: boolean;
   price?: AddressPriceFilter;
+  platform?: AddressSource;
   page?: number;
   pageSize?: number;
 }
@@ -66,6 +68,7 @@ interface AddressRow {
   recordSource: 'address' | 'discovered';
   canEdit: number;
   id: number;
+  source: AddressSource;
   name: string;
   anytimeUrl: string;
   signupUrl: string | null;
@@ -108,6 +111,7 @@ const adminAddressRowsSql = `
     'address' AS recordSource,
     1 AS canEdit,
     a.id,
+    a.source,
     a.name,
     a.anytime_url AS anytimeUrl,
     a.signup_url AS signupUrl,
@@ -145,6 +149,7 @@ const adminAddressRowsSql = `
     'discovered' AS recordSource,
     0 AS canEdit,
     stage.id,
+    stage.source,
     stage.name,
     stage.anytime_url AS anytimeUrl,
     stage.signup_url AS signupUrl,
@@ -245,6 +250,11 @@ export class AddressService {
       where.push('a.isFeatured = @featured');
     }
 
+    if (query.platform) {
+      params.platform = query.platform;
+      where.push('a.source = @platform');
+    }
+
     if (query.price === 'lt10') {
       where.push('a.priceCents < 1000');
     } else if (query.price === 'lt20') {
@@ -288,6 +298,7 @@ export class AddressService {
           'address' AS recordSource,
           1 AS canEdit,
           a.id,
+          a.source,
           a.name,
           a.anytime_url AS anytimeUrl,
           a.signup_url AS signupUrl,

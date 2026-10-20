@@ -4,6 +4,7 @@ import {
   findUsStateCodeByKeyword,
   getUsStateDisplay,
   type AddressC1Precheck,
+  type AddressSource,
   type AddressUspsCmra,
 } from '@atmb/shared';
 
@@ -113,7 +114,11 @@ interface StatsRow {
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export async function getPublicAddressesPageData(filters: PublicAddressFilters): Promise<PublicAddressesPageData> {
+// source 为必填：每个公开页面只展示一个平台的数据
+export async function getPublicAddressesPageData(
+  filters: PublicAddressFilters,
+  source: AddressSource,
+): Promise<PublicAddressesPageData> {
   const databaseUrl = resolvePublicAddressDatabaseUrl();
 
   if (!databaseUrl) {
@@ -128,10 +133,10 @@ export async function getPublicAddressesPageData(filters: PublicAddressFilters):
       readonly: true,
     });
 
-    const states = listPublicStates(sqlite, filters);
+    const states = listPublicStates(sqlite, filters, source);
     const selectedState = filters.state ? states.find((state) => state.code === filters.state) : null;
-    const stats = readPublicAddressStats(sqlite);
-    const { where, params } = buildAddressWhere(filters);
+    const stats = readPublicAddressStats(sqlite, source);
+    const { where, params } = buildAddressWhere(filters, source);
     const totalRow = sqlite.prepare(`SELECT COUNT(*) AS count FROM addresses a ${where}`).get(...params) as CountRow;
     const total = totalRow.count;
     const totalPages = Math.max(1, Math.ceil(total / PUBLIC_ADDRESS_PAGE_SIZE));
@@ -213,6 +218,7 @@ export function parsePublicAddressFilters(searchParams: SearchParams = {}): Publ
 export function buildAddressesPageUrl(
   filters: PublicAddressFilters,
   overrides: Partial<PublicAddressFilters> = {},
+  basePath = '/addresses',
 ) {
   const nextFilters: PublicAddressFilters = { ...filters, ...overrides };
   const params = new URLSearchParams();
@@ -227,7 +233,7 @@ export function buildAddressesPageUrl(
   if (nextFilters.page > 1) params.set('page', String(nextFilters.page));
 
   const query = params.toString();
-  return `${query ? `/addresses?${query}` : '/addresses'}${PUBLIC_ADDRESSES_RESULT_HASH}`;
+  return `${query ? `${basePath}?${query}` : basePath}${PUBLIC_ADDRESSES_RESULT_HASH}`;
 }
 
 export function formatPublicDateTime(value: string) {
@@ -284,9 +290,9 @@ export function resolvePublicAddressDatabaseUrl() {
   return '../server/data/atmb.sqlite';
 }
 
-function buildAddressWhere(filters: PublicAddressFilters) {
-  const where = ['a.is_active = 1', 'a.is_visible = 1'];
-  const params: Array<string | number> = [];
+function buildAddressWhere(filters: PublicAddressFilters, source: AddressSource) {
+  const where = ['a.source = ?', 'a.is_active = 1', 'a.is_visible = 1'];
+  const params: Array<string | number> = [source];
 
   if (filters.q) {
     const keyword = `%${escapeLike(filters.q)}%`;
@@ -354,8 +360,8 @@ function buildAddressWhere(filters: PublicAddressFilters) {
   };
 }
 
-function listPublicStates(sqlite: Database.Database, filters: PublicAddressFilters) {
-  const facetCounts = readPublicStateFacetCounts(sqlite, filters);
+function listPublicStates(sqlite: Database.Database, filters: PublicAddressFilters, source: AddressSource) {
+  const facetCounts = readPublicStateFacetCounts(sqlite, filters, source);
   const rows = sqlite
     .prepare(`
       SELECT
@@ -364,12 +370,13 @@ function listPublicStates(sqlite: Database.Database, filters: PublicAddressFilte
         COUNT(a.id) AS count
       FROM addresses a
       LEFT JOIN states s ON s.code = a.state
-      WHERE a.is_active = 1
+      WHERE a.source = ?
+        AND a.is_active = 1
         AND a.is_visible = 1
       GROUP BY a.state, COALESCE(s.name, a.state_name, a.state)
       ORDER BY name ASC
     `)
-    .all() as StateRow[];
+    .all(source) as StateRow[];
 
   return rows.map((row) => {
     const state = getUsStateDisplay(row.code, row.name);
@@ -384,8 +391,8 @@ function listPublicStates(sqlite: Database.Database, filters: PublicAddressFilte
   });
 }
 
-function readPublicStateFacetCounts(sqlite: Database.Database, filters: PublicAddressFilters) {
-  const { where, params } = buildAddressWhere({ ...filters, state: '' });
+function readPublicStateFacetCounts(sqlite: Database.Database, filters: PublicAddressFilters, source: AddressSource) {
+  const { where, params } = buildAddressWhere({ ...filters, state: '' }, source);
   const rows = sqlite
     .prepare(`SELECT a.state AS code, COUNT(*) AS count FROM addresses a ${where} GROUP BY a.state`)
     .all(...params) as Array<{ code: string; count: number }>;
@@ -393,7 +400,7 @@ function readPublicStateFacetCounts(sqlite: Database.Database, filters: PublicAd
   return new Map(rows.map((row) => [row.code, row.count]));
 }
 
-function readPublicAddressStats(sqlite: Database.Database) {
+function readPublicAddressStats(sqlite: Database.Database, source: AddressSource) {
   const row = sqlite
     .prepare(`
       SELECT
@@ -401,10 +408,11 @@ function readPublicAddressStats(sqlite: Database.Database) {
         SUM(CASE WHEN rdi = 'Residential' THEN 1 ELSE 0 END) AS residentialAddresses,
         COUNT(DISTINCT state) AS stateCount
       FROM addresses
-      WHERE is_active = 1
+      WHERE source = ?
+        AND is_active = 1
         AND is_visible = 1
     `)
-    .get() as StatsRow;
+    .get(source) as StatsRow;
 
   return {
     totalAddresses: row.totalAddresses ?? 0,

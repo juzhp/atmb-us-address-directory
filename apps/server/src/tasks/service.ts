@@ -1,6 +1,7 @@
 ﻿import { randomUUID } from 'node:crypto';
 import type { DatabaseContext } from '@atmb/db';
 import type {
+  AddressSource,
   AdminTaskProgress,
   AdminSubtaskExecutionStatus,
   AdminSubtaskListItem,
@@ -23,6 +24,8 @@ export const taskTypes: AdminSubtaskType[] = [
   'fetch_mailbox_numbers',
   'sync_smarty',
 ];
+// iPostal1 没有详情页和邮箱编号，州列表在 fetch_names 内一并读取
+const ipostal1TaskTypes: AdminSubtaskType[] = ['fetch_names', 'sync_smarty'];
 const mailboxUpdateTaskTypes: AdminSubtaskType[] = ['fetch_addresses', 'fetch_mailbox_numbers'];
 const smartySyncTaskTypes: AdminSubtaskType[] = ['sync_smarty'];
 const activeTaskStatuses: AdminTaskStatus[] = ['running', 'pause_requested', 'paused', 'stop_requested'];
@@ -40,6 +43,7 @@ export interface TaskQuery {
 export interface CreateManualTaskInput {
   createdBy: string;
   note?: string | null;
+  platform?: AddressSource;
 }
 
 export interface CreateTaskInput extends CreateManualTaskInput {
@@ -52,6 +56,7 @@ interface TaskRow {
   batchCode: string;
   generatedAt: string;
   createdType: AdminTaskCreatedType;
+  platform: AddressSource;
   status: AdminTaskStatus;
   note: string | null;
   createdBy: string;
@@ -247,6 +252,7 @@ export class TaskService {
           batch_code AS batchCode,
           generated_at AS generatedAt,
           created_type AS createdType,
+          platform,
           status,
           note,
           created_by AS createdBy,
@@ -292,6 +298,7 @@ export class TaskService {
           batch_code AS batchCode,
           generated_at AS generatedAt,
           created_type AS createdType,
+          platform,
           status,
           note,
           created_by AS createdBy,
@@ -306,6 +313,14 @@ export class TaskService {
       .get(id) as TaskRow | undefined;
 
     return row ? toTaskItem(row, this.getRunningProgress(row.id)) : null;
+  }
+
+  getTaskPlatform(id: number): AddressSource {
+    const row = this.database.sqlite
+      .prepare('SELECT platform FROM crawl_tasks WHERE id = ?')
+      .get(id) as { platform: string } | undefined;
+
+    return row?.platform === 'ipostal1' ? 'ipostal1' : 'anytimemailbox';
   }
 
   createManualTask(input: CreateManualTaskInput): AdminTaskListItem {
@@ -487,7 +502,7 @@ export class TaskService {
     const placeholders = stageIds.map(() => '?').join(', ');
     const rows = this.database.sqlite
       .prepare(`
-        SELECT id
+        SELECT id, source
         FROM crawl_discovered_addresses
         WHERE id IN (${placeholders})
           AND imported_address_id IS NULL
@@ -498,17 +513,20 @@ export class TaskService {
             OR smarty_checked_at IS NULL
           )
       `)
-      .all(...stageIds) as Array<{ id: number }>;
+      .all(...stageIds) as Array<{ id: number; source: string }>;
 
     if (rows.length !== stageIds.length) {
       return null;
     }
 
+    // 所选 staged 行同属一个平台时记录到任务上（仅用于展示，导入时以每行 source 为准）
+    const sources = new Set(rows.map((row) => row.source));
     const task = this.createTask({
       createdBy: input.createdBy,
       createdType: 'manual',
       note: input.note ?? `同步 ${rows.length} 个地址的 RDI/CMRA`,
       taskTypes: smartySyncTaskTypes,
+      platform: sources.size === 1 && sources.has('ipostal1') ? 'ipostal1' : 'anytimemailbox',
     });
     const now = new Date().toISOString();
     const selectedStageIds = rows.map((row) => row.id).join(', ');
@@ -546,7 +564,9 @@ export class TaskService {
     const now = new Date().toISOString();
     const batchCode = createBatchCode(now);
     const note = input.note?.trim() || null;
-    const selectedTaskTypes = input.taskTypes?.length ? input.taskTypes : taskTypes;
+    const platform: AddressSource = input.platform ?? 'anytimemailbox';
+    const defaultTaskTypes = platform === 'ipostal1' ? ipostal1TaskTypes : taskTypes;
+    const selectedTaskTypes = input.taskTypes?.length ? input.taskTypes : defaultTaskTypes;
     const createTask = this.database.sqlite.transaction(() => {
       const result = this.database.sqlite
         .prepare(`
@@ -554,6 +574,7 @@ export class TaskService {
             batch_code,
             generated_at,
             created_type,
+            platform,
             status,
             note,
             created_by,
@@ -568,6 +589,7 @@ export class TaskService {
             @batchCode,
             @now,
             @createdType,
+            @platform,
             'running',
             @note,
             @createdBy,
@@ -583,6 +605,7 @@ export class TaskService {
           batchCode,
           now,
           createdType: input.createdType,
+          platform,
           note,
           createdBy: input.createdBy,
           pendingCount: selectedTaskTypes.length,
@@ -933,6 +956,31 @@ export class TaskService {
         );
       }
       case 'fetch_names': {
+        if (this.getTaskPlatform(taskId) === 'ipostal1') {
+          // iPostal1 不写 states 表，按州即时 staging：总数来自每个州入口记录的 state_location_count
+          const current = scalar(this.database, 'SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?', [taskId]);
+          const total = scalar(
+            this.database,
+            `
+              SELECT COALESCE(SUM(c), 0) AS count
+              FROM (
+                SELECT MAX(state_location_count) AS c
+                FROM crawl_discovered_addresses
+                WHERE task_id = ?
+                GROUP BY state_url
+              )
+            `,
+            [taskId],
+          );
+          return createProgress(
+            taskType,
+            current,
+            Math.max(total, current) > 0 ? Math.max(total, current) : null,
+            executionStatus === 'completed'
+              ? `Discovered ${current} address entries`
+              : 'Reading iPostal1 state endpoints',
+          );
+        }
         const stateCount = scalar(this.database, 'SELECT COUNT(*) AS count FROM states WHERE anytime_url IS NOT NULL');
         const locationTotal = scalar(this.database, 'SELECT COALESCE(SUM(location_count), 0) AS count FROM states');
         return createProgress(
@@ -1065,6 +1113,7 @@ function toTaskItem(row: TaskRow, progress: AdminTaskProgress | null): AdminTask
     batchCode: row.batchCode,
     generatedAt: row.generatedAt,
     createdType: row.createdType,
+    platform: row.platform,
     status: row.status,
     note: row.note,
     createdBy: row.createdBy,

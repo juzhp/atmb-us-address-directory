@@ -1,5 +1,5 @@
 import cron, { type ScheduledTask } from 'node-cron';
-import type { UpdateFrequencyDays, UpdateMinute } from '@atmb/shared';
+import { ADDRESS_SOURCES, PLATFORMS, type UpdateFrequencyDays, type UpdateMinute } from '@atmb/shared';
 
 import type { SettingsService } from '../settings/service.js';
 import type { TaskService } from './service.js';
@@ -59,13 +59,19 @@ export class TaskScheduler {
 
     this.ticking = true;
     try {
-      const task = this.taskService.createSystemTask({
-        createdBy: '系统自动',
-        note: '系统自动更新任务',
-      });
-      await this.executor.enqueue(task.id);
+      // 每个平台各建一个系统任务，执行器按入队顺序依次运行
+      const tasks = [];
+      for (const platform of ADDRESS_SOURCES) {
+        const task = this.taskService.createSystemTask({
+          createdBy: '系统自动',
+          note: platform === 'anytimemailbox' ? '系统自动更新任务' : `系统自动更新任务（${PLATFORMS[platform].label}）`,
+          platform,
+        });
+        await this.executor.enqueue(task.id);
+        tasks.push(task);
+      }
 
-      return task;
+      return tasks[0] ?? null;
     } finally {
       this.ticking = false;
     }

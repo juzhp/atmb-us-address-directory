@@ -13,6 +13,7 @@
 - 查看照片跳转 Google Maps，由用户自行判断街景。
 - 后台支持地址管理、任务管理、系统设置和登录认证。
 - 抓取 Anytime Mailbox 地址、邮箱编号范围，并增量同步 Smarty RDI / CMRA。
+- 第二平台 iPostal1：独立的 `/ipostal1` 列表页，后台创建任务时按平台选择（系统自动更新会为每个平台各建一个任务）；iPostal1 抓取走同一套代理与 Smarty 流程，Anytime Mailbox 已收录的地址不会在 iPostal1 重复收录。新增 `crawl_tasks.platform` 列，升级后需执行一次 `npm run db:migrate`。
 - 已成功获取过 RDI / CMRA 的地址不会重复请求 Smarty。
 - 支持 PM2 部署，SQLite 存储。
 

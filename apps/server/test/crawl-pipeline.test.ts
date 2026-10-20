@@ -15,6 +15,7 @@ import {
   type SmartyLookupInput,
   type SmartyLookupResult,
 } from '../src/crawl/pipeline.ts';
+import { buildIpostal1StateUrl, listIpostal1States } from '../src/crawl/ipostal1-parser.ts';
 import { parseLocationDetail } from '../src/crawl/parser.ts';
 import { SettingsService } from '../src/settings/service.ts';
 import { shouldCreateSystemTask } from '../src/tasks/scheduler.ts';
@@ -1540,6 +1541,8 @@ function insertAddress(database: DatabaseContext, input: {
   cmra: 'Yes' | 'No';
   smartyCheckedAt: string;
   smartyRaw?: string;
+  source?: 'anytimemailbox' | 'ipostal1';
+  isActive?: boolean;
 }) {
   const now = new Date().toISOString();
   database.sqlite
@@ -1552,16 +1555,18 @@ function insertAddress(database: DatabaseContext, input: {
         is_featured, is_active, is_visible, status_note, last_crawled_at, first_seen_at,
         removed_at, created_at, updated_at
       ) VALUES (
-        'anytimemailbox', NULL, @name, @slug, @anytimeUrl, NULL, NULL,
+        @source, NULL, @name, @slug, @anytimeUrl, NULL, NULL,
         'United States', @state, 'Alabama', @city, @streetAddress, @postalCode, @fullAddress,
         @priceCents, 'USD', 'month', @rdi, @cmra, @smartyRaw, @smartyCheckedAt,
         NULL, NULL, NULL, NULL,
-        0, 1, 1, NULL, @now, @now,
+        0, @isActive, 1, NULL, @now, @now,
         NULL, @now, @now
       )
     `)
     .run({
       ...input,
+      source: input.source ?? 'anytimemailbox',
+      isActive: input.isActive === false ? 0 : 1,
       stateName: 'Alabama',
       fullAddress: `${input.streetAddress} ${input.city}, ${input.state} ${input.postalCode} United States`,
       smartyRaw: input.smartyRaw ?? '{"cached":true}',
@@ -1578,3 +1583,245 @@ function assertTaskCompleted(database: DatabaseContext, taskId: number) {
   assert.equal(task.pendingCount, 0);
   assert.equal(task.failedCount, 0);
 }
+
+// ---------------------------------------------------------------------------
+// iPostal1 平台
+// ---------------------------------------------------------------------------
+
+const ipostal1StateUrl = buildIpostal1StateUrl('223', '1');
+const emptyIpostal1State = JSON.stringify({ num_results: 0, num_results_text: 'Locations found: 0', display: '', searched: '', back: '' });
+
+interface Ipostal1Fixture {
+  storeId: string;
+  street: string;
+  city: string;
+  zip: string;
+  price: string;
+}
+
+function ipostal1Card(location: Ipostal1Fixture) {
+  return `
+    <article class="mail-center-card" store-id="${location.storeId}" store-postcode="${location.zip}" store-tooltip="${location.street}\n${location.city}, AL ${location.zip}\nUnited States">
+      <p class="store-address">
+        <span class="store-street-address">${location.street.replace(' Suite ', '<br>Suite ')}</span><br>
+        <span class="store-city-state-zip">${location.city}, AL ${location.zip}</span><br>
+        <span class="stores-country">United States</span>
+      </p>
+      <p class="store-plan-desktop"><b>''Standard'' address from ${location.price}</b></p>
+      <a href="https://ipostal1.com/secure_checkout.php?stID=${location.storeId}" class="choose-location-btn">Choose</a>
+    </article>
+  `;
+}
+
+function createIpostal1FixtureFetcher(locations: Ipostal1Fixture[], calls: string[] = []): CrawlFetcher {
+  // 所有州接口默认返回空结果，只有 Alabama 返回 fixture 地点
+  const pages = new Map<string, string>(listIpostal1States().map((state) => [state.url, emptyIpostal1State]));
+  pages.set(ipostal1StateUrl, JSON.stringify({
+    num_results: locations.length,
+    num_results_text: `Locations found: ${locations.length}`,
+    display: locations.map(ipostal1Card).join(''),
+    searched: 'Alabama',
+    back: '',
+  }));
+
+  return {
+    async fetchHtml(url: string): Promise<CrawlFetchResult> {
+      calls.push(url);
+      const html = pages.get(url);
+      if (!html) {
+        throw new Error(`Missing iPostal1 fixture page for ${url}`);
+      }
+
+      return { url, finalUrl: url, html, status: 200, contentType: 'text/html; charset=utf-8' };
+    },
+  };
+}
+
+const smartyMustNotRun: SmartyLookupClient = {
+  async lookupAddresses() {
+    throw new Error('Smarty should not be called for cached addresses');
+  },
+};
+
+function readAddresses(database: DatabaseContext) {
+  return database.sqlite
+    .prepare(`
+      SELECT source, source_id AS sourceId, anytime_url AS anytimeUrl, rdi, cmra, price_cents AS priceCents,
+        is_active AS isActive, updated_at AS updatedAt, mailbox_min AS mailboxMin
+      FROM addresses
+      ORDER BY id ASC
+    `)
+    .all() as Array<{
+      source: string;
+      sourceId: string | null;
+      anytimeUrl: string;
+      rdi: string;
+      cmra: string;
+      priceCents: number;
+      isActive: number;
+      updatedAt: string;
+      mailboxMin: number | null;
+    }>;
+}
+
+test('iPostal1 task skips addresses already listed on ATMB and leaves the ATMB row untouched', async () => {
+  const calls: string[] = [];
+  const harness = buildHarness([], smartyMustNotRun, {
+    fetcher: createIpostal1FixtureFetcher([
+      { storeId: '2996', street: '7169 Hwy 72 W Ste A', city: 'Madison', zip: '35758', price: '$9.99' },
+    ], calls),
+  });
+
+  insertAddress(harness.database, {
+    name: 'Madison - Hwy 72',
+    slug: 'madison-hwy-72',
+    anytimeUrl: 'https://locations.anytimemailbox.com/l/usa/alabama/madison-hwy-72',
+    streetAddress: '7169 Hwy 72 W Ste A',
+    city: 'Madison',
+    state: 'AL',
+    postalCode: '35758',
+    priceCents: 1899,
+    rdi: 'Residential',
+    cmra: 'No',
+    smartyCheckedAt: '2026-06-01T00:00:00.000Z',
+  });
+  const before = readAddresses(harness.database);
+
+  const task = harness.taskService.createManualTask({ createdBy: 'Test Admin', platform: 'ipostal1' });
+  await harness.pipeline.runTask(task.id);
+
+  assertTaskCompleted(harness.database, task.id);
+  assert.deepEqual(readAddresses(harness.database), before);
+  // 每个内置州各请求一次，全部经由注入的 fetcher（即与 ATMB 共用代理通道）
+  assert.equal(calls.length, listIpostal1States().length);
+  assert.ok(calls.includes(ipostal1StateUrl));
+  assert.ok(calls.every((url) => url.startsWith('https://ipostal1.com/locations_ajax.php?action=get_mail_centers&')));
+
+  const staged = (harness.database.sqlite
+    .prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?')
+    .get(task.id) as { count: number }).count;
+  assert.equal(staged, 0);
+
+  const fetchNames = harness.database.sqlite
+    .prepare("SELECT error_message AS message FROM crawl_subtasks WHERE task_id = ? AND task_type = 'fetch_names'")
+    .get(task.id) as { message: string };
+  assert.match(fetchNames.message, /skipped 1 already listed on ATMB/);
+});
+
+test('iPostal1 task reuses Smarty data from an inactive ATMB row but inserts its own row', async () => {
+  const harness = buildHarness([], smartyMustNotRun, {
+    fetcher: createIpostal1FixtureFetcher([
+      { storeId: '2996', street: '7169 Hwy 72 W Ste A', city: 'Madison', zip: '35758', price: '$9.99' },
+    ]),
+  });
+
+  insertAddress(harness.database, {
+    name: 'Madison - Hwy 72',
+    slug: 'madison-hwy-72',
+    anytimeUrl: 'https://locations.anytimemailbox.com/l/usa/alabama/madison-hwy-72',
+    streetAddress: '7169 Hwy 72 W Ste A',
+    city: 'Madison',
+    state: 'AL',
+    postalCode: '35758',
+    priceCents: 1899,
+    rdi: 'Commercial',
+    cmra: 'Yes',
+    smartyCheckedAt: '2026-06-01T00:00:00.000Z',
+    isActive: false,
+  });
+  const [atmbBefore] = readAddresses(harness.database);
+
+  const task = harness.taskService.createManualTask({ createdBy: 'Test Admin', platform: 'ipostal1' });
+  await harness.pipeline.runTask(task.id);
+
+  assertTaskCompleted(harness.database, task.id);
+  const rows = readAddresses(harness.database);
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows[0], atmbBefore);
+  assert.equal(rows[1]?.source, 'ipostal1');
+  assert.equal(rows[1]?.sourceId, '2996');
+  assert.equal(rows[1]?.anytimeUrl, 'https://ipostal1.com/secure_checkout.php?stID=2996');
+  assert.equal(rows[1]?.rdi, 'Commercial');
+  assert.equal(rows[1]?.cmra, 'Yes');
+  assert.equal(rows[1]?.priceCents, 999);
+  assert.equal(rows[1]?.mailboxMin, null);
+
+  const stage = harness.database.sqlite
+    .prepare('SELECT crawl_status AS status, source FROM crawl_discovered_addresses WHERE task_id = ?')
+    .get(task.id) as { status: string; source: string };
+  assert.equal(stage.status, 'imported');
+  assert.equal(stage.source, 'ipostal1');
+
+  // 重跑：按 URL 命中自己的行，不会再插一行
+  const rerun = harness.taskService.createManualTask({ createdBy: 'Test Admin', platform: 'ipostal1' });
+  await harness.pipeline.runTask(rerun.id);
+  assert.equal(readAddresses(harness.database).length, 2);
+});
+
+test('iPostal1 task only retires missing iPostal1 rows and never touches ATMB rows', async () => {
+  const harness = buildHarness([], {
+    async lookupAddresses(_credentials, inputs) {
+      return inputs.map((input): SmartyLookupResult => ({
+        inputId: input.inputId,
+        rdi: 'Residential',
+        cmra: 'No',
+        raw: { analysis: { dpv_cmra: 'N' }, metadata: { rdi: 'Residential' } },
+      }));
+    },
+  }, {
+    fetcher: createIpostal1FixtureFetcher([
+      { storeId: '4723', street: '1401 Doug Baker Blvd Suite 107', city: 'Birmingham', zip: '35242', price: '$12.99' },
+    ]),
+  });
+
+  insertAddress(harness.database, {
+    name: 'ATMB Only',
+    slug: 'atmb-only',
+    anytimeUrl: 'https://locations.anytimemailbox.com/l/usa/alabama/atmb-only',
+    streetAddress: '1 Missing St',
+    city: 'Mobile',
+    state: 'AL',
+    postalCode: '36602',
+    priceCents: 1999,
+    rdi: 'Residential',
+    cmra: 'No',
+    smartyCheckedAt: '2026-06-01T00:00:00.000Z',
+  });
+  insertAddress(harness.database, {
+    name: 'iPostal1 Gone',
+    slug: 'ipostal1-gone',
+    anytimeUrl: 'https://ipostal1.com/secure_checkout.php?stID=9999',
+    streetAddress: '2 Vanished Ave',
+    city: 'Mobile',
+    state: 'AL',
+    postalCode: '36602',
+    priceCents: 1299,
+    rdi: 'Residential',
+    cmra: 'No',
+    smartyCheckedAt: '2026-06-01T00:00:00.000Z',
+    source: 'ipostal1',
+  });
+
+  const task = harness.taskService.createManualTask({ createdBy: 'Test Admin', platform: 'ipostal1' });
+  await harness.pipeline.runTask(task.id);
+
+  assertTaskCompleted(harness.database, task.id);
+  const rows = readAddresses(harness.database);
+  assert.equal(rows.length, 3);
+  assert.equal(rows.find((row) => row.anytimeUrl.endsWith('atmb-only'))?.isActive, 1);
+  assert.equal(rows.find((row) => row.anytimeUrl.endsWith('stID=9999'))?.isActive, 0);
+  assert.equal(rows.find((row) => row.anytimeUrl.endsWith('stID=4723'))?.isActive, 1);
+  assert.equal(rows.find((row) => row.anytimeUrl.endsWith('stID=4723'))?.rdi, 'Residential');
+
+  const removedEvents = (harness.database.sqlite
+    .prepare("SELECT COUNT(*) AS count FROM address_events WHERE event_type = 'removed'")
+    .get() as { count: number }).count;
+  assert.equal(removedEvents, 1);
+
+  const subtasks = harness.taskService.listSubtasks(task.id, 1, 20);
+  assert.ok(subtasks);
+  assert.deepEqual(subtasks.items.map((item) => item.taskType).sort(), ['fetch_names', 'sync_smarty']);
+  const fetchNames = subtasks.items.find((item) => item.taskType === 'fetch_names');
+  assert.equal(fetchNames?.progress?.current, 1);
+  assert.equal(fetchNames?.progress?.total, 1);
+});

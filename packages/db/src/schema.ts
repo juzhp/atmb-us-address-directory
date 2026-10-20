@@ -104,6 +104,7 @@ export const addresses = sqliteTable(
     index('addresses_visible_idx').on(table.isVisible),
     index('addresses_price_cents_idx').on(table.priceCents),
     index('addresses_updated_at_idx').on(table.updatedAt),
+    index('addresses_source_idx').on(table.source),
     check('addresses_rdi_check', sql`${table.rdi} IN ('Residential', 'Commercial')`),
     check('addresses_cmra_check', sql`${table.cmra} IN ('Yes', 'No')`),
     check('addresses_usps_cmra_check', sql`${table.uspsCmra} IS NULL OR ${table.uspsCmra} IN ('Y', 'N')`),
@@ -165,6 +166,7 @@ export const crawlTasks = sqliteTable(
     batchCode: text('batch_code').notNull(),
     generatedAt: text('generated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
     createdType: text('created_type', { enum: ['manual', 'system'] }).notNull(),
+    platform: text('platform').notNull().default('anytimemailbox'),
     status: text('status', {
       enum: ['running', 'pause_requested', 'paused', 'stop_requested', 'stopped', 'completed'],
     }).notNull().default('running'),

@@ -61,3 +61,55 @@ test('referral nav uses a plain anchor to avoid Next RSC fetch redirects', () =>
     /<Link className="site-nav-recommend" href="\/go\/get-us-residential-address">/,
   );
 });
+
+const ipostal1ReferralUrl = 'https://ipostal1.com/?ref=7904';
+const ipostal1CookieName = 'ipostal1_referral_visited';
+
+test('address detail redirect sends first-time iPostal1 visitors to the iPostal1 referral url', async () => {
+  const route = await import('./apps/web/app/go/address-detail/route.ts');
+  const target = 'https://ipostal1.com/secure_checkout.php?stID=2996';
+  const request = new Request(`https://atmb.test/go/address-detail?target=${encodeURIComponent(target)}`);
+  const response = route.GET(request);
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), ipostal1ReferralUrl);
+  assert.match(response.headers.get('set-cookie') ?? '', new RegExp(`${ipostal1CookieName}=1`));
+  assert.doesNotMatch(response.headers.get('set-cookie') ?? '', new RegExp(`${cookieName}=`));
+});
+
+test('address detail redirect sends returning iPostal1 visitors to the checkout url', async () => {
+  const route = await import('./apps/web/app/go/address-detail/route.ts');
+  const target = 'https://ipostal1.com/secure_checkout.php?stID=2996';
+  const request = new Request(`https://atmb.test/go/address-detail?target=${encodeURIComponent(target)}`, {
+    headers: {
+      cookie: `${ipostal1CookieName}=1`,
+    },
+  });
+  const response = route.GET(request);
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), target);
+});
+
+test('the ATMB referral cookie does not satisfy an iPostal1 target', async () => {
+  const route = await import('./apps/web/app/go/address-detail/route.ts');
+  const target = 'https://ipostal1.com/secure_checkout.php?stID=2996';
+  const request = new Request(`https://atmb.test/go/address-detail?target=${encodeURIComponent(target)}`, {
+    headers: {
+      cookie: `${cookieName}=1`,
+    },
+  });
+  const response = route.GET(request);
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), ipostal1ReferralUrl);
+});
+
+test('address detail redirect still rejects http and unknown hosts', async () => {
+  const route = await import('./apps/web/app/go/address-detail/route.ts');
+
+  for (const target of ['http://ipostal1.com/secure_checkout.php?stID=2996', 'https://ipostal1.com.evil.test/x']) {
+    const request = new Request(`https://atmb.test/go/address-detail?target=${encodeURIComponent(target)}`);
+    assert.equal(route.GET(request).status, 400, target);
+  }
+});

@@ -710,6 +710,22 @@ a {
   opacity: 0.55;
 }
 
+.admin-page-actions .admin-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted, #5b6b7b);
+}
+
+.admin-page-actions .admin-inline-field select {
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .admin-page-actions .primary {
   border-color: var(--teal);
   color: #fff;

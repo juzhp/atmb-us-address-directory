@@ -57,6 +57,13 @@
       "when": 1789430400000,
       "tag": "0007_address_manual_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792195200000,
+      "tag": "0008_crawl_task_platform",
+      "breakpoints": true
     }
   ]
 }

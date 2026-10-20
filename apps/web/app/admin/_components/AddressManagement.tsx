@@ -8,6 +8,7 @@ import type {
   AddressPriceFilter,
   AddressRdi,
   AddressRdiFilter,
+  AddressSource,
   AddressUspsCmra,
   AddressUspsCmraFilter,
   AdminAddressListItem,
@@ -15,7 +16,7 @@ import type {
   AdminAddressStats,
   AdminStateOption,
 } from '@atmb/shared';
-import { C1_PRECHECK_LABELS } from '@atmb/shared';
+import { ADDRESS_SOURCES, C1_PRECHECK_LABELS, PLATFORMS } from '@atmb/shared';
 import { Edit3, ImageUp, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
 
@@ -32,6 +33,7 @@ interface Filters {
   c1Precheck: '' | AddressC1PrecheckFilter;
   price: AddressPriceFilter;
   featured: '' | 'true' | 'false';
+  platform: '' | AddressSource;
 }
 
 const initialFilters: Filters = {
@@ -43,6 +45,7 @@ const initialFilters: Filters = {
   c1Precheck: '',
   price: 'all',
   featured: '',
+  platform: '',
 };
 
 const emptyStats: AdminAddressStats = {
@@ -84,10 +87,12 @@ export function AddressManagement() {
     if (appliedFilters.c1Precheck) params.set('c1Precheck', appliedFilters.c1Precheck);
     if (appliedFilters.price !== 'all') params.set('price', appliedFilters.price);
     if (appliedFilters.featured) params.set('featured', appliedFilters.featured);
+    if (appliedFilters.platform) params.set('platform', appliedFilters.platform);
     return params.toString();
   }, [appliedFilters, page]);
+  // iPostal1 没有邮箱编号，“更新编号”只对 ATMB 地址开放
   const mailboxSelectableItems = useMemo(
-    () => (list?.items ?? []).filter((item) => item.recordSource === 'address'),
+    () => (list?.items ?? []).filter((item) => item.recordSource === 'address' && item.source === 'anytimemailbox'),
     [list?.items],
   );
   const smartySelectableItems = useMemo(
@@ -229,7 +234,7 @@ export function AddressManagement() {
   }
 
   function isItemSelectable(item: AdminAddressListItem) {
-    return item.recordSource === 'address' || isSmartySyncItem(item);
+    return (item.recordSource === 'address' && item.source === 'anytimemailbox') || isSmartySyncItem(item);
   }
 
   function isItemSelected(item: AdminAddressListItem) {
@@ -278,7 +283,7 @@ export function AddressManagement() {
       <section className="admin-page-heading">
         <div>
           <p className="admin-kicker">地址管理</p>
-          <p>管理 Anytime Mailbox 地址数据、Smarty RDI/CMRA 结果、价格、邮箱编号范围和展示状态。</p>
+          <p>管理 Anytime Mailbox 与 iPostal1 地址数据、Smarty RDI/CMRA 结果、价格、邮箱编号范围和展示状态。</p>
         </div>
         <div className="admin-page-actions">
           <button
@@ -325,6 +330,15 @@ export function AddressManagement() {
               placeholder="地址名称、街道、城市、ZIP"
             />
           </div>
+        </label>
+        <label>
+          <span>平台</span>
+          <select value={filters.platform} onChange={(event) => changeFilter('platform', event.target.value as Filters['platform'])}>
+            <option value="">全部平台</option>
+            {ADDRESS_SOURCES.map((source) => (
+              <option key={source} value={source}>{PLATFORMS[source].label}</option>
+            ))}
+          </select>
         </label>
         <label>
           <span>州</span>
@@ -419,6 +433,7 @@ export function AddressManagement() {
                   />
                 </th>
                 <th>地址名称</th>
+                <th>平台</th>
                 <th>地址</th>
                 <th>州 / ZIP</th>
                 <th>RDI</th>
@@ -440,6 +455,7 @@ export function AddressManagement() {
                       aria-label={`选择 ${item.name}`}
                       checked={isItemSelected(item)}
                       disabled={!isItemSelectable(item)}
+                      title={item.recordSource === 'address' && item.source === 'ipostal1' ? 'iPostal1 地址没有邮箱编号，无需更新编号' : undefined}
                       type="checkbox"
                       onChange={(event) => toggleItemSelection(item, event.target.checked)}
                     />
@@ -449,6 +465,9 @@ export function AddressManagement() {
                       {item.name}
                     </a>
                     {item.statusNote ? <span>{item.statusNote}</span> : null}
+                  </td>
+                  <td>
+                    <Badge tone={item.source === 'ipostal1' ? 'blue' : 'green'}>{PLATFORMS[item.source]?.label ?? item.source}</Badge>
                   </td>
                   <td>
                     <a className="address-table-link" href={item.anytimeUrl} rel="noreferrer" target="_blank">
@@ -489,7 +508,7 @@ export function AddressManagement() {
                     {formatPrice(item.priceCents)}
                   </td>
                   <td>
-                    {item.mailboxMin ?? '-'} - {item.mailboxMax ?? '-'}
+                    {item.source === 'ipostal1' ? '—' : `${item.mailboxMin ?? '-'} - ${item.mailboxMax ?? '-'}`}
                   </td>
                   <td>{formatDate(item.updatedAt)}</td>
                   <td>
@@ -508,7 +527,7 @@ export function AddressManagement() {
               ))}
               {list && list.items.length === 0 ? (
                 <tr>
-                  <td className="admin-empty-cell" colSpan={13}>
+                  <td className="admin-empty-cell" colSpan={14}>
                     暂无符合条件的地址
                   </td>
                 </tr>

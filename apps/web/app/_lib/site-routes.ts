@@ -22,6 +22,13 @@ export const publicRoutes = [
     summary: '已默认过滤 RDI = Residential 的地址精选页，可再按州、CMRA、USPS CMRA、C1 预审与关键词二次筛选。',
   },
   {
+    path: '/ipostal1',
+    priority: 0.9,
+    title: 'iPostal1 美国地址大全',
+    summary:
+      'iPostal1 平台收录地址的搜索与筛选页，只列出 Anytime Mailbox 未收录的门店。支持关键词、州、RDI、CMRA、USPS CMRA、C1 预审与价格区间组合筛选，点击地址直达 iPostal1 下单页。',
+  },
+  {
     path: '/guide/anytime-mailbox-tutorial',
     priority: 0.8,
     title: 'Anytime Mailbox(ATMB) 注册教程',

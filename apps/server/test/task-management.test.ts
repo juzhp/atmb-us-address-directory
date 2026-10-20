@@ -3,7 +3,10 @@ import { test } from 'node:test';
 
 import { createDatabase, ensureDatabaseSchema } from '@atmb/db';
 
+import { resolveServerConfig } from '../src/auth/config.ts';
 import { createServer } from '../src/server.ts';
+import { SettingsService } from '../src/settings/service.ts';
+import { TaskScheduler } from '../src/tasks/scheduler.ts';
 import { TaskService } from '../src/tasks/service.ts';
 
 const testEnv = {
@@ -539,6 +542,114 @@ test('recoverInterruptedTasks resumes running tasks from checkpoint and honors p
     // stop_requested -> stopped，不续跑
     assert.equal(taskService.getTask(stopping.id)?.status, 'stopped');
     assert.ok(!resumeIds.includes(stopping.id));
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test('creates an iPostal1 task with only fetch_names and sync_smarty subtasks', async (t) => {
+  const app = await buildTestServer();
+  t.after(() => app.close());
+  const cookie = await loginCookie(app);
+
+  const createResponse = await app.inject({
+    method: 'POST',
+    url: '/api/admin/tasks',
+    headers: { cookie },
+    payload: { note: 'iPostal1 测试任务', platform: 'ipostal1' },
+  });
+
+  assert.equal(createResponse.statusCode, 201);
+  const created = createResponse.json().item;
+  assert.equal(created.platform, 'ipostal1');
+  assert.equal(created.pendingCount, 2);
+  assert.equal(created.totalCount, 2);
+  assert.equal(created.progress.taskType, 'fetch_names');
+
+  const subtasksResponse = await app.inject({
+    method: 'GET',
+    url: `/api/admin/tasks/${created.id}/subtasks`,
+    headers: { cookie },
+  });
+  assert.deepEqual(
+    subtasksResponse.json().items.map((item: { taskType: string }) => item.taskType),
+    ['fetch_names', 'sync_smarty'],
+  );
+
+  const invalidResponse = await app.inject({
+    method: 'POST',
+    url: '/api/admin/tasks',
+    headers: { cookie },
+    payload: { platform: 'unknown' },
+  });
+  assert.equal(invalidResponse.statusCode, 400);
+});
+
+test('defaults tasks to the ATMB platform and keeps mailbox updates ATMB-only', () => {
+  const database = createDatabase({ url: ':memory:' });
+  ensureDatabaseSchema(database.sqlite);
+  const taskService = new TaskService(database);
+
+  try {
+    const atmb = taskService.createManualTask({ createdBy: 'Test Admin' });
+    assert.equal(atmb.platform, 'anytimemailbox');
+    assert.equal(atmb.totalCount, 5);
+    assert.equal(taskService.getTaskPlatform(atmb.id), 'anytimemailbox');
+    taskService.requestStop(atmb.id, true);
+
+    const ipostal1 = taskService.createManualTask({ createdBy: 'Test Admin', platform: 'ipostal1' });
+    assert.equal(taskService.getTaskPlatform(ipostal1.id), 'ipostal1');
+    taskService.requestStop(ipostal1.id, true);
+
+    database.sqlite
+      .prepare(`
+        INSERT INTO addresses (
+          source, source_id, name, slug, anytime_url, country, state, state_name, city, street_address,
+          postal_code, full_address, price_cents, rdi, cmra, smarty_checked_at
+        ) VALUES (
+          'ipostal1', '2996', 'Anchorage - 3300 Arctic Blvd', 'anchorage-3300-arctic-blvd',
+          'https://ipostal1.com/secure_checkout.php?stID=2996', 'United States', 'AK', 'Alaska', 'Anchorage',
+          '3300 Arctic Blvd Suite 201', '99503', '3300 Arctic Blvd Suite 201 Anchorage, AK 99503 United States',
+          999, 'Commercial', 'Yes', '2026-06-01T00:00:00.000Z'
+        )
+      `)
+      .run();
+    const addressId = (database.sqlite.prepare("SELECT id FROM addresses WHERE source = 'ipostal1'").get() as { id: number }).id;
+
+    assert.equal(taskService.createMailboxUpdateTask({ createdBy: 'Test Admin', addressIds: [addressId] }), null);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test('scheduler creates one system task per platform when due', async () => {
+  const database = createDatabase({ url: ':memory:' });
+  ensureDatabaseSchema(database.sqlite);
+  const config = resolveServerConfig(testEnv);
+  const settingsService = new SettingsService(database, config, {
+    async testConnection() {
+      return { ok: true };
+    },
+  });
+  settingsService.ensureDefaultSettings();
+  settingsService.saveUpdateSchedule({ autoUpdateEnabled: true, updateFrequencyDays: 1, updateHour: 9, updateMinute: 0 });
+  const taskService = new TaskService(database);
+  const enqueued: number[] = [];
+
+  try {
+    const scheduler = new TaskScheduler(settingsService, taskService, {
+      enqueue(taskId) {
+        enqueued.push(taskId);
+      },
+    });
+    const first = await scheduler.tick(new Date('2026-10-19T12:00:00.000Z'));
+
+    assert.ok(first);
+    const tasks = taskService.listTasks({ createdType: 'system' }).items;
+    assert.deepEqual(tasks.map((task) => task.platform).sort(), ['anytimemailbox', 'ipostal1']);
+    assert.deepEqual([...enqueued].sort(), tasks.map((task) => task.id).sort());
+    assert.equal(tasks.find((task) => task.platform === 'ipostal1')?.totalCount, 2);
+    assert.match(tasks.find((task) => task.platform === 'ipostal1')?.note ?? '', /iPostal1/);
   } finally {
     database.sqlite.close();
   }
