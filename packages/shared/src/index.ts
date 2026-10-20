@@ -204,6 +204,7 @@ export interface AdminIpostal1ImportStats {
   states: number;
   parsed: number;
   skippedAtmb: number;
+  skippedExisting: number;
   staged: number;
   warnings: string[];
 }
@@ -238,6 +239,7 @@ export interface AdminIpostal1ImportPreviewResponse {
   stats: AdminIpostal1ImportStats;
   details: {
     duplicates: AdminIpostal1ImportDuplicate[];
+    existing: AdminIpostal1ImportAddress[];
     staged: AdminIpostal1ImportAddress[];
   };
 }

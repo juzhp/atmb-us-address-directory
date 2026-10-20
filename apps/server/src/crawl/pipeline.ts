@@ -21,6 +21,8 @@ export interface Ipostal1ImportStats {
   states: number;
   parsed: number;
   skippedAtmb: number;
+  // 已存在于 addresses 的 iPostal1 地址（按下单链接匹配），离线导入时跳过、不更新
+  skippedExisting: number;
   staged: number;
   warnings: string[];
 }
@@ -54,6 +56,7 @@ export interface Ipostal1ImportDuplicate {
 export interface Ipostal1ImportPreview {
   stats: Ipostal1ImportStats;
   duplicates: Ipostal1ImportDuplicate[];
+  existing: Ipostal1ImportAddress[];
   staged: Ipostal1ImportAddress[];
 }
 import type { SettingsService } from '../settings/service.js';
@@ -418,8 +421,26 @@ export class CrawlPipeline {
     return {
       stats: prepared.stats,
       duplicates: prepared.duplicates,
+      existing: prepared.existing,
       staged: prepared.batches.flatMap((batch) => batch.locations),
     };
+  }
+
+  // 离线导入不更新已有的 iPostal1 地址：按下单链接（每家门店固定）找已存在的行
+  private filterOutExistingIpostal1(locations: Ipostal1Location[]) {
+    const unique: Ipostal1Location[] = [];
+    const existing: Ipostal1Location[] = [];
+
+    if (locations.length === 0) {
+      return { unique, existing };
+    }
+
+    const lookup = this.options.database.sqlite.prepare("SELECT 1 FROM addresses WHERE source = 'ipostal1' AND anytime_url = ?");
+    for (const location of locations) {
+      (lookup.get(location.detailUrl) ? existing : unique).push(location);
+    }
+
+    return { unique, existing };
   }
 
   importIpostal1Export(taskId: number, exportData: Ipostal1Export): Ipostal1ImportStats {
@@ -436,9 +457,10 @@ export class CrawlPipeline {
 
   // 解析各州原文并按 ATMB 去重，不写库；预览与正式导入共用，保证统计一致
   private prepareIpostal1Export(exportData: Ipostal1Export) {
-    const stats: Ipostal1ImportStats = { states: 0, parsed: 0, skippedAtmb: 0, staged: 0, warnings: [...exportData.skipped] };
+    const stats: Ipostal1ImportStats = { states: 0, parsed: 0, skippedAtmb: 0, skippedExisting: 0, staged: 0, warnings: [...exportData.skipped] };
     const batches: Array<{ state: Ipostal1State; stateLocationCount: number; locations: Ipostal1Location[] }> = [];
     const duplicates: Ipostal1ImportDuplicate[] = [];
+    const existing: Ipostal1Location[] = [];
 
     for (const entry of exportData.states) {
       let parsed;
@@ -456,16 +478,19 @@ export class CrawlPipeline {
         url: buildIpostal1StateUrl('223', entry.stateId),
       };
       const deduped = this.filterOutAtmbDuplicates(entry.code, parsed.locations);
+      const fresh = this.filterOutExistingIpostal1(deduped.unique);
 
       stats.states += 1;
       stats.parsed += parsed.locations.length;
       stats.skippedAtmb += deduped.duplicates.length;
-      stats.staged += deduped.unique.length;
+      stats.skippedExisting += fresh.existing.length;
+      stats.staged += fresh.unique.length;
       duplicates.push(...deduped.duplicates);
-      batches.push({ state, stateLocationCount: parsed.count ?? parsed.locations.length, locations: deduped.unique });
+      existing.push(...fresh.existing);
+      batches.push({ state, stateLocationCount: parsed.count ?? parsed.locations.length, locations: fresh.unique });
     }
 
-    return { stats, batches, duplicates };
+    return { stats, batches, duplicates, existing };
   }
 
   // ATMB 已收录（且仍活跃）的物理地址不在 iPostal1 重复收录

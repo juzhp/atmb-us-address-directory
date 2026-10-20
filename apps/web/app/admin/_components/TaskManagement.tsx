@@ -750,6 +750,7 @@ function Ipostal1ImportSummary({ preview }: { preview: AdminIpostal1ImportPrevie
       <span>成功解析的州：<strong>{stats.states}</strong></span>
       <span>解析到的地点：<strong>{stats.parsed}</strong></span>
       <span>跳过 ATMB 已收录：<strong>{stats.skippedAtmb}</strong></span>
+      <span>跳过已存在的 iPostal1：<strong>{stats.skippedExisting}</strong></span>
       <span>将写入待同步：<strong>{stats.staged}</strong></span>
       {stats.warnings.length > 0 ? (
         <span className="admin-import-warnings">
@@ -766,16 +767,18 @@ function Ipostal1ImportSummary({ preview }: { preview: AdminIpostal1ImportPrevie
 const IMPORT_DETAILS_PAGE_SIZE = 50;
 
 // 临时核对用：分页列出“判定为 ATMB 重复而跳过”的对照和“将写入待同步”的地址，避免几千行一次渲染卡住页面
+type ImportDetailsView = 'duplicates' | 'existing' | 'staged';
+
 function Ipostal1ImportDetails({ details }: { details: AdminIpostal1ImportPreviewResponse['details'] }) {
-  const [view, setView] = useState<'duplicates' | 'staged'>(details.duplicates.length > 0 ? 'duplicates' : 'staged');
+  const [view, setView] = useState<ImportDetailsView>(details.duplicates.length > 0 ? 'duplicates' : 'staged');
   const [page, setPage] = useState(1);
-  const rows = view === 'duplicates' ? details.duplicates : details.staged;
+  const rows = view === 'duplicates' ? details.duplicates : view === 'existing' ? details.existing : details.staged;
   const totalPages = Math.max(1, Math.ceil(rows.length / IMPORT_DETAILS_PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * IMPORT_DETAILS_PAGE_SIZE;
   const pageRows = rows.slice(start, start + IMPORT_DETAILS_PAGE_SIZE);
 
-  function switchView(next: 'duplicates' | 'staged') {
+  function switchView(next: ImportDetailsView) {
     setView(next);
     setPage(1);
   }
@@ -785,6 +788,9 @@ function Ipostal1ImportDetails({ details }: { details: AdminIpostal1ImportPrevie
       <div className="admin-import-details-tabs">
         <button className={view === 'duplicates' ? 'active' : undefined} type="button" onClick={() => switchView('duplicates')}>
           跳过（ATMB 已收录）{details.duplicates.length}
+        </button>
+        <button className={view === 'existing' ? 'active' : undefined} type="button" onClick={() => switchView('existing')}>
+          跳过（iPostal1 已存在）{details.existing.length}
         </button>
         <button className={view === 'staged' ? 'active' : undefined} type="button" onClick={() => switchView('staged')}>
           将写入待同步 {details.staged.length}

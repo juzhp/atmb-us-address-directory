@@ -1973,11 +1973,13 @@ test('offline iPostal1 export is staged with ATMB de-duplication and imported by
         display: [
           ipostal1Card({ storeId: '2996', street: '7169 Hwy 72 W Ste A', city: 'Madison', zip: '35758', price: '$9.99' }),
           ipostal1Card({ storeId: '4723', street: '1401 Doug Baker Blvd Suite 107', city: 'Birmingham', zip: '35242', price: '$12.99' }),
+          // 已存在的 iPostal1 门店（价格变了也不更新）
+          ipostal1Card({ storeId: '9999', street: '2 Vanished Ave', city: 'Mobile', zip: '36602', price: '$19.99' }),
         ].join(''),
       }),
     }],
   };
-  const expectedStats = { states: 1, parsed: 2, skippedAtmb: 1, staged: 1, warnings: ['CA (12): Cloudflare challenge'] };
+  const expectedStats = { states: 1, parsed: 3, skippedAtmb: 1, skippedExisting: 1, staged: 1, warnings: ['CA (12): Cloudflare challenge'] };
 
   // 预览只统计不写库，并给出去重对照
   const preview = harness.pipeline.previewIpostal1Export(exportData);
@@ -1985,6 +1987,7 @@ test('offline iPostal1 export is staged with ATMB de-duplication and imported by
   assert.equal(preview.duplicates.length, 1);
   assert.equal(preview.duplicates[0]?.ipostal1.storeId, '2996');
   assert.equal(preview.duplicates[0]?.atmb.anytimeUrl, 'https://locations.anytimemailbox.com/l/usa/alabama/madison-hwy-72');
+  assert.deepEqual(preview.existing.map((row) => row.storeId), ['9999']);
   assert.deepEqual(preview.staged.map((row) => row.storeId), ['4723']);
   assert.equal((harness.database.sqlite.prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses').get() as { count: number }).count, 0);
 
@@ -2001,7 +2004,10 @@ test('offline iPostal1 export is staged with ATMB de-duplication and imported by
   assert.equal(imported?.source, 'ipostal1');
   assert.equal(imported?.rdi, 'Commercial');
   assert.equal(imported?.priceCents, 1299);
-  // 离线导入没有 fetch_names，不会把本次未出现的 iPostal1 行判定为下线
-  assert.equal(rows.find((row) => row.anytimeUrl.endsWith('stID=9999'))?.isActive, 1);
+  // 已存在的 iPostal1 行原样保留：不更新价格，也不会被判定为下线
+  const existingRow = rows.find((row) => row.anytimeUrl.endsWith('stID=9999'));
+  assert.equal(existingRow?.isActive, 1);
+  assert.equal(existingRow?.priceCents, 1299);
+  assert.equal((harness.database.sqlite.prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?').get(task.id) as { count: number }).count, 1);
   assert.equal(rows.find((row) => row.anytimeUrl.endsWith('madison-hwy-72'))?.isActive, 1);
 });

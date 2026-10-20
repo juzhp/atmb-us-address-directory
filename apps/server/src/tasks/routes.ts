@@ -154,7 +154,7 @@ export function registerTaskRoutes(
       uploadId,
       fetchedAt: exportData.fetchedAt,
       stats: preview.stats,
-      details: { duplicates: preview.duplicates, staged: preview.staged },
+      details: { duplicates: preview.duplicates, existing: preview.existing, staged: preview.staged },
     };
   });
 

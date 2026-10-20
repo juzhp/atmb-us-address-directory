@@ -695,6 +695,7 @@ test('previews an iPostal1 offline export and only creates the task after confir
     states: 1,
     parsed: 2,
     skippedAtmb: 0,
+    skippedExisting: 0,
     staged: 2,
     warnings: ['CA (12): Cloudflare challenge'],
   };
@@ -715,6 +716,7 @@ test('previews an iPostal1 offline export and only creates the task after confir
   assert.equal(previewBody.fetchedAt, '2026-10-21T08:30:00Z');
   assert.deepEqual(previewBody.stats, expectedStats);
   assert.deepEqual(previewBody.details.duplicates, []);
+  assert.deepEqual(previewBody.details.existing, []);
   assert.deepEqual(previewBody.details.staged.map((row: { storeId: string }) => row.storeId), ['2996', '3597']);
   assert.equal(await countTasks(), tasksBefore);
 
