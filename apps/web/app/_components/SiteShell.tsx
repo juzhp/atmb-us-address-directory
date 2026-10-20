@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { Mail } from 'lucide-react';
+
+const CONTACT_EMAIL = 'juzhpcom@gmail.com';
 
 type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'guide' | 'faq';
 
@@ -30,12 +33,16 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
             <div className="site-nav-dropdown" role="menu" aria-label="教程">
               <Link role="menuitem" href="/guide/anytime-mailbox-tutorial">Anytime Mailbox 注册教程</Link>
               <Link role="menuitem" href="/guide/us-residential-address-verification">美国住宅地址验证教程</Link>
+              <Link role="menuitem" href="/guide/us-credit-card-address">美国信用卡地址与账单地址</Link>
               <Link role="menuitem" href="/guide/usps-form-1583">USPS Form 1583 公证教程</Link>
             </div>
           </div>
           <Link className={navClass(active, 'faq')} href={active === 'home' ? '#faq' : '/#faq'}>FAQ</Link>
           <a className="site-github-link" href="https://github.com/juzhp/atmb-us-address-directory" rel="noreferrer" target="_blank" aria-label="GitHub">
             <GitHubMark />
+          </a>
+          <a className="site-github-link" href={`mailto:${CONTACT_EMAIL}`} aria-label={`联系邮箱 ${CONTACT_EMAIL}`} title={CONTACT_EMAIL}>
+            <Mail size={18} aria-hidden="true" />
           </a>
         </nav>
       </div>
@@ -53,6 +60,9 @@ export function SiteFooter() {
             本站为第三方地址筛选指南，非 Anytime Mailbox 官方网站。所有数据均来自公开信息与第三方服务，仅供参考与研究使用，
             不构成任何承诺、保证或租用建议。
           </p>
+          <p>
+            联系邮箱：<a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          </p>
         </div>
         <nav aria-label="页脚导航">
           <Link href="/addresses">所有地址</Link>
@@ -60,6 +70,7 @@ export function SiteFooter() {
           <Link href="/ipostal1">iPostal1 地址</Link>
           <Link href="/guide/anytime-mailbox-tutorial">注册教程</Link>
           <Link href="/guide/us-residential-address-verification">地址验证</Link>
+          <Link href="/guide/us-credit-card-address">信用卡地址</Link>
           <Link href="/guide/usps-form-1583">1583 公证</Link>
           <Link href="/#faq">FAQ</Link>
         </nav>

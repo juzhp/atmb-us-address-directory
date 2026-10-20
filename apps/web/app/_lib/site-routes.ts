@@ -48,4 +48,11 @@ export const publicRoutes = [
     summary:
       '用 Capital One 地址预审核、Smarty 的 RDI 与 CMRA、USPS CMRA 工具与 Google 街景四步交叉验证，判断一个美国地址是真实私人住宅还是商业 CMRA 地址。',
   },
+  {
+    path: '/guide/us-credit-card-address',
+    priority: 0.8,
+    title: '美国信用卡地址与账单地址填写指南',
+    summary:
+      '申请美国信用卡、银行开户该用什么地址：账单地址（billing address）与邮寄地址的区别、P.O. Box 与 CMRA 地址为什么被拒、为什么要选 RDI Residential 住宅地址，附美国地址格式与填写示例。',
+  },
 ] as const;

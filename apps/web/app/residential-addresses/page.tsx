@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { C1_PRECHECK_LABELS, type AddressC1Precheck } from '@atmb/shared';
 
-import type { PublicAddressesPageData } from '../_lib/public-address-data';
+import { buildPublicListCanonicalPath, type PublicAddressesPageData } from '../_lib/public-address-data';
 import {
   buildResidentialAddressesPageUrl,
   getPublicResidentialAddressesPageData,
@@ -30,13 +30,10 @@ import { StateFilterPanel, StateFilterPanelSkeleton } from '../_components/State
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+const listMetadata: Metadata = {
   title: '美国真实住宅地址（RDI Residential）| Anytime Mailbox 私人地址精选',
   description:
     '已默认过滤 RDI = Residential 的 Anytime Mailbox(ATMB) 美国住宅地址候选，再用州、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与关键词二次筛选，帮你更快找到接近真实私人住宅、适合美国信用卡与银行开户的地址。',
-  alternates: {
-    canonical: '/residential-addresses',
-  },
   keywords: [
     'Anytime Mailbox住宅地址',
     'ATMB',
@@ -110,6 +107,17 @@ const faqJsonLd = {
 
 interface ResidentialAddressesPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateMetadata({ searchParams }: ResidentialAddressesPageProps): Promise<Metadata> {
+  const params = searchParams ? await searchParams : {};
+
+  return {
+    ...listMetadata,
+    alternates: {
+      canonical: buildPublicListCanonicalPath('/residential-addresses', parsePublicResidentialAddressFilters(params)),
+    },
+  };
 }
 
 export default async function ResidentialAddressesPage({ searchParams }: ResidentialAddressesPageProps) {

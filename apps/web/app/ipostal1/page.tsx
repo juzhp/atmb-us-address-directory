@@ -14,11 +14,16 @@ import {
 } from 'lucide-react';
 import { C1_PRECHECK_LABELS, type AddressC1Precheck } from '@atmb/shared';
 
-import type { PublicAddressesPageData, PublicAddressFilters } from '../_lib/public-address-data';
+import {
+  buildPublicListCanonicalPath,
+  type PublicAddressesPageData,
+  type PublicAddressFilters,
+} from '../_lib/public-address-data';
 import {
   buildIpostal1AddressesPageUrl,
   getPublicIpostal1AddressesPageData,
   parsePublicAddressFilters,
+  PUBLIC_IPOSTAL1_BASE_PATH,
 } from '../_lib/public-ipostal1-address-data';
 import { getPublicHeadCode } from '../_lib/public-head-code';
 import { ActiveFilterChips, type ActiveFilterChip } from '../_components/ActiveFilterChips';
@@ -29,13 +34,10 @@ import { StateFilterPanel, StateFilterPanelSkeleton } from '../_components/State
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+const listMetadata: Metadata = {
   title: 'iPostal1 美国地址大全 | 按州搜索 RDI/CMRA/C1 预审筛选住宅地址',
   description:
     '浏览并搜索 iPostal1 平台的美国地址（不含 Anytime Mailbox 已收录的门店）：支持城市/州/ZIP/街道关键词、州筛选、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与价格区间，快速缩小美国真实住宅地址候选，点击地址直达 iPostal1 下单页。',
-  alternates: {
-    canonical: '/ipostal1',
-  },
   keywords: [
     'iPostal1 地址',
     'iPostal1',
@@ -128,6 +130,17 @@ const faqJsonLd = {
 
 interface Ipostal1AddressesPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateMetadata({ searchParams }: Ipostal1AddressesPageProps): Promise<Metadata> {
+  const params = searchParams ? await searchParams : {};
+
+  return {
+    ...listMetadata,
+    alternates: {
+      canonical: buildPublicListCanonicalPath(PUBLIC_IPOSTAL1_BASE_PATH, parsePublicAddressFilters(params)),
+    },
+  };
 }
 
 export default async function Ipostal1AddressesPage({ searchParams }: Ipostal1AddressesPageProps) {

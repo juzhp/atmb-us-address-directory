@@ -16,6 +16,7 @@ import { C1_PRECHECK_LABELS, type AddressC1Precheck } from '@atmb/shared';
 
 import {
   buildAddressesPageUrl,
+  buildPublicListCanonicalPath,
   getPublicAddressesPageData,
   parsePublicAddressFilters,
   type PublicAddressesPageData,
@@ -30,13 +31,10 @@ import { StateFilterPanel, StateFilterPanelSkeleton } from '../_components/State
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+const listMetadata: Metadata = {
   title: 'Anytime Mailbox 美国地址大全 | 按州搜索 RDI/CMRA/C1 预审筛选住宅地址',
   description:
     '浏览并搜索全站收录的 Anytime Mailbox(ATMB) 美国地址：支持城市/州/ZIP/街道关键词、州筛选、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与价格区间，快速缩小美国真实住宅地址候选，配合街景与每日更新数据，挑选适合美国信用卡与银行开户的地址。',
-  alternates: {
-    canonical: '/addresses',
-  },
   keywords: [
     'Anytime Mailbox 地址',
     'ATMB',
@@ -117,6 +115,17 @@ const faqJsonLd = {
 
 interface AddressesPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateMetadata({ searchParams }: AddressesPageProps): Promise<Metadata> {
+  const params = searchParams ? await searchParams : {};
+
+  return {
+    ...listMetadata,
+    alternates: {
+      canonical: buildPublicListCanonicalPath('/addresses', parsePublicAddressFilters(params)),
+    },
+  };
 }
 
 export default async function AddressesPage({ searchParams }: AddressesPageProps) {

@@ -236,6 +236,45 @@ export function buildAddressesPageUrl(
   return `${query ? `${basePath}?${query}` : basePath}${PUBLIC_ADDRESSES_RESULT_HASH}`;
 }
 
+// 分页各自 self-canonical；带任何筛选条件的变体一律指向基础路径
+export function buildPublicListCanonicalPath<T extends { page: number }>(basePath: string, filters: T) {
+  const { page, ...rest } = filters;
+  const hasFilters = Object.values(rest).some(Boolean);
+  return page > 1 && !hasFilters ? `${basePath}?page=${page}` : basePath;
+}
+
+// 对应平台公开地址的最近更新时间，供 sitemap 的 lastModified 使用；数据库不可用时返回 null
+export async function getPublicAddressesLastUpdated(source: AddressSource): Promise<Date | null> {
+  const databaseUrl = resolvePublicAddressDatabaseUrl();
+
+  if (!databaseUrl) {
+    return null;
+  }
+
+  let sqlite: Database.Database | null = null;
+
+  try {
+    sqlite = new Database(databaseUrl, {
+      fileMustExist: true,
+      readonly: true,
+    });
+
+    const row = sqlite
+      .prepare('SELECT MAX(updated_at) AS updatedAt FROM addresses WHERE source = ? AND is_active = 1 AND is_visible = 1')
+      .get(source) as { updatedAt: string | null };
+
+    return row.updatedAt ? new Date(row.updatedAt) : null;
+  } catch (error) {
+    if (isUnavailableDatabaseError(error)) {
+      return null;
+    }
+
+    throw error;
+  } finally {
+    sqlite?.close();
+  }
+}
+
 export function formatPublicDateTime(value: string) {
   return new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Shanghai',
