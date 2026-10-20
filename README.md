@@ -132,14 +132,22 @@ pm2 save
 pm2 status
 ```
 
-更新代码：
+更新代码（先迁移再构建：Next 构建时会预渲染首页并读取数据库，缺列会导致构建失败；`db:migrate` 需要显式拿到 `.env` 里的 `DATABASE_URL`）：
 
 ```bash
 git pull
 npm ci
-npm run build
+set -a && . ./.env && set +a
 npm run db:migrate
+npm run build
 pm2 restart ecosystem.config.cjs --update-env
+```
+
+如果 `npm run db:migrate` 退出码 1 且没有报错信息，通常是这个库从未用 drizzle 迁移过（表由后端启动时自动创建，没有 `__drizzle_migrations` 记录）。先执行一次修复脚本，它会补齐缺失的列、登记历史迁移，之后 `db:migrate` 即可正常使用（可重复执行）：
+
+```bash
+set -a && . ./.env && set +a
+node packages/db/scripts/repair-migrations.cjs
 ```
 
 ## Nginx
