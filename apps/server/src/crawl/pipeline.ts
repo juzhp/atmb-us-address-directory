@@ -1733,6 +1733,7 @@ export class HttpCrawlFetcher implements CrawlFetcher {
 
   /**
    * 带重试的请求：超时、连接失败、429/5xx 都会指数退避后重试，每次重试换一个代理；
+   * Cloudflare 验证页只在代理库里还有另一个代理时换代理重试；
    * 收到 429 后所有请求统一暂停一段时间，避免在限流窗口内继续撞。
    */
   private async requestWithRetry(
@@ -1742,7 +1743,7 @@ export class HttpCrawlFetcher implements CrawlFetcher {
     buildConfig: (proxy: CrawlProxy | null) => AxiosRequestConfig,
   ) {
     for (let retryCount = 0; ; retryCount += 1) {
-      if (retryCount > 0 || attempt.proxy === undefined) {
+      if (attempt.proxy === undefined) {
         attempt.proxy = this.proxyProvider();
       }
       const proxy = attempt.proxy ?? null;
@@ -1758,7 +1759,20 @@ export class HttpCrawlFetcher implements CrawlFetcher {
 
         this.recordRequestFailure(proxy, error);
 
-        if (!isRetryableFetchError(error) || retryCount >= MAX_NETWORK_RETRIES) {
+        if (retryCount >= MAX_NETWORK_RETRIES) {
+          throw error;
+        }
+
+        if (isRetryableFetchError(error)) {
+          attempt.proxy = this.proxyProvider();
+        } else if (isCloudflareChallengeError(error)) {
+          // Cloudflare 验证页通常只针对当前出口 IP；代理库里有另一个代理时换一个再试，否则直接交给 curl 兜底
+          const nextProxy = this.proxyProvider();
+          if (!nextProxy || nextProxy.id === proxy?.id) {
+            throw error;
+          }
+          attempt.proxy = nextProxy;
+        } else {
           throw error;
         }
 
@@ -2097,6 +2111,10 @@ function safeRandom(random: () => number) {
 
 function isAxiosForbiddenError(error: unknown) {
   return axios.isAxiosError(error) && Number(error.response?.status) === 403;
+}
+
+function isCloudflareChallengeError(error: unknown) {
+  return axios.isAxiosError(error) && Boolean(error.response) && isCloudflareChallengeResponse(error.response!);
 }
 
 function axiosErrorCode(error: unknown) {

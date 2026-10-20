@@ -166,6 +166,89 @@ test('HTTP crawl fetcher retries once with curl after Axios returns 403', async 
     getMock.mock.restore();
   }
 });
+test('HTTP crawl fetcher retries a Cloudflare challenge with a different proxy', async () => {
+  const configs: Array<{ proxy?: { port?: number } }> = [];
+  const getMock = mock.method(axios, 'get', async (_url: string, config: { proxy?: { port?: number } }) => {
+    configs.push(config);
+    if (configs.length === 1) {
+      throw {
+        isAxiosError: true,
+        response: {
+          status: 403,
+          statusText: 'Forbidden',
+          headers: { 'cf-mitigated': 'challenge', server: 'cloudflare', 'content-type': 'text/html' },
+          data: '<html><head><title>Just a moment...</title></head></html>',
+        },
+      };
+    }
+    return {
+      status: 200,
+      data: '{"num_results":0,"display":""}',
+      headers: { 'content-type': 'text/html; charset=UTF-8' },
+    };
+  });
+  const proxies = [
+    { id: 1, url: 'http://user:pass@127.0.0.1:8080' },
+    { id: 2, url: 'http://user:pass@127.0.0.1:8081' },
+  ];
+  let pick = 0;
+  const delays: number[] = [];
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    proxyProvider: () => proxies[pick++ % proxies.length] ?? null,
+    sleep: async (delayMs) => {
+      delays.push(delayMs);
+    },
+    curlFetch: async () => {
+      throw new Error('curl should not be needed when another proxy passes');
+    },
+  });
+
+  try {
+    const result = await fetcher.fetchHtml('https://ipostal1.com/locations_ajax.php?action=get_mail_centers&country_id=223&state_id=2');
+
+    assert.equal(result.status, 200);
+    assert.equal(configs.length, 2);
+    assert.equal(configs[0]?.proxy?.port, 8080);
+    assert.equal(configs[1]?.proxy?.port, 8081);
+    assert.deepEqual(delays, [2000]);
+  } finally {
+    getMock.mock.restore();
+  }
+});
+
+test('HTTP crawl fetcher does not retry a Cloudflare challenge when only one proxy exists', async () => {
+  let calls = 0;
+  const getMock = mock.method(axios, 'get', async () => {
+    calls += 1;
+    throw {
+      isAxiosError: true,
+      response: {
+        status: 403,
+        statusText: 'Forbidden',
+        headers: { 'cf-mitigated': 'challenge', server: 'cloudflare', 'content-type': 'text/html' },
+        data: '<html><head><title>Just a moment...</title></head></html>',
+      },
+    };
+  });
+  const fetcher = new HttpCrawlFetcher({
+    random: () => 0,
+    requestDelayMs: { min: 0, max: 0 },
+    proxyProvider: () => ({ id: 7, url: 'http://user:pass@127.0.0.1:8080' }),
+    curlFetch: async () => {
+      throw new Error('curl fallback unavailable');
+    },
+  });
+
+  try {
+    await assert.rejects(() => fetcher.fetchHtml('https://ipostal1.com/choose-digital-mailbox-location.php'), /Cloudflare challenge/);
+    assert.equal(calls, 1);
+  } finally {
+    getMock.mock.restore();
+  }
+});
+
 test('HTTP crawl fetcher applies a random active proxy to Axios requests', async () => {
   const configs: unknown[] = [];
   const getMock = mock.method(axios, 'get', async (_url: string, config: unknown) => {
