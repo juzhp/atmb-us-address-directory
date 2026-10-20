@@ -2,6 +2,7 @@
 
 import type {
   AddressSource,
+  AdminIpostal1ImportResponse,
   AdminSubtaskListItem,
   AdminSubtaskType,
   AdminTaskProgress,
@@ -13,8 +14,8 @@ import type {
   AdminTaskSubtasksResponse,
 } from '@atmb/shared';
 import { ADDRESS_SOURCES, PLATFORMS } from '@atmb/shared';
-import { AlertCircle, Clock3, Eye, PauseCircle, PlayCircle, RefreshCw, Search, Square, Trash2 } from 'lucide-react';
-import { FormEvent, ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
+import { AlertCircle, Clock3, Eye, PauseCircle, PlayCircle, RefreshCw, Search, Square, Trash2, Upload } from 'lucide-react';
+import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
 import { PUBLIC_API_BASE_URL } from '../../lib/api';
 import { AdminConfirmDialog } from './AdminConfirmDialog';
@@ -64,6 +65,7 @@ export function TaskManagement() {
   const [confirmCreateOpen, setConfirmCreateOpen] = useState(false);
   const [taskPendingDeletion, setTaskPendingDeletion] = useState<AdminTaskListItem | null>(null);
   const [isPending, startTransition] = useTransition();
+  const importInputRef = useRef<HTMLInputElement>(null);
   const { toasts, showToast, dismissToast } = useAdminToasts();
 
   const query = useMemo(() => {
@@ -144,6 +146,40 @@ export function TaskManagement() {
     setFilters(initialFilters);
     setAppliedFilters(initialFilters);
     setPage(1);
+  }
+
+  function importIpostal1Export(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    startTransition(async () => {
+      const body = new FormData();
+      body.append('file', file);
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/tasks/ipostal1-import`, {
+        method: 'POST',
+        credentials: 'include',
+        body,
+      });
+      const payload = (await response.json().catch(() => null)) as AdminIpostal1ImportResponse | { message?: string } | null;
+
+      if (!response.ok || !payload || !('stats' in payload)) {
+        showToast((payload as { message?: string } | null)?.message ?? '导入失败，请检查文件后重试。', 'error');
+        return;
+      }
+
+      if (payload.stats.warnings.length > 0) {
+        console.warn('iPostal1 导入告警', payload.stats.warnings);
+      }
+
+      setPage(1);
+      await loadData();
+      showToast(
+        `已导入 ${payload.stats.states} 个州：解析 ${payload.stats.parsed} 个地点，跳过 ATMB 已收录 ${payload.stats.skippedAtmb} 个，`
+        + `待同步 ${payload.stats.staged} 个${payload.stats.warnings.length ? `，${payload.stats.warnings.length} 条告警见浏览器控制台` : ''}。`,
+        'success',
+      );
+    });
   }
 
   function createTask() {
@@ -249,6 +285,16 @@ export function TaskManagement() {
             <RefreshCw size={16} aria-hidden="true" />
             刷新任务
           </button>
+          <button
+            disabled={isPending}
+            type="button"
+            title="上传按约定格式抓取的 iPostal1 导出文件，创建只含“同步 Smarty”的导入任务"
+            onClick={() => importInputRef.current?.click()}
+          >
+            <Upload size={16} aria-hidden="true" />
+            导入 iPostal1 离线数据
+          </button>
+          <input ref={importInputRef} accept="application/json,.json" hidden type="file" onChange={importIpostal1Export} />
           <label className="admin-inline-field">
             <span>平台</span>
             <select value={createPlatform} onChange={(event) => setCreatePlatform(event.target.value as AddressSource)}>

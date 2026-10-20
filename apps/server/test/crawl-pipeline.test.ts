@@ -1908,3 +1908,88 @@ test('iPostal1 task only retires missing iPostal1 rows and never touches ATMB ro
   assert.equal(fetchNames?.progress?.current, 1);
   assert.equal(fetchNames?.progress?.total, 1);
 });
+
+test('offline iPostal1 export is staged with ATMB de-duplication and imported by sync_smarty only', async () => {
+  const harness = buildHarness([], {
+    async lookupAddresses(_credentials, inputs) {
+      return inputs.map((input): SmartyLookupResult => ({
+        inputId: input.inputId,
+        rdi: 'Commercial',
+        cmra: 'Yes',
+        raw: { analysis: { dpv_cmra: 'Y' }, metadata: { rdi: 'Commercial' } },
+      }));
+    },
+  }, {
+    fetcher: {
+      async fetchHtml(url) {
+        throw new Error(`offline import must not fetch ${url}`);
+      },
+    },
+  });
+
+  insertAddress(harness.database, {
+    name: 'Madison - Hwy 72',
+    slug: 'madison-hwy-72',
+    anytimeUrl: 'https://locations.anytimemailbox.com/l/usa/alabama/madison-hwy-72',
+    streetAddress: '7169 Hwy 72 W Ste A',
+    city: 'Madison',
+    state: 'AL',
+    postalCode: '35758',
+    priceCents: 1899,
+    rdi: 'Residential',
+    cmra: 'No',
+    smartyCheckedAt: '2026-06-01T00:00:00.000Z',
+  });
+  insertAddress(harness.database, {
+    name: 'iPostal1 Elsewhere',
+    slug: 'ipostal1-elsewhere',
+    anytimeUrl: 'https://ipostal1.com/secure_checkout.php?stID=9999',
+    streetAddress: '2 Vanished Ave',
+    city: 'Mobile',
+    state: 'AL',
+    postalCode: '36602',
+    priceCents: 1299,
+    rdi: 'Residential',
+    cmra: 'No',
+    smartyCheckedAt: '2026-06-01T00:00:00.000Z',
+    source: 'ipostal1',
+  });
+
+  const task = harness.taskService.createTask({
+    createdBy: 'Test Admin',
+    createdType: 'manual',
+    platform: 'ipostal1',
+    taskTypes: ['sync_smarty'],
+  });
+  const stats = harness.pipeline.importIpostal1Export(task.id, {
+    fetchedAt: null,
+    skipped: ['CA (12): Cloudflare challenge'],
+    states: [{
+      stateId: '1',
+      code: 'AL',
+      name: 'Alabama',
+      body: JSON.stringify({
+        num_results: 2,
+        display: [
+          ipostal1Card({ storeId: '2996', street: '7169 Hwy 72 W Ste A', city: 'Madison', zip: '35758', price: '$9.99' }),
+          ipostal1Card({ storeId: '4723', street: '1401 Doug Baker Blvd Suite 107', city: 'Birmingham', zip: '35242', price: '$12.99' }),
+        ].join(''),
+      }),
+    }],
+  });
+
+  assert.deepEqual(stats, { states: 1, parsed: 2, skippedAtmb: 1, staged: 1, warnings: ['CA (12): Cloudflare challenge'] });
+
+  await harness.pipeline.runTask(task.id);
+
+  assertTaskCompleted(harness.database, task.id);
+  const rows = readAddresses(harness.database);
+  assert.equal(rows.length, 3);
+  const imported = rows.find((row) => row.anytimeUrl.endsWith('stID=4723'));
+  assert.equal(imported?.source, 'ipostal1');
+  assert.equal(imported?.rdi, 'Commercial');
+  assert.equal(imported?.priceCents, 1299);
+  // 离线导入没有 fetch_names，不会把本次未出现的 iPostal1 行判定为下线
+  assert.equal(rows.find((row) => row.anytimeUrl.endsWith('stID=9999'))?.isActive, 1);
+  assert.equal(rows.find((row) => row.anytimeUrl.endsWith('madison-hwy-72'))?.isActive, 1);
+});

@@ -200,6 +200,19 @@ export interface AdminTaskListItem {
   updatedAt: string;
 }
 
+export interface AdminIpostal1ImportStats {
+  states: number;
+  parsed: number;
+  skippedAtmb: number;
+  staged: number;
+  warnings: string[];
+}
+
+export interface AdminIpostal1ImportResponse {
+  item: AdminTaskListItem;
+  stats: AdminIpostal1ImportStats;
+}
+
 export interface AdminTaskListResponse {
   items: AdminTaskListItem[];
   page: number;

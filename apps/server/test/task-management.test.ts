@@ -654,3 +654,103 @@ test('scheduler creates one system task per platform when due', async () => {
     database.sqlite.close();
   }
 });
+
+function multipartJson(fileName: string, content: string) {
+  const boundary = '----atmb-import-boundary';
+  const payload = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/json\r\n\r\n`),
+    Buffer.from(content, 'utf8'),
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ]);
+
+  return { payload, contentType: `multipart/form-data; boundary=${boundary}` };
+}
+
+function ipostal1ExportFile(cards: string) {
+  return JSON.stringify({
+    source: 'ipostal1',
+    fetchedAt: '2026-10-21T08:30:00Z',
+    states: [
+      { stateId: '2', code: 'AK', name: 'Alaska', status: 'ok', body: JSON.stringify({ num_results: 2, display: cards }) },
+      { stateId: '12', code: 'CA', name: 'California', status: 'failed', error: 'Cloudflare challenge', body: null },
+    ],
+  });
+}
+
+const alaskaCards = [2996, 3597].map((storeId) => `
+  <article class="mail-center-card" store-id="${storeId}" store-postcode="99503">
+    <span class="store-street-address">${storeId} Arctic Blvd<br>Suite 201</span>
+    <span class="store-city-state-zip">Anchorage, AK 99503</span>
+    <p class="store-plan-desktop"><b>''Standard'' address from $9.99</b></p>
+    <a href="https://ipostal1.com/secure_checkout.php?stID=${storeId}" class="choose-location-btn">Choose</a>
+  </article>
+`).join('');
+
+test('imports an iPostal1 offline export into a sync_smarty-only task', async (t) => {
+  const app = await buildTestServer();
+  t.after(() => app.close());
+  const cookie = await loginCookie(app);
+  const upload = multipartJson('ipostal1-export.json', ipostal1ExportFile(alaskaCards));
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/admin/tasks/ipostal1-import',
+    headers: { cookie, 'content-type': upload.contentType },
+    payload: upload.payload,
+  });
+
+  assert.equal(response.statusCode, 201);
+  const body = response.json();
+  assert.equal(body.item.platform, 'ipostal1');
+  assert.equal(body.item.createdType, 'manual');
+  assert.match(body.item.note, /导入 iPostal1 离线数据（抓取于 2026-10-21T08:30:00Z）/);
+  assert.equal(body.item.totalCount, 1);
+  assert.deepEqual(body.stats, {
+    states: 1,
+    parsed: 2,
+    skippedAtmb: 0,
+    staged: 2,
+    warnings: ['CA (12): Cloudflare challenge'],
+  });
+
+  const subtasksResponse = await app.inject({
+    method: 'GET',
+    url: `/api/admin/tasks/${body.item.id}/subtasks`,
+    headers: { cookie },
+  });
+  assert.deepEqual(subtasksResponse.json().items.map((item: { taskType: string }) => item.taskType), ['sync_smarty']);
+  assert.equal(subtasksResponse.json().items[0].progress.total, 2);
+
+  const conflict = await app.inject({
+    method: 'POST',
+    url: '/api/admin/tasks/ipostal1-import',
+    headers: { cookie, 'content-type': upload.contentType },
+    payload: upload.payload,
+  });
+  assert.equal(conflict.statusCode, 409);
+});
+
+test('rejects invalid iPostal1 export uploads', async (t) => {
+  const app = await buildTestServer();
+  t.after(() => app.close());
+  const cookie = await loginCookie(app);
+
+  for (const [content, pattern] of [
+    ['{not json', /不是合法 JSON/],
+    [JSON.stringify({ source: 'anytimemailbox', states: [] }), /source 不是 ipostal1/],
+  ] as const) {
+    const upload = multipartJson('bad.json', content);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/admin/tasks/ipostal1-import',
+      headers: { cookie, 'content-type': upload.contentType },
+      payload: upload.payload,
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.match(response.json().message, pattern);
+  }
+
+  const unauthenticated = await app.inject({ method: 'POST', url: '/api/admin/tasks/ipostal1-import' });
+  assert.equal(unauthenticated.statusCode, 401);
+});

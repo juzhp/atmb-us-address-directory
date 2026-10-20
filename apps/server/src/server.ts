@@ -107,7 +107,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   registerAuthRoutes(app, authService);
   registerAddressRoutes(app, addressService, config, taskService, taskExecutor);
   registerSettingsRoutes(app, settingsService);
-  registerTaskRoutes(app, taskService, authService, taskExecutor);
+  registerTaskRoutes(app, taskService, authService, taskExecutor, crawlPipeline);
 
   taskScheduler?.start();
 

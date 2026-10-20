@@ -7,13 +7,23 @@ import { promisify } from 'node:util';
 import type { AddressCmra, AddressRdi, AddressSource, AdminSubtaskType } from '@atmb/shared';
 
 import { proxyUrlToAxiosProxy, type CrawlProxy } from '../proxy.js';
+import type { Ipostal1Export } from './ipostal1-import.js';
 import {
+  buildIpostal1StateUrl,
   IPOSTAL1_LOCATIONS_URL,
   listIpostal1States,
   parseIpostal1MailCenters,
   type Ipostal1Location,
   type Ipostal1State,
 } from './ipostal1-parser.js';
+
+export interface Ipostal1ImportStats {
+  states: number;
+  parsed: number;
+  skippedAtmb: number;
+  staged: number;
+  warnings: string[];
+}
 import type { SettingsService } from '../settings/service.js';
 import type { TaskService } from '../tasks/service.js';
 import {
@@ -369,6 +379,37 @@ export class CrawlPipeline {
     return `Discovered ${discovered} address entries, skipped ${skipped} already listed on ATMB`;
   }
 
+  // 离线导出（线上出口被 Cloudflare 拦截时由外部抓取）直接 staging 到一个任务上，随后由 sync_smarty 子任务完成校验与导入
+  importIpostal1Export(taskId: number, exportData: Ipostal1Export): Ipostal1ImportStats {
+    const stats: Ipostal1ImportStats = { states: 0, parsed: 0, skippedAtmb: 0, staged: 0, warnings: [...exportData.skipped] };
+
+    for (const entry of exportData.states) {
+      let parsed;
+      try {
+        parsed = parseIpostal1MailCenters(entry.body, entry.code);
+      } catch (error) {
+        stats.warnings.push(`${entry.code}: ${errorMessage(error)}`);
+        continue;
+      }
+
+      const state: Ipostal1State = {
+        name: entry.name,
+        code: entry.code,
+        stateId: entry.stateId,
+        url: buildIpostal1StateUrl('223', entry.stateId),
+      };
+      const unique = this.filterOutAtmbDuplicates(entry.code, parsed.locations);
+
+      stats.states += 1;
+      stats.parsed += parsed.locations.length;
+      stats.skippedAtmb += parsed.locations.length - unique.length;
+      stats.staged += unique.length;
+      this.stageIpostal1Locations(taskId, state, parsed.count ?? parsed.locations.length, unique);
+    }
+
+    return stats;
+  }
+
   // ATMB 已收录（且仍活跃）的物理地址不在 iPostal1 重复收录
   private filterOutAtmbDuplicates(stateCode: string, locations: Ipostal1Location[]) {
     if (locations.length === 0) {
@@ -389,6 +430,7 @@ export class CrawlPipeline {
     return locations.filter((location) => !atmbKeys.has(normalizeAddressKey(location)));
   }
 
+  // iPostal1 没有详情页和邮箱编号，staging 时地址已完整，直接标为 mailbox_fetched（待 Smarty），sync_smarty 进度才会计入
   private stageIpostal1Locations(taskId: number, state: Ipostal1State, stateLocationCount: number, locations: Ipostal1Location[]) {
     if (locations.length === 0) {
       return;
@@ -405,7 +447,7 @@ export class CrawlPipeline {
         @taskId, 'ipostal1', @sourceId, @stateName, @state, @stateUrl, @stateLocationCount,
         @name, @slug, @anytimeUrl, NULL, NULL, 'United States', @city, @streetAddress,
         @postalCode, @fullAddress, @normalizedAddressKey, @priceCents, 'USD',
-        'month', 'discovered', @now, @now
+        'month', 'mailbox_fetched', @now, @now
       )
       ON CONFLICT(task_id, anytime_url) DO UPDATE SET
         state_url = excluded.state_url,
