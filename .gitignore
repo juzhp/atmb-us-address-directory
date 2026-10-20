@@ -40,3 +40,9 @@ design/
 resultHtml/
 docs/
 videos/
+
+# Next.js 自动生成，dev 与 build 写入的路径不同，不跟踪
+apps/web/next-env.d.ts
+
+# Claude Code 本地会话配置
+.claude/
