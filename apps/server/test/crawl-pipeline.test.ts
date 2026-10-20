@@ -1961,7 +1961,7 @@ test('offline iPostal1 export is staged with ATMB de-duplication and imported by
     platform: 'ipostal1',
     taskTypes: ['sync_smarty'],
   });
-  const stats = harness.pipeline.importIpostal1Export(task.id, {
+  const exportData = {
     fetchedAt: null,
     skipped: ['CA (12): Cloudflare challenge'],
     states: [{
@@ -1976,9 +1976,16 @@ test('offline iPostal1 export is staged with ATMB de-duplication and imported by
         ].join(''),
       }),
     }],
-  });
+  };
+  const expectedStats = { states: 1, parsed: 2, skippedAtmb: 1, staged: 1, warnings: ['CA (12): Cloudflare challenge'] };
 
-  assert.deepEqual(stats, { states: 1, parsed: 2, skippedAtmb: 1, staged: 1, warnings: ['CA (12): Cloudflare challenge'] });
+  // 预览只统计不写库
+  assert.deepEqual(harness.pipeline.previewIpostal1Export(exportData), expectedStats);
+  assert.equal((harness.database.sqlite.prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses').get() as { count: number }).count, 0);
+
+  const stats = harness.pipeline.importIpostal1Export(task.id, exportData);
+
+  assert.deepEqual(stats, expectedStats);
 
   await harness.pipeline.runTask(task.id);
 

@@ -2,6 +2,7 @@
 
 import type {
   AddressSource,
+  AdminIpostal1ImportPreviewResponse,
   AdminIpostal1ImportResponse,
   AdminSubtaskListItem,
   AdminSubtaskType,
@@ -66,6 +67,10 @@ export function TaskManagement() {
   const [taskPendingDeletion, setTaskPendingDeletion] = useState<AdminTaskListItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const importInputRef = useRef<HTMLInputElement>(null);
+  // null = 空闲；0–99 上传中；100 = 上传完成、服务端解析中
+  const [importProgress, setImportProgress] = useState<number | null>(null);
+  const [importPreview, setImportPreview] = useState<AdminIpostal1ImportPreviewResponse | null>(null);
+  const [isConfirmingImport, setIsConfirmingImport] = useState(false);
   const { toasts, showToast, dismissToast } = useAdminToasts();
 
   const query = useMemo(() => {
@@ -148,38 +153,62 @@ export function TaskManagement() {
     setPage(1);
   }
 
-  function importIpostal1Export(event: ChangeEvent<HTMLInputElement>) {
+  // 第一步：上传并解析，只拿统计结果，等人工确认
+  async function importIpostal1Export(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
 
-    startTransition(async () => {
-      const body = new FormData();
-      body.append('file', file);
-      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/tasks/ipostal1-import`, {
-        method: 'POST',
-        credentials: 'include',
-        body,
-      });
-      const payload = (await response.json().catch(() => null)) as AdminIpostal1ImportResponse | { message?: string } | null;
+    setImportProgress(0);
+    try {
+      const result = await uploadIpostal1Export(file, setImportProgress);
+      const payload = result.body as AdminIpostal1ImportPreviewResponse | { message?: string } | null;
 
-      if (!response.ok || !payload || !('stats' in payload)) {
-        showToast((payload as { message?: string } | null)?.message ?? '导入失败，请检查文件后重试。', 'error');
+      if (!result.ok || !payload || !('stats' in payload)) {
+        showToast((payload as { message?: string } | null)?.message ?? '上传失败，请检查文件后重试。', 'error');
         return;
       }
 
-      if (payload.stats.warnings.length > 0) {
-        console.warn('iPostal1 导入告警', payload.stats.warnings);
+      setImportPreview(payload);
+    } finally {
+      setImportProgress(null);
+    }
+  }
+
+  // 第二步：确认后才创建任务、写入暂存并进入执行队列
+  async function confirmIpostal1Import() {
+    if (!importPreview) return;
+
+    setIsConfirmingImport(true);
+    try {
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/tasks/ipostal1-import/${importPreview.uploadId}/confirm`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const payload = (await response.json().catch(() => null)) as AdminIpostal1ImportResponse | { message?: string } | null;
+
+      if (!response.ok || !payload || !('item' in payload)) {
+        showToast((payload as { message?: string } | null)?.message ?? '导入失败，请稍后重试。', 'error');
+        return;
       }
 
+      setImportPreview(null);
       setPage(1);
       await loadData();
-      showToast(
-        `已导入 ${payload.stats.states} 个州：解析 ${payload.stats.parsed} 个地点，跳过 ATMB 已收录 ${payload.stats.skippedAtmb} 个，`
-        + `待同步 ${payload.stats.staged} 个${payload.stats.warnings.length ? `，${payload.stats.warnings.length} 条告警见浏览器控制台` : ''}。`,
-        'success',
-      );
+      showToast(`导入任务 ${payload.item.batchCode} 已创建并进入执行队列，待同步 ${payload.stats.staged} 个地址。`, 'success');
+    } finally {
+      setIsConfirmingImport(false);
+    }
+  }
+
+  function cancelIpostal1Import() {
+    if (!importPreview) return;
+    void fetch(`${PUBLIC_API_BASE_URL}/api/admin/tasks/ipostal1-import/${importPreview.uploadId}`, {
+      method: 'DELETE',
+      credentials: 'include',
     });
+    setImportPreview(null);
+    showToast('已取消导入，未创建任务。', 'success');
   }
 
   function createTask() {
@@ -286,15 +315,24 @@ export function TaskManagement() {
             刷新任务
           </button>
           <button
-            disabled={isPending}
+            disabled={importProgress !== null}
             type="button"
-            title="上传按约定格式抓取的 iPostal1 导出文件，创建只含“同步 Smarty”的导入任务"
+            title="上传按约定格式抓取的 iPostal1 导出文件，确认统计后创建只含“同步 Smarty”的导入任务"
             onClick={() => importInputRef.current?.click()}
           >
             <Upload size={16} aria-hidden="true" />
-            导入 iPostal1 离线数据
+            {importProgress === null
+              ? '导入 iPostal1 离线数据'
+              : importProgress < 100
+                ? `上传中 ${importProgress}%`
+                : '解析中…'}
           </button>
-          <input ref={importInputRef} accept="application/json,.json" hidden type="file" onChange={importIpostal1Export} />
+          {importProgress !== null ? (
+            <span className="admin-upload-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={importProgress}>
+              <span style={{ width: `${importProgress}%` }} />
+            </span>
+          ) : null}
+          <input ref={importInputRef} accept="application/json,.json" hidden type="file" onChange={(event) => void importIpostal1Export(event)} />
           <label className="admin-inline-field">
             <span>平台</span>
             <select value={createPlatform} onChange={(event) => setCreatePlatform(event.target.value as AddressSource)}>
@@ -448,6 +486,16 @@ export function TaskManagement() {
           page={subtaskPage}
           onClose={closeSubtasks}
           onPageChange={setSubtaskPage}
+        />
+      ) : null}
+      {importPreview ? (
+        <AdminConfirmDialog
+          title="确认导入 iPostal1 离线数据？"
+          description={<Ipostal1ImportSummary preview={importPreview} />}
+          confirmText="创建导入任务"
+          isPending={isConfirmingImport}
+          onCancel={cancelIpostal1Import}
+          onConfirm={() => void confirmIpostal1Import()}
         />
       ) : null}
       {confirmCreateOpen ? (
@@ -656,6 +704,60 @@ function SubtasksDialog({
         />
       </section>
     </div>
+  );
+}
+
+// fetch 拿不到上传进度，用 XMLHttpRequest 以便显示百分比
+function uploadIpostal1Export(file: File, onProgress: (percent: number) => void) {
+  return new Promise<{ ok: boolean; body: unknown }>((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${PUBLIC_API_BASE_URL}/api/admin/tasks/ipostal1-import`);
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      }
+    };
+    xhr.upload.onload = () => onProgress(100);
+    xhr.onload = () => {
+      let body: unknown = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        body = null;
+      }
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, body });
+    };
+    xhr.onerror = () => resolve({ ok: false, body: null });
+
+    const form = new FormData();
+    form.append('file', file);
+    xhr.send(form);
+  });
+}
+
+const IMPORT_WARNINGS_PREVIEW_LIMIT = 8;
+
+function Ipostal1ImportSummary({ preview }: { preview: AdminIpostal1ImportPreviewResponse }) {
+  const { stats } = preview;
+  const shownWarnings = stats.warnings.slice(0, IMPORT_WARNINGS_PREVIEW_LIMIT);
+
+  return (
+    <span className="admin-import-summary">
+      {preview.fetchedAt ? <span>抓取时间：{preview.fetchedAt}</span> : null}
+      <span>成功解析的州：<strong>{stats.states}</strong></span>
+      <span>解析到的地点：<strong>{stats.parsed}</strong></span>
+      <span>跳过 ATMB 已收录：<strong>{stats.skippedAtmb}</strong></span>
+      <span>将写入待同步：<strong>{stats.staged}</strong></span>
+      {stats.warnings.length > 0 ? (
+        <span className="admin-import-warnings">
+          告警 {stats.warnings.length} 条：
+          {shownWarnings.map((warning) => <span key={warning}>{warning}</span>)}
+          {stats.warnings.length > shownWarnings.length ? <span>…其余 {stats.warnings.length - shownWarnings.length} 条见浏览器控制台</span> : null}
+        </span>
+      ) : null}
+      <span>确认后会创建 iPostal1 任务并进入执行队列，开始同步 Smarty（消耗额度）；取消则不保留任何数据。</span>
+    </span>
   );
 }
 

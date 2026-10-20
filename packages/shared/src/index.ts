@@ -208,6 +208,13 @@ export interface AdminIpostal1ImportStats {
   warnings: string[];
 }
 
+// 上传后仅解析与统计，等人工确认后才创建任务
+export interface AdminIpostal1ImportPreviewResponse {
+  uploadId: string;
+  fetchedAt: string | null;
+  stats: AdminIpostal1ImportStats;
+}
+
 export interface AdminIpostal1ImportResponse {
   item: AdminTaskListItem;
   stats: AdminIpostal1ImportStats;

@@ -686,32 +686,63 @@ const alaskaCards = [2996, 3597].map((storeId) => `
   </article>
 `).join('');
 
-test('imports an iPostal1 offline export into a sync_smarty-only task', async (t) => {
+test('previews an iPostal1 offline export and only creates the task after confirmation', async (t) => {
   const app = await buildTestServer();
   t.after(() => app.close());
   const cookie = await loginCookie(app);
   const upload = multipartJson('ipostal1-export.json', ipostal1ExportFile(alaskaCards));
+  const expectedStats = {
+    states: 1,
+    parsed: 2,
+    skippedAtmb: 0,
+    staged: 2,
+    warnings: ['CA (12): Cloudflare challenge'],
+  };
+  const countTasks = async () => (await app.inject({ method: 'GET', url: '/api/admin/tasks', headers: { cookie } })).json().total as number;
+  const tasksBefore = await countTasks();
 
-  const response = await app.inject({
+  // 第一步：上传只返回统计，不创建任务
+  const preview = await app.inject({
     method: 'POST',
     url: '/api/admin/tasks/ipostal1-import',
     headers: { cookie, 'content-type': upload.contentType },
     payload: upload.payload,
   });
 
-  assert.equal(response.statusCode, 201);
-  const body = response.json();
+  assert.equal(preview.statusCode, 200);
+  const previewBody = preview.json();
+  assert.match(previewBody.uploadId, /^[0-9a-f-]{36}$/);
+  assert.equal(previewBody.fetchedAt, '2026-10-21T08:30:00Z');
+  assert.deepEqual(previewBody.stats, expectedStats);
+  assert.equal(await countTasks(), tasksBefore);
+
+  // 取消：丢弃后无法再确认
+  const cancelled = await app.inject({
+    method: 'POST',
+    url: '/api/admin/tasks/ipostal1-import',
+    headers: { cookie, 'content-type': upload.contentType },
+    payload: upload.payload,
+  });
+  const cancelledId = cancelled.json().uploadId;
+  assert.equal((await app.inject({ method: 'DELETE', url: `/api/admin/tasks/ipostal1-import/${cancelledId}`, headers: { cookie } })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'POST', url: `/api/admin/tasks/ipostal1-import/${cancelledId}/confirm`, headers: { cookie } })).statusCode, 404);
+  assert.equal(await countTasks(), tasksBefore);
+
+  // 第二步：确认后创建只含 sync_smarty 的任务
+  const confirm = await app.inject({
+    method: 'POST',
+    url: `/api/admin/tasks/ipostal1-import/${previewBody.uploadId}/confirm`,
+    headers: { cookie },
+  });
+
+  assert.equal(confirm.statusCode, 201);
+  const body = confirm.json();
   assert.equal(body.item.platform, 'ipostal1');
   assert.equal(body.item.createdType, 'manual');
   assert.match(body.item.note, /导入 iPostal1 离线数据（抓取于 2026-10-21T08:30:00Z）/);
   assert.equal(body.item.totalCount, 1);
-  assert.deepEqual(body.stats, {
-    states: 1,
-    parsed: 2,
-    skippedAtmb: 0,
-    staged: 2,
-    warnings: ['CA (12): Cloudflare challenge'],
-  });
+  assert.deepEqual(body.stats, expectedStats);
+  assert.equal(await countTasks(), tasksBefore + 1);
 
   const subtasksResponse = await app.inject({
     method: 'GET',
@@ -721,11 +752,19 @@ test('imports an iPostal1 offline export into a sync_smarty-only task', async (t
   assert.deepEqual(subtasksResponse.json().items.map((item: { taskType: string }) => item.taskType), ['sync_smarty']);
   assert.equal(subtasksResponse.json().items[0].progress.total, 2);
 
-  const conflict = await app.inject({
+  // 同一个 uploadId 不能重复确认；有任务执行中时新的确认被拒绝
+  assert.equal((await app.inject({ method: 'POST', url: `/api/admin/tasks/ipostal1-import/${previewBody.uploadId}/confirm`, headers: { cookie } })).statusCode, 404);
+  const another = await app.inject({
     method: 'POST',
     url: '/api/admin/tasks/ipostal1-import',
     headers: { cookie, 'content-type': upload.contentType },
     payload: upload.payload,
+  });
+  assert.equal(another.statusCode, 200);
+  const conflict = await app.inject({
+    method: 'POST',
+    url: `/api/admin/tasks/ipostal1-import/${another.json().uploadId}/confirm`,
+    headers: { cookie },
   });
   assert.equal(conflict.statusCode, 409);
 });
@@ -753,4 +792,6 @@ test('rejects invalid iPostal1 export uploads', async (t) => {
 
   const unauthenticated = await app.inject({ method: 'POST', url: '/api/admin/tasks/ipostal1-import' });
   assert.equal(unauthenticated.statusCode, 401);
+  const unauthenticatedConfirm = await app.inject({ method: 'POST', url: '/api/admin/tasks/ipostal1-import/x/confirm' });
+  assert.equal(unauthenticatedConfirm.statusCode, 401);
 });
