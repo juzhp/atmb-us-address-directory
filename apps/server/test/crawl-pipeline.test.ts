@@ -1622,7 +1622,7 @@ function insertAddress(database: DatabaseContext, input: {
   priceCents: number;
   rdi: 'Residential' | 'Commercial';
   cmra: 'Yes' | 'No';
-  smartyCheckedAt: string;
+  smartyCheckedAt: string | null;
   smartyRaw?: string;
   source?: 'anytimemailbox' | 'ipostal1';
   isActive?: boolean;
@@ -2010,4 +2010,72 @@ test('offline iPostal1 export is staged with ATMB de-duplication and imported by
   assert.equal(existingRow?.priceCents, 1299);
   assert.equal((harness.database.sqlite.prepare('SELECT COUNT(*) AS count FROM crawl_discovered_addresses WHERE task_id = ?').get(task.id) as { count: number }).count, 1);
   assert.equal(rows.find((row) => row.anytimeUrl.endsWith('madison-hwy-72'))?.isActive, 1);
+});
+
+test('offline iPostal1 import still syncs existing iPostal1 rows that never got a Smarty result', async () => {
+  const smartyCalls: SmartyLookupInput[][] = [];
+  const harness = buildHarness([], {
+    async lookupAddresses(_credentials, inputs) {
+      smartyCalls.push(inputs);
+      return inputs.map((input): SmartyLookupResult => ({
+        inputId: input.inputId,
+        rdi: 'Residential',
+        cmra: 'No',
+        raw: { analysis: { dpv_cmra: 'N' }, metadata: { rdi: 'Residential' } },
+      }));
+    },
+  }, {
+    fetcher: {
+      async fetchHtml(url) {
+        throw new Error(`offline import must not fetch ${url}`);
+      },
+    },
+  });
+
+  // 旧数据：iPostal1 行存在但从未成功查过 Smarty
+  insertAddress(harness.database, {
+    name: 'Mobile - 2 Vanished Ave',
+    slug: 'mobile-2-vanished-ave',
+    anytimeUrl: 'https://ipostal1.com/secure_checkout.php?stID=9999',
+    streetAddress: '2 Vanished Ave',
+    city: 'Mobile',
+    state: 'AL',
+    postalCode: '36602',
+    priceCents: 1299,
+    rdi: 'Commercial',
+    cmra: 'Yes',
+    smartyCheckedAt: null,
+    source: 'ipostal1',
+  });
+
+  const task = harness.taskService.createTask({ createdBy: 'Test Admin', createdType: 'manual', platform: 'ipostal1', taskTypes: ['sync_smarty'] });
+  const exportData = {
+    fetchedAt: null,
+    skipped: [],
+    states: [{
+      stateId: '1',
+      code: 'AL',
+      name: 'Alabama',
+      body: JSON.stringify({
+        num_results: 1,
+        display: ipostal1Card({ storeId: '9999', street: '2 Vanished Ave', city: 'Mobile', zip: '36602', price: '$19.99' }),
+      }),
+    }],
+  };
+
+  const preview = harness.pipeline.previewIpostal1Export(exportData);
+  assert.equal(preview.stats.skippedExisting, 0);
+  assert.deepEqual(preview.staged.map((row) => row.storeId), ['9999']);
+
+  harness.pipeline.importIpostal1Export(task.id, exportData);
+  await harness.pipeline.runTask(task.id);
+
+  assertTaskCompleted(harness.database, task.id);
+  assert.equal(smartyCalls.length, 1);
+  const rows = readAddresses(harness.database);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.source, 'ipostal1');
+  assert.equal(rows[0]?.rdi, 'Residential');
+  assert.equal(rows[0]?.cmra, 'No');
+  assert.equal(rows[0]?.priceCents, 1999);
 });

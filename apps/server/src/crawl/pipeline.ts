@@ -426,7 +426,8 @@ export class CrawlPipeline {
     };
   }
 
-  // 离线导入不更新已有的 iPostal1 地址：按下单链接（每家门店固定）找已存在的行
+  // 离线导入不更新已有的 iPostal1 地址：按下单链接（每家门店固定）找已存在且已拿到 Smarty 结果的行；
+  // 没有 RDI/CMRA 的旧数据不算“已存在”，照常进入待同步去查 Smarty
   private filterOutExistingIpostal1(locations: Ipostal1Location[]) {
     const unique: Ipostal1Location[] = [];
     const existing: Ipostal1Location[] = [];
@@ -435,7 +436,15 @@ export class CrawlPipeline {
       return { unique, existing };
     }
 
-    const lookup = this.options.database.sqlite.prepare("SELECT 1 FROM addresses WHERE source = 'ipostal1' AND anytime_url = ?");
+    const lookup = this.options.database.sqlite.prepare(`
+      SELECT 1
+      FROM addresses
+      WHERE source = 'ipostal1'
+        AND anytime_url = ?
+        AND smarty_checked_at IS NOT NULL
+        AND rdi IN ('Residential', 'Commercial')
+        AND cmra IN ('Yes', 'No')
+    `);
     for (const location of locations) {
       (lookup.get(location.detailUrl) ? existing : unique).push(location);
     }
