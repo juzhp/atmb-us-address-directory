@@ -253,6 +253,42 @@ const PROXY_FAILURE_CODES = new Set([
   'ENETUNREACH',
   'EAI_AGAIN',
 ]);
+const STAGE_ROW_SELECT_SQL = `
+  SELECT
+    id,
+    task_id AS taskId,
+    source,
+    source_id AS sourceId,
+    name,
+    slug,
+    anytime_url AS anytimeUrl,
+    signup_url AS signupUrl,
+    myear_url AS myearUrl,
+    country,
+    state,
+    state_name AS stateName,
+    state_url AS stateUrl,
+    city,
+    street_address AS streetAddress,
+    postal_code AS postalCode,
+    full_address AS fullAddress,
+    normalized_address_key AS normalizedAddressKey,
+    price_cents AS priceCents,
+    price_currency AS priceCurrency,
+    price_period AS pricePeriod,
+    mailbox_min AS mailboxMin,
+    mailbox_max AS mailboxMax,
+    mailbox_count AS mailboxCount,
+    mailbox_numbers_json AS mailboxNumbersJson,
+    rdi,
+    cmra,
+    smarty_raw AS smartyRaw,
+    smarty_checked_at AS smartyCheckedAt,
+    smarty_error AS smartyError,
+    smarty_source_address_id AS smartySourceAddressId,
+    imported_address_id AS importedAddressId
+  FROM crawl_discovered_addresses
+`;
 // 单个子任务内允许跳过的地址失败比例：低于该比例记录失败并继续，超过则终止子任务
 const ITEM_FAILURE_RATIO_LIMIT = 0.1;
 const FETCH_FAILURE_PREFIX = '抓取失败: ';
@@ -1289,46 +1325,48 @@ export class CrawlPipeline {
   private getStageRows(taskId: number) {
     return this.options.database.sqlite
       .prepare(`
-        SELECT
-          id,
-          task_id AS taskId,
-          source,
-          source_id AS sourceId,
-          name,
-          slug,
-          anytime_url AS anytimeUrl,
-          signup_url AS signupUrl,
-          myear_url AS myearUrl,
-          country,
-          state,
-          state_name AS stateName,
-          state_url AS stateUrl,
-          city,
-          street_address AS streetAddress,
-          postal_code AS postalCode,
-          full_address AS fullAddress,
-          normalized_address_key AS normalizedAddressKey,
-          price_cents AS priceCents,
-          price_currency AS priceCurrency,
-          price_period AS pricePeriod,
-          mailbox_min AS mailboxMin,
-          mailbox_max AS mailboxMax,
-          mailbox_count AS mailboxCount,
-          mailbox_numbers_json AS mailboxNumbersJson,
-          rdi,
-          cmra,
-          smarty_raw AS smartyRaw,
-          smarty_checked_at AS smartyCheckedAt,
-          smarty_error AS smartyError,
-          smarty_source_address_id AS smartySourceAddressId,
-          imported_address_id AS importedAddressId
-        FROM crawl_discovered_addresses
+        ${STAGE_ROW_SELECT_SQL}
         WHERE task_id = ?
           AND crawl_status <> 'skipped'
           AND error_message IS NULL
         ORDER BY id ASC
       `)
       .all(taskId) as StageRow[];
+  }
+
+  // Smarty 拿不到结果的待同步地址，由管理员手动指定 RDI/CMRA 后直接导入主地址表
+  applyManualSmartyResult(stageIds: number[], input: { rdi: AddressRdi; cmra: AddressCmra; setBy: string }) {
+    const ids = [...new Set(stageIds.filter((id) => Number.isInteger(id) && id > 0))];
+    if (ids.length === 0) {
+      return { imported: 0 };
+    }
+
+    const rows = this.options.database.sqlite
+      .prepare(`
+        ${STAGE_ROW_SELECT_SQL}
+        WHERE id IN (${ids.map(() => '?').join(', ')})
+          AND imported_address_id IS NULL
+          AND crawl_status <> 'skipped'
+        ORDER BY id ASC
+      `)
+      .all(...ids) as StageRow[];
+    const setAt = new Date().toISOString();
+    let imported = 0;
+
+    this.options.database.sqlite.transaction(() => {
+      for (const row of rows) {
+        const enriched = this.applySmartyResult(row, {
+          rdi: input.rdi,
+          cmra: input.cmra,
+          raw: { manual: true, setBy: input.setBy, setAt },
+        });
+        if (this.upsertAddressFromStage(enriched) !== null) {
+          imported += 1;
+        }
+      }
+    })();
+
+    return { imported };
   }
 
   private findSuccessfulSmartyCache(row: StageRow) {

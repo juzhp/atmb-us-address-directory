@@ -1154,6 +1154,28 @@ a {
   padding: 12px 24px 0;
 }
 
+.admin-manual-rdi-cmra {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.admin-manual-rdi-cmra label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #52677f;
+}
+
+.admin-manual-rdi-cmra select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .admin-import-details-tabs {
   display: flex;
   gap: 8px;

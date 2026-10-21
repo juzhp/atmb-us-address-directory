@@ -801,3 +801,104 @@ test('filters admin addresses by platform and exposes source', () => {
     database.sqlite.close();
   }
 });
+
+test('manually sets RDI/CMRA on staged addresses and imports them without Smarty', async (t) => {
+  const databaseUrl = join(process.cwd(), `.address-manual-rdi-${Date.now()}.sqlite`);
+  rmSync(databaseUrl, { force: true });
+  const { app } = await buildTestServer(databaseUrl);
+  t.after(async () => {
+    await app.close();
+    rmSync(databaseUrl, { force: true });
+  });
+  const cookie = await loginCookie(app);
+  const now = '2026-10-21T00:00:00.000Z';
+  let stageId = 0;
+  const sqlite = new Database(databaseUrl);
+
+  try {
+    sqlite
+      .prepare(`
+        INSERT INTO crawl_tasks (
+          id, batch_code, generated_at, created_type, platform, status, note, created_by,
+          pending_count, success_count, failed_count, total_count, created_at, updated_at
+        ) VALUES (
+          201, 'TASK-MANUAL-RDI', @now, 'manual', 'ipostal1', 'completed', NULL, 'test',
+          0, 0, 0, 0, @now, @now
+        )
+      `)
+      .run({ now });
+    const result = sqlite
+      .prepare(`
+        INSERT INTO crawl_discovered_addresses (
+          task_id, source, source_id, state_name, state, state_url, state_location_count,
+          name, slug, anytime_url, signup_url, myear_url, country, city, street_address,
+          postal_code, full_address, normalized_address_key, price_cents, price_currency,
+          price_period, crawl_status, created_at, updated_at
+        ) VALUES (
+          201, 'ipostal1', '7777', 'Wyoming', 'WY', 'https://example.test/wyoming', 1,
+          'Pinedale - 34 N Franklin Ave', 'pinedale-34-n-franklin-ave',
+          'https://ipostal1.com/secure_checkout.php?stID=7777', NULL, NULL,
+          'United States', 'Pinedale', '34 N Franklin Ave Ste 687', '82941',
+          '34 N Franklin Ave Ste 687 Pinedale, WY 82941 United States',
+          '34 n franklin ave ste 687|pinedale|wy|82941',
+          999, 'USD', 'month', 'smarty_failed', @now, @now
+        )
+      `)
+      .run({ now });
+    stageId = Number(result.lastInsertRowid);
+  } finally {
+    sqlite.close();
+  }
+
+  const invalid = await app.inject({
+    method: 'POST',
+    url: '/api/admin/addresses/manual-rdi-cmra',
+    headers: { cookie },
+    payload: { stageIds: [stageId], rdi: 'Unknown', cmra: 'No' },
+  });
+  assert.equal(invalid.statusCode, 400);
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/admin/addresses/manual-rdi-cmra',
+    headers: { cookie },
+    payload: { stageIds: [stageId], rdi: 'Residential', cmra: 'No' },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { imported: 1 });
+
+  const listResponse = await app.inject({
+    method: 'GET',
+    url: '/api/admin/addresses?keyword=Pinedale',
+    headers: { cookie },
+  });
+  const items = listResponse.json().items as Array<{ recordSource: string; source: string; rdi: string; cmra: string; anytimeUrl: string }>;
+  assert.equal(items.length, 1);
+  assert.equal(items[0]?.recordSource, 'address');
+  assert.equal(items[0]?.source, 'ipostal1');
+  assert.equal(items[0]?.rdi, 'Residential');
+  assert.equal(items[0]?.cmra, 'No');
+  assert.equal(items[0]?.anytimeUrl, 'https://ipostal1.com/secure_checkout.php?stID=7777');
+
+  const verify = new Database(databaseUrl, { readonly: true });
+  try {
+    const address = verify.prepare("SELECT smarty_raw AS smartyRaw, smarty_checked_at AS smartyCheckedAt FROM addresses WHERE source = 'ipostal1'").get() as { smartyRaw: string; smartyCheckedAt: string };
+    assert.ok(address.smartyCheckedAt);
+    assert.deepEqual(JSON.parse(address.smartyRaw).manual, true);
+    const stage = verify.prepare('SELECT crawl_status AS status, imported_address_id AS importedAddressId FROM crawl_discovered_addresses WHERE id = ?').get(stageId) as { status: string; importedAddressId: number | null };
+    assert.equal(stage.status, 'imported');
+    assert.ok(stage.importedAddressId);
+  } finally {
+    verify.close();
+  }
+
+  // 已导入的行不能再次设置
+  const again = await app.inject({
+    method: 'POST',
+    url: '/api/admin/addresses/manual-rdi-cmra',
+    headers: { cookie },
+    payload: { stageIds: [stageId], rdi: 'Commercial', cmra: 'Yes' },
+  });
+  assert.equal(again.statusCode, 404);
+});

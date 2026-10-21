@@ -105,7 +105,7 @@ export async function createServer(options: CreateServerOptions = {}) {
 
   app.get('/health', async () => ({ ok: true }));
   registerAuthRoutes(app, authService);
-  registerAddressRoutes(app, addressService, config, taskService, taskExecutor);
+  registerAddressRoutes(app, addressService, config, taskService, taskExecutor, crawlPipeline);
   registerSettingsRoutes(app, settingsService);
   registerTaskRoutes(app, taskService, authService, taskExecutor, crawlPipeline);
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ADDRESS_SOURCES } from '@atmb/shared';
 
 import type { ServerConfig } from '../auth/config.js';
+import type { CrawlPipeline } from '../crawl/pipeline.js';
 import type { TaskExecutorLike } from '../tasks/scheduler.js';
 import type { TaskService } from '../tasks/service.js';
 import type { AddressService } from './service.js';
@@ -56,12 +57,19 @@ const smartySyncTaskSchema = z.object({
   stageIds: z.array(z.coerce.number().int().positive()).min(1).max(100),
 });
 
+const manualRdiCmraSchema = z.object({
+  stageIds: z.array(z.coerce.number().int().positive()).min(1).max(100),
+  rdi: rdiSchema,
+  cmra: cmraSchema,
+});
+
 export function registerAddressRoutes(
   app: FastifyInstance,
   addressService: AddressService,
   config: ServerConfig,
   taskService?: TaskService,
   taskExecutor?: TaskExecutorLike | null,
+  crawlPipeline?: Pick<CrawlPipeline, 'applyManualSmartyResult'> | null,
 ) {
   app.get('/api/admin/addresses', async (request, reply) => {
     if (!requireAdmin(request, reply)) return reply;
@@ -204,6 +212,32 @@ export function registerAddressRoutes(
     void taskExecutor?.enqueue(item.id);
 
     return reply.code(201).send({ item });
+  });
+
+  // Smarty 拿不到结果的待同步地址：手动指定 RDI/CMRA 后直接导入
+  app.post('/api/admin/addresses/manual-rdi-cmra', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return reply;
+    if (!crawlPipeline) {
+      return reply.code(503).send({ message: '导入服务不可用' });
+    }
+
+    const parsed = manualRdiCmraSchema.safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      return reply.code(400).send({ message: '请选择待同步地址，并指定 RDI 与 CMRA' });
+    }
+
+    const result = crawlPipeline.applyManualSmartyResult(parsed.data.stageIds, {
+      rdi: parsed.data.rdi,
+      cmra: parsed.data.cmra,
+      setBy: 'admin',
+    });
+
+    if (result.imported === 0) {
+      return reply.code(404).send({ message: '未找到可设置的待同步地址' });
+    }
+
+    return { imported: result.imported };
   });
 
   app.post('/api/admin/addresses/smarty-sync-tasks', async (request, reply) => {

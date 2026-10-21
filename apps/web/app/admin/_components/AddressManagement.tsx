@@ -72,6 +72,10 @@ export function AddressManagement() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUpdatingMailbox, setIsUpdatingMailbox] = useState(false);
   const [isCreatingSmartySyncTask, setIsCreatingSmartySyncTask] = useState(false);
+  const [manualRdiCmraOpen, setManualRdiCmraOpen] = useState(false);
+  const [manualRdi, setManualRdi] = useState<AddressRdi>('Residential');
+  const [manualCmra, setManualCmra] = useState<AddressCmra>('No');
+  const [isApplyingManualRdiCmra, setIsApplyingManualRdiCmra] = useState(false);
   const [isPending, startTransition] = useTransition();
   const { toasts, showToast, dismissToast } = useAdminToasts();
 
@@ -229,6 +233,38 @@ export function AddressManagement() {
     }
   }
 
+  // Smarty 拿不到结果的待同步地址：手动指定 RDI/CMRA 后直接导入主地址表
+  async function applyManualRdiCmra() {
+    if (selectedSmartyStageIds.length === 0) return;
+    setIsApplyingManualRdiCmra(true);
+
+    try {
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/addresses/manual-rdi-cmra`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          stageIds: selectedSmartyStageIds,
+          rdi: manualRdi,
+          cmra: manualCmra,
+        }),
+      });
+      const body = await response.json().catch(() => ({})) as { message?: string; imported?: number };
+
+      if (!response.ok) {
+        showToast(body.message || '手动设置 RDI/CMRA 失败，请稍后重试。', 'error');
+        return;
+      }
+
+      setManualRdiCmraOpen(false);
+      setSelectedSmartyStageIds([]);
+      startTransition(loadData);
+      showToast(`已为 ${body.imported ?? 0} 个地址设置 RDI=${manualRdi}、CMRA=${manualCmra} 并导入主地址表。`, 'success');
+    } finally {
+      setIsApplyingManualRdiCmra(false);
+    }
+  }
+
   function isSmartySyncItem(item: AdminAddressListItem) {
     return item.recordSource === 'discovered' && (!item.rdi || !item.cmra);
   }
@@ -303,6 +339,15 @@ export function AddressManagement() {
           >
             <RefreshCw size={16} aria-hidden="true" />
             {isCreatingSmartySyncTask ? '创建中...' : `同步 RDI/CMRA${selectedSmartyStageIds.length ? `(${selectedSmartyStageIds.length})` : ''}`}
+          </button>
+          <button
+            disabled={isApplyingManualRdiCmra || selectedSmartyStageIds.length === 0}
+            type="button"
+            title="Smarty 拿不到结果时，为选中的待同步地址手动指定 RDI/CMRA 并直接导入"
+            onClick={() => setManualRdiCmraOpen(true)}
+          >
+            <Edit3 size={16} aria-hidden="true" />
+            {`手动设置 RDI/CMRA${selectedSmartyStageIds.length ? `(${selectedSmartyStageIds.length})` : ''}`}
           </button>
           <button disabled={isSyncing} type="button" title="创建后台同步任务" onClick={() => setConfirmSyncOpen(true)}>
             <RefreshCw size={16} aria-hidden="true" />
@@ -592,6 +637,34 @@ export function AddressManagement() {
             setConfirmMailboxUpdateOpen(false);
             void createMailboxUpdateTask();
           }}
+        />
+      ) : null}
+      {manualRdiCmraOpen ? (
+        <AdminConfirmDialog
+          title="手动设置选中地址的 RDI/CMRA？"
+          description={`将为 ${selectedSmartyStageIds.length} 个待同步地址写入下面指定的 RDI 与 CMRA，并直接导入主地址表（不经过 Smarty，记录会标记为手动设置）。`}
+          content={(
+            <div className="admin-manual-rdi-cmra">
+              <label>
+                <span>RDI</span>
+                <select value={manualRdi} onChange={(event) => setManualRdi(event.target.value as AddressRdi)}>
+                  <option value="Residential">Residential</option>
+                  <option value="Commercial">Commercial</option>
+                </select>
+              </label>
+              <label>
+                <span>CMRA</span>
+                <select value={manualCmra} onChange={(event) => setManualCmra(event.target.value as AddressCmra)}>
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </label>
+            </div>
+          )}
+          confirmText="设置并导入"
+          isPending={isApplyingManualRdiCmra}
+          onCancel={() => setManualRdiCmraOpen(false)}
+          onConfirm={() => void applyManualRdiCmra()}
         />
       ) : null}
       {confirmSmartySyncOpen ? (
