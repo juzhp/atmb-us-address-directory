@@ -121,11 +121,11 @@ const smartyCandidateWhereSql = `
           AND cached.rdi IN ('Residential', 'Commercial')
           AND cached.cmra IN ('Yes', 'No')
       )
-      AND NOT EXISTS (
-        SELECT 1
+      -- 用 NOT IN 让 SQLite 只算一次缓存键集合（自动建临时索引）；写成相关子查询会对每条暂存行全扫 addresses，几千条时要数秒
+      AND stage.normalized_address_key NOT IN (
+        SELECT LOWER(cached.street_address || '|' || cached.city || '|' || cached.state || '|' || cached.postal_code)
         FROM addresses cached
-        WHERE LOWER(cached.street_address || '|' || cached.city || '|' || cached.state || '|' || cached.postal_code) = stage.normalized_address_key
-          AND cached.smarty_checked_at IS NOT NULL
+        WHERE cached.smarty_checked_at IS NOT NULL
           AND cached.rdi IN ('Residential', 'Commercial')
           AND cached.cmra IN ('Yes', 'No')
       )
