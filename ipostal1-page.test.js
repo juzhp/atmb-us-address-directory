@@ -63,7 +63,9 @@ test('existing public pages stay pinned to the ATMB source', () => {
   assert.match(addressesPage, /getPublicAddressesPageData\(filters, 'anytimemailbox'\)/);
   assert.match(residentialData, /source: AddressSource = 'anytimemailbox'/);
   assert.match(residentialData, /getPublicAddressesPageData\(toAddressFilters\(filters\), source\)/);
-  assert.equal((homeData.match(/a\.source = 'anytimemailbox'/g) ?? []).length, 2);
+  // 首页州选择器仍只统计 ATMB；精选地址两个平台都可展示
+  assert.equal((homeData.match(/a\.source = 'anytimemailbox'/g) ?? []).length, 1);
+  assert.match(homeData, /is_featured = 1/);
   assert.match(publicData, /const where = \['a\.source = \?', 'a\.is_active = 1', 'a\.is_visible = 1'\]/);
 });
 

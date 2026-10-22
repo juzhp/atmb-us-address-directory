@@ -2,7 +2,9 @@ import Database from 'better-sqlite3';
 import {
   C1_PRECHECK_LABELS,
   getUsStateDisplay,
+  PLATFORMS,
   type AddressC1Precheck,
+  type AddressSource,
   type AddressUspsCmra,
 } from '@atmb/shared';
 
@@ -22,6 +24,8 @@ export interface HomeStateOption {
 
 export interface HomeFeaturedAddress {
   id: number;
+  source: AddressSource;
+  platformLabel: string;
   name: string;
   streetAddress: string;
   city: string;
@@ -51,6 +55,7 @@ export interface HomePageData {
 
 interface FeaturedAddressRow {
   id: number;
+  source: AddressSource;
   name: string;
   anytimeUrl: string;
   state: string;
@@ -137,6 +142,7 @@ function listFeaturedAddresses(sqlite: Database.Database) {
     .prepare(`
       SELECT
         a.id,
+        a.source,
         a.name,
         a.anytime_url AS anytimeUrl,
         a.state,
@@ -158,8 +164,7 @@ function listFeaturedAddresses(sqlite: Database.Database) {
       FROM addresses a
       LEFT JOIN address_images img
         ON img.address_id = a.id AND img.is_primary = 1
-      WHERE a.source = 'anytimemailbox'
-        AND a.is_active = 1
+      WHERE a.is_active = 1
         AND a.is_visible = 1
         AND a.is_featured = 1
         AND a.rdi = 'Residential'
@@ -174,6 +179,8 @@ function listFeaturedAddresses(sqlite: Database.Database) {
 
     return {
       id: row.id,
+      source: row.source,
+      platformLabel: PLATFORMS[row.source]?.label ?? row.source,
       name: row.name,
       streetAddress: row.streetAddress,
       city: row.city,
@@ -189,7 +196,8 @@ function listFeaturedAddresses(sqlite: Database.Database) {
       uspsCmraUpdatedAt: row.uspsCmraUpdatedAt ? formatPublicDateTime(row.uspsCmraUpdatedAt) : null,
       c1PrecheckLabel: row.c1Precheck ? C1_PRECHECK_LABELS[row.c1Precheck] : '—',
       c1PrecheckUpdatedAt: row.c1PrecheckUpdatedAt ? formatPublicDateTime(row.c1PrecheckUpdatedAt) : null,
-      mailbox: formatMailboxRange(row.mailboxMin, row.mailboxMax),
+      // iPostal1 不公开邮箱编号
+      mailbox: row.source === 'ipostal1' ? '—' : formatMailboxRange(row.mailboxMin, row.mailboxMax),
       imageUrl: row.imageUrl,
       detailUrl: buildAddressDetailRedirectUrl(row.anytimeUrl),
       sourceDetailUrl: row.anytimeUrl,

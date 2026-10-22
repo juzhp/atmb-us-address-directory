@@ -4215,6 +4215,12 @@ a {
   margin-top: 12px;
 }
 
+.home-address-chips span.platform {
+  background: #eef0f5;
+  color: #3b4a63;
+  font-weight: 600;
+}
+
 .home-address-chips span {
   display: flex;
   align-items: center;

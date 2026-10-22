@@ -384,6 +384,7 @@ export default async function HomePage() {
                     </address>
                     <div className="home-address-price">{address.price}</div>
                     <div className="home-address-chips">
+                      <span className="platform">{address.platformLabel}</span>
                       <span className={address.rdi === 'Residential' ? 'good' : 'warn'}>{address.rdi}</span>
                       <span className={address.cmra === 'No' ? 'good' : 'warn'}>{address.cmra}</span>
                     </div>
