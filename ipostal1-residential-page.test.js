@@ -13,6 +13,7 @@ test('ipostal1 residential page reuses the residential data layer with the iPost
   assert.match(source, /name="state" type="hidden"/);
   assert.match(source, /href=\{address\.detailUrl\}/);
   assert.doesNotMatch(source, /address\.mailbox\}/);
+  assert.match(source, /className="addresses-row addresses-row--no-mailbox"/);
   assert.doesNotMatch(source, /Anytime Mailbox|ATMB/);
   assert.doesNotMatch(source, /'use client'|"use client"/);
 });

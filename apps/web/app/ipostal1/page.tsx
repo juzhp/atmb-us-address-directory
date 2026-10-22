@@ -504,7 +504,7 @@ async function AddressResults({
         <div className="addresses-list" role="list">
           <AddressRowClickState />
           {data.items.map((address) => (
-            <article className="addresses-row" data-address-row-id={address.id} key={address.id} role="listitem">
+            <article className="addresses-row addresses-row--no-mailbox" data-address-row-id={address.id} key={address.id} role="listitem">
               <div className="addresses-main">
                 <h3><a href={address.detailUrl} rel="noreferrer" target="_blank">{address.name}</a></h3>
                 <p>{address.streetAddress}<br />{address.cityLine}</p>

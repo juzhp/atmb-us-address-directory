@@ -23,6 +23,8 @@ test('ipostal1 page links through the referral-gated redirect and hides mailbox 
   assert.match(source, /addresses-detail-button/);
   assert.doesNotMatch(source, /href=\{address\.anytimeUrl\}/);
   assert.doesNotMatch(source, /address\.mailbox\}/);
+  // 少一列时用修饰类调整网格，避免操作列掉进空格子
+  assert.match(source, /className="addresses-row addresses-row--no-mailbox"/);
   assert.match(source, /AddressRowClickState/);
   assert.match(source, /data-address-row-id=\{address\.id\}/);
 });

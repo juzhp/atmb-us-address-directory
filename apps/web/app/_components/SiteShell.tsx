@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { SiteNav } from './SiteNav';
+
 const CONTACT_EMAIL = 'juzhpcom@gmail.com';
 
 type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'ipostal1Residential' | 'guide' | 'faq';
@@ -15,7 +17,7 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
         <Link className="site-brand" href="/" aria-label="Anytime Mailbox住宅地址指南首页">
           <span>Anytime Mailbox住宅地址指南</span>
         </Link>
-        <nav className="site-nav" aria-label="主导航">
+        <SiteNav>
           <Link className={navClass(active, 'home')} href="/">首页</Link>
           <a className="site-nav-recommend" href="/go/get-us-residential-address" rel="noreferrer" target="_blank">获得美国住宅地址</a>
           <Link className={navClass(active, 'addresses')} href="/addresses">ATMB 所有地址</Link>
@@ -41,7 +43,7 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
           <a className="site-github-link" href="https://github.com/juzhp/atmb-us-address-directory" rel="noreferrer" target="_blank" aria-label="GitHub">
             <GitHubMark />
           </a>
-        </nav>
+        </SiteNav>
       </div>
     </header>
   );

@@ -2592,6 +2592,20 @@ a {
   width: 100%;
 }
 
+/* 移动端导航展开/收起按钮，桌面端隐藏 */
+.site-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--home-line, #d9e3ea);
+  border-radius: 10px;
+  background: #fff;
+  color: #08234a;
+  cursor: pointer;
+}
+
 .site-nav a {
   display: inline-flex;
   align-items: center;
@@ -3201,16 +3215,30 @@ a {
   }
 
   .site-header-inner {
+    position: relative;
     gap: 12px;
     padding: 14px 0;
   }
 
   .site-brand {
     min-width: 0;
+    padding-right: 52px;
+  }
+
+  .site-nav-toggle {
+    display: inline-flex;
+    position: absolute;
+    top: 14px;
+    right: 0;
   }
 
   .site-nav {
+    display: none;
     justify-content: flex-start;
+  }
+
+  .site-nav.is-open {
+    display: flex;
   }
 
   .home-hero,
@@ -5523,6 +5551,11 @@ a {
   font-weight: 700;
 }
 
+/* iPostal1 列表没有邮箱编号列，少一格 */
+.addresses-row.addresses-row--no-mailbox {
+  grid-template-columns: 1.3fr 0.68fr 0.62fr 0.62fr 0.62fr 0.62fr 0.66fr 136px;
+}
+
 .addresses-row {
   position: relative;
   display: grid;
@@ -5882,6 +5915,10 @@ a {
   .addresses-row {
     grid-template-columns: 1.2fr repeat(7, 0.72fr) 118px;
     gap: 10px;
+  }
+
+  .addresses-row.addresses-row--no-mailbox {
+    grid-template-columns: 1.2fr repeat(6, 0.72fr) 118px;
   }
 
   .residential-page .addresses-search-form {
