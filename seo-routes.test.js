@@ -28,7 +28,7 @@ test('robots route exposes the public site and blocks private routes', async () 
 
 test('sitemap route lists current public SEO pages with production urls', async () => {
   const route = await import('./apps/web/app/sitemap.ts');
-  const sitemap = route.default();
+  const sitemap = await route.default();
 
   assert.deepEqual(
     sitemap.map((entry) => entry.url),
@@ -40,6 +40,7 @@ test('sitemap route lists current public SEO pages with production urls', async 
       `${siteUrl}/guide/anytime-mailbox-tutorial`,
       `${siteUrl}/guide/usps-form-1583`,
       `${siteUrl}/guide/us-residential-address-verification`,
+      `${siteUrl}/guide/us-credit-card-address`,
     ],
   );
   assert.equal(sitemap[0].priority, 1);
@@ -57,7 +58,7 @@ test('llms.txt route serves markdown with an h1 and the public page list', async
   assert.equal(body.match(/^# /gm).length, 1);
 
   const sitemapRoute = await import('./apps/web/app/sitemap.ts');
-  for (const entry of sitemapRoute.default()) {
+  for (const entry of await sitemapRoute.default()) {
     assert.ok(body.includes(entry.url), `llms.txt is missing ${entry.url}`);
   }
 });

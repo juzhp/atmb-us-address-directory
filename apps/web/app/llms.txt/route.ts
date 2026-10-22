@@ -34,7 +34,7 @@ ${pages}
 
 \`/residential-addresses\` 已固定 RDI = Residential，支持 \`q\`、\`state\`、\`cmra\`、\`usps\`、\`c1\`、\`page\`，不支持 \`rdi\` 与 \`price\`。
 
-\`/ipostal1\` 列出 iPostal1 平台的地址（不含 Anytime Mailbox 已收录的门店），支持与 \`/addresses\` 相同的全部参数；iPostal1 地址没有邮箱编号范围。
+\`/ipostal1\` 列出 iPostal1 平台的美国地址，支持与 \`/addresses\` 相同的全部参数；iPostal1 地址没有邮箱编号范围。
 
 示例：${SITE_URL}/addresses?state=CA&rdi=Residential&cmra=No&price=lt20
 

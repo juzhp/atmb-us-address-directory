@@ -26,7 +26,7 @@ export const publicRoutes = [
     priority: 0.9,
     title: 'iPostal1 美国地址大全',
     summary:
-      'iPostal1 平台收录地址的搜索与筛选页，只列出 Anytime Mailbox 未收录的门店。支持关键词、州、RDI、CMRA、USPS CMRA、C1 预审与价格区间组合筛选，点击地址直达 iPostal1 下单页。',
+      'iPostal1 平台美国地址的搜索与筛选页。支持关键词、州、RDI、CMRA、USPS CMRA、C1 预审与价格区间组合筛选，点击地址直达 iPostal1 下单页。',
   },
   {
     path: '/guide/anytime-mailbox-tutorial',

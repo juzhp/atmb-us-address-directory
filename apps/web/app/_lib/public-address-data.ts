@@ -541,5 +541,6 @@ function escapeLike(value: string) {
 }
 
 function isUnavailableDatabaseError(error: unknown) {
-  return error instanceof Error && /(no such table|unable to open database file)/i.test(error.message);
+  return error instanceof Error
+    && /(no such table|unable to open database file|cannot open database because the directory does not exist)/i.test(error.message);
 }

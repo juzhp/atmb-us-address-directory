@@ -37,7 +37,7 @@ export const revalidate = 3600;
 const listMetadata: Metadata = {
   title: 'iPostal1 美国地址大全 | 按州搜索 RDI/CMRA/C1 预审筛选住宅地址',
   description:
-    '浏览并搜索 iPostal1 平台的美国地址（不含 Anytime Mailbox 已收录的门店）：支持城市/州/ZIP/街道关键词、州筛选、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与价格区间，快速缩小美国真实住宅地址候选，点击地址直达 iPostal1 下单页。',
+    '浏览并搜索 iPostal1 平台的美国地址：支持城市/州/ZIP/街道关键词、州筛选、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与价格区间，快速缩小美国真实住宅地址候选，点击地址直达 iPostal1 下单页。',
   keywords: [
     'iPostal1 地址',
     'iPostal1',
@@ -76,8 +76,8 @@ const seoCards = [
 
 const faqs = [
   {
-    question: 'iPostal1 地址和 Anytime Mailbox 地址有什么区别？',
-    answer: 'iPostal1 是另一家虚拟邮箱平台。本页只列出 Anytime Mailbox 未收录的 iPostal1 门店，同一门店不会在两个列表里重复出现；RDI、CMRA 等字段同样来自 Smarty 验证。',
+    question: 'iPostal1 是什么？',
+    answer: 'iPostal1 是一家美国虚拟邮箱平台，在美国有 4,000 多个邮箱地点，地址起价约 US$ 9.99/月，支持邮件扫描、转寄和包裹代收。本页收录它在美国的地点，并用 RDI、CMRA 等字段辅助判断哪些更接近真实住宅地址。',
   },
   {
     question: '为什么 iPostal1 地址没有邮箱编号范围？',
@@ -165,7 +165,7 @@ export default async function Ipostal1AddressesPage({ searchParams }: Ipostal1Ad
               <div>
                 <h1>iPostal1 美国地址</h1>
                 <p className="addresses-hero-copy">
-                  浏览和搜索 iPostal1 平台的美国地址数据（只列出 Anytime Mailbox 未收录的门店）。你可以用关键词查找城市、州、ZIP 或街道，
+                  浏览和搜索 iPostal1 平台的美国地址数据。你可以用关键词查找城市、州、ZIP 或街道，
                   也可以通过州筛选、RDI、CMRA、USPS CMRA、C1 预审（Capital One 地址预审核）与价格区间快速缩小候选范围，再通过街景跳转和每日监控变化判断是否值得租用。
                 </p>
                 <div className="addresses-proof-list" aria-label="页面能力">
