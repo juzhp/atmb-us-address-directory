@@ -61,7 +61,8 @@ test('existing public pages stay pinned to the ATMB source', () => {
   const publicData = readFileSync('apps/web/app/_lib/public-address-data.ts', 'utf8');
 
   assert.match(addressesPage, /getPublicAddressesPageData\(filters, 'anytimemailbox'\)/);
-  assert.match(residentialData, /getPublicAddressesPageData\(toAddressFilters\(filters\), 'anytimemailbox'\)/);
+  assert.match(residentialData, /source: AddressSource = 'anytimemailbox'/);
+  assert.match(residentialData, /getPublicAddressesPageData\(toAddressFilters\(filters\), source\)/);
   assert.equal((homeData.match(/a\.source = 'anytimemailbox'/g) ?? []).length, 2);
   assert.match(publicData, /const where = \['a\.source = \?', 'a\.is_active = 1', 'a\.is_visible = 1'\]/);
 });

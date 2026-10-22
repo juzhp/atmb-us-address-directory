@@ -1,9 +1,8 @@
 import Link from 'next/link';
-import { Mail } from 'lucide-react';
 
 const CONTACT_EMAIL = 'juzhpcom@gmail.com';
 
-type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'guide' | 'faq';
+type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'ipostal1Residential' | 'guide' | 'faq';
 
 function navClass(active: SiteNavKey, key: SiteNavKey) {
   return active === key ? 'site-nav-active' : undefined;
@@ -19,9 +18,10 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
         <nav className="site-nav" aria-label="主导航">
           <Link className={navClass(active, 'home')} href="/">首页</Link>
           <a className="site-nav-recommend" href="/go/get-us-residential-address" rel="noreferrer" target="_blank">获得美国住宅地址</a>
-          <Link className={navClass(active, 'addresses')} href="/addresses">所有地址</Link>
-          <Link className={navClass(active, 'residential')} href="/residential-addresses">住宅地址</Link>
-          <Link className={navClass(active, 'ipostal1')} href="/ipostal1">iPostal1 地址</Link>
+          <Link className={navClass(active, 'addresses')} href="/addresses">ATMB 所有地址</Link>
+          <Link className={navClass(active, 'residential')} href="/residential-addresses">ATMB 住宅地址</Link>
+          <Link className={navClass(active, 'ipostal1')} href="/ipostal1">iPostal1 所有地址</Link>
+          <Link className={navClass(active, 'ipostal1Residential')} href="/ipostal1-residential-addresses">iPostal1 住宅地址</Link>
           <div className="site-nav-group">
             <Link
               className={navClass(active, 'guide')}
@@ -40,9 +40,6 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
           <Link className={navClass(active, 'faq')} href={active === 'home' ? '#faq' : '/#faq'}>FAQ</Link>
           <a className="site-github-link" href="https://github.com/juzhp/atmb-us-address-directory" rel="noreferrer" target="_blank" aria-label="GitHub">
             <GitHubMark />
-          </a>
-          <a className="site-github-link" href={`mailto:${CONTACT_EMAIL}`} aria-label={`联系邮箱 ${CONTACT_EMAIL}`} title={CONTACT_EMAIL}>
-            <Mail size={18} aria-hidden="true" />
           </a>
         </nav>
       </div>
@@ -65,9 +62,10 @@ export function SiteFooter() {
           </p>
         </div>
         <nav aria-label="页脚导航">
-          <Link href="/addresses">所有地址</Link>
-          <Link href="/residential-addresses">住宅地址</Link>
-          <Link href="/ipostal1">iPostal1 地址</Link>
+          <Link href="/addresses">ATMB 所有地址</Link>
+          <Link href="/residential-addresses">ATMB 住宅地址</Link>
+          <Link href="/ipostal1">iPostal1 所有地址</Link>
+          <Link href="/ipostal1-residential-addresses">iPostal1 住宅地址</Link>
           <Link href="/guide/anytime-mailbox-tutorial">注册教程</Link>
           <Link href="/guide/us-residential-address-verification">地址验证</Link>
           <Link href="/guide/us-credit-card-address">信用卡地址</Link>

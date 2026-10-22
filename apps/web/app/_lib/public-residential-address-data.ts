@@ -1,3 +1,5 @@
+import type { AddressSource } from '@atmb/shared';
+
 import {
   getPublicAddressesPageData,
   type PublicAddressesPageData,
@@ -19,8 +21,9 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 export async function getPublicResidentialAddressesPageData(
   filters: PublicResidentialAddressFilters,
+  source: AddressSource = 'anytimemailbox',
 ): Promise<PublicAddressesPageData> {
-  return getPublicAddressesPageData(toAddressFilters(filters), 'anytimemailbox');
+  return getPublicAddressesPageData(toAddressFilters(filters), source);
 }
 
 export function parsePublicResidentialAddressFilters(
@@ -39,6 +42,7 @@ export function parsePublicResidentialAddressFilters(
 export function buildResidentialAddressesPageUrl(
   filters: PublicResidentialAddressFilters,
   overrides: Partial<PublicResidentialAddressFilters> = {},
+  basePath = '/residential-addresses',
 ) {
   const nextFilters: PublicResidentialAddressFilters = { ...filters, ...overrides };
   const params = new URLSearchParams();
@@ -51,7 +55,7 @@ export function buildResidentialAddressesPageUrl(
   if (nextFilters.page > 1) params.set('page', String(nextFilters.page));
 
   const query = params.toString();
-  return `${query ? `/residential-addresses?${query}` : '/residential-addresses'}${PUBLIC_RESIDENTIAL_RESULT_HASH}`;
+  return `${query ? `${basePath}?${query}` : basePath}${PUBLIC_RESIDENTIAL_RESULT_HASH}`;
 }
 
 function toAddressFilters(filters: PublicResidentialAddressFilters): PublicAddressFilters {
