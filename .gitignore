@@ -46,3 +46,6 @@ apps/web/next-env.d.ts
 
 # Claude Code 本地会话配置
 .claude/
+
+# 推广文章素材，不入库
+promo/

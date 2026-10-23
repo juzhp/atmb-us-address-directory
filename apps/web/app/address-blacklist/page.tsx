@@ -177,9 +177,15 @@ export default async function AddressBlacklistPage({ searchParams }: BlacklistPa
               <h2 id="blacklist-list-title">黑名单地址列表</h2>
               <p>每个地址下列出用户反馈的问题和来源链接。</p>
             </div>
-            <Suspense fallback={null}>
-              <BlacklistRangePill dataPromise={dataPromise} />
-            </Suspense>
+            <div className="blacklist-section-actions">
+              <Suspense fallback={null}>
+                <BlacklistRangePill dataPromise={dataPromise} />
+              </Suspense>
+              <a className="blacklist-submit-link" href="#blacklist-submit-title">
+                <Flag size={16} aria-hidden="true" />
+                提交黑名单地址
+              </a>
+            </div>
           </div>
 
           <Suspense fallback={<BlacklistResultsSkeleton />}>

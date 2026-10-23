@@ -6591,6 +6591,40 @@ a {
   text-decoration: underline;
 }
 
+/* 列表标题右侧：数据多时也能直接跳到底部的提交表单 */
+.blacklist-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.blacklist-submit-link {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 0 16px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.blacklist-submit-link:hover {
+  background: var(--teal-dark);
+  color: #fff;
+}
+
+#blacklist-submit-title {
+  scroll-margin-top: 96px;
+}
+
 .blacklist-submit-panel {
   border: 1px solid var(--line);
   border-radius: 10px;
