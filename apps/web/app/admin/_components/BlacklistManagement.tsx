@@ -6,6 +6,7 @@ import { Check, Pencil, Plus, Search, Trash2, Wand2, X } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
 
 import { PUBLIC_API_BASE_URL } from '../../lib/api';
+import { ExpandableText } from '../../_components/ExpandableText';
 import { AdminConfirmDialog } from './AdminConfirmDialog';
 import { AdminToastStack, useAdminToasts } from './AdminToast';
 
@@ -215,7 +216,7 @@ export function BlacklistManagement() {
                 <tr key={item.id}>
                   <td><strong>{item.streetAddress}</strong></td>
                   <td>{item.city}, {item.state} {item.postalCode}</td>
-                  <td><div className="blacklist-reason-cell">{item.reason}</div></td>
+                  <td><ExpandableText className="blacklist-reason-cell" text={item.reason} /></td>
                   <td>
                     {item.sourceUrl ? (
                       <a href={item.sourceUrl} rel="noreferrer" target="_blank">查看</a>

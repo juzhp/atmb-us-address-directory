@@ -24,6 +24,7 @@ import {
 import { getPublicHeadCode } from '../_lib/public-head-code';
 import { ActiveFilterChips, type ActiveFilterChip } from '../_components/ActiveFilterChips';
 import { BlacklistSubmitForm } from '../_components/BlacklistSubmitForm';
+import { ExpandableText } from '../_components/ExpandableText';
 import { PublicHeadCode } from '../_components/PublicHeadCode';
 import { SiteFooter, SiteHeader } from '../_components/SiteShell';
 
@@ -303,7 +304,7 @@ async function BlacklistResults({
               <ol className="blacklist-reasons">
                 {entry.reasons.map((item) => (
                   <li key={item.id}>
-                    <p>{item.reason}</p>
+                    <ExpandableText text={item.reason} />
                     <div className="blacklist-reason-meta">
                       <span>收录于 {item.approvedAt}</span>
                       {item.sourceUrl ? (

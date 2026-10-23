@@ -6527,12 +6527,47 @@ a {
   gap: 12px;
 }
 
-.blacklist-reasons li p {
-  margin: 0 0 6px;
+.blacklist-reasons .expandable-text {
+  margin-bottom: 6px;
+}
+
+.blacklist-reasons .expandable-text-body {
   color: #213a5a;
   line-height: 1.65;
+}
+
+/* 超过两行默认收起，可展开 */
+.expandable-text-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  margin: 0;
+  overflow: hidden;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.expandable-text-body.expanded {
+  display: block;
+  overflow: visible;
+}
+
+.expandable-text > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--teal-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.expandable-text > button:hover {
+  text-decoration: underline;
 }
 
 .blacklist-reason-meta {
@@ -6727,12 +6762,14 @@ a {
 }
 
 .blacklist-reason-cell {
+  min-width: 220px;
   max-width: 360px;
+}
+
+.blacklist-reason-cell .expandable-text-body {
   color: #213a5a;
   font-size: 13px;
   line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .blacklist-review-meta {

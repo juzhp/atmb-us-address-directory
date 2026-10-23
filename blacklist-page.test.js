@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { mkdtempSync, readFileSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { join } = require('node:path');
 const test = require('node:test');
 
 test('address blacklist page is a server component built on the blacklist data layer', () => {
@@ -10,6 +12,7 @@ test('address blacklist page is a server component built on the blacklist data l
   assert.match(source, /FAQPage/);
   assert.match(source, /<SiteHeader active="blacklist" \/>/);
   assert.match(source, /<BlacklistSubmitForm \/>/);
+  assert.match(source, /<ExpandableText text=\{item\.reason\} \/>/);
   assert.match(source, /#blacklist-list-title/);
   assert.match(source, /rel="nofollow noreferrer noopener"/);
   assert.doesNotMatch(source, /'use client'|"use client"/);
@@ -52,6 +55,47 @@ test('blacklist page urls preserve the keyword under the base path', async () =>
   );
   assert.equal(helpers.buildBlacklistPageUrl({ q: '', page: 1 }), '/address-blacklist#blacklist-list-title');
   assert.deepEqual(helpers.parsePublicBlacklistFilters({ q: ['  90001 '], page: '0' }), { q: '90001', page: 1 });
+});
+
+test('public blacklist search matches full addresses, partial words and chinese state names', async (t) => {
+  const Database = require('better-sqlite3');
+  const { ensureDatabaseSchema } = await import('./packages/db/src/index.ts');
+  const dir = mkdtempSync(join(tmpdir(), 'atmb-blacklist-'));
+  const file = join(dir, 'test.sqlite');
+  const db = new Database(file);
+  ensureDatabaseSchema(db);
+  const insert = db.prepare(`
+    INSERT INTO address_blacklist (
+      street_address, city, state, postal_code, normalized_address_key, reason, status, submitted_by,
+      reviewed_at, created_at, updated_at
+    ) VALUES (@street, @city, @state, @zip, @key, 'reason', @status, 'admin', @now, @now, @now)
+  `);
+  const now = new Date().toISOString();
+  insert.run({ street: '1234 Wilshire Blvd, Suite 500', city: 'Los Angeles', state: 'CA', zip: '90017', key: 'a', status: 'approved', now });
+  insert.run({ street: '1234 Wilshire Blvd, Suite 500', city: 'Los Angeles', state: 'CA', zip: '90017', key: 'a', status: 'approved', now });
+  insert.run({ street: '500 Congress Ave', city: 'Austin', state: 'TX', zip: '78701', key: 'b', status: 'approved', now });
+  insert.run({ street: '9 Pending Rd', city: 'Austin', state: 'TX', zip: '78702', key: 'c', status: 'pending', now });
+  db.close();
+
+  const previousUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = file;
+  t.after(() => {
+    if (previousUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousUrl;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const helpers = await import('./apps/web/app/_lib/public-blacklist-data.ts');
+  const search = async (q) => (await helpers.getPublicBlacklistPageData({ q, page: 1 })).items.map((item) => item.streetAddress);
+
+  assert.deepEqual(await search('1234 Wilshire Blvd, Suite 500, Los Angeles, CA 90017'), ['1234 Wilshire Blvd, Suite 500']);
+  assert.deepEqual(await search('1234 wilshire blvd suite 500 los angeles ca 90017-1234'), ['1234 Wilshire Blvd, Suite 500']);
+  assert.deepEqual(await search('加州 90017'), ['1234 Wilshire Blvd, Suite 500']);
+  assert.deepEqual(await search('Austin'), ['500 Congress Ave']);
+  assert.deepEqual(await search('德州'), ['500 Congress Ave']);
+  assert.deepEqual(await search('Wilshire Austin'), []);
+  assert.equal((await helpers.getPublicBlacklistPageData({ q: '', page: 1 })).total, 2);
+  assert.equal((await helpers.getPublicBlacklistPageData({ q: '90017', page: 1 })).items[0].reasons.length, 2);
 });
 
 test('one-line us address parser fills street, city, state and zip', async () => {

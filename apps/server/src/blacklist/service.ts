@@ -150,13 +150,17 @@ export class BlacklistService {
       where.push('status = @status');
     }
 
-    if (query.keyword?.trim()) {
-      params.keyword = `%${query.keyword.trim()}%`;
-      where.push(`(
-        street_address LIKE @keyword OR city LIKE @keyword OR state LIKE @keyword
-        OR postal_code LIKE @keyword OR reason LIKE @keyword
-      )`);
-    }
+    // 关键词按空格/逗号拆词，每个词都要出现在地址或问题描述里，整行地址也能搜到
+    (query.keyword ?? '')
+      .split(/[\s,，、]+/)
+      .filter(Boolean)
+      .slice(0, 12)
+      .forEach((token, index) => {
+        params[`keyword${index}`] = `%${token}%`;
+        where.push(`(
+          street_address || ', ' || city || ', ' || state || ' ' || postal_code || ' ' || reason
+        ) LIKE @keyword${index}`);
+      });
 
     const whereSql = where.join(' AND ');
     const total = (this.database.sqlite

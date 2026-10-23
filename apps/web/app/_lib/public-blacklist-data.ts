@@ -192,24 +192,21 @@ export async function getPublicBlacklistLastUpdated(): Promise<Date | null> {
   }
 }
 
+const FULL_ADDRESS_SQL = "(b.street_address || ', ' || b.city || ', ' || b.state || ' ' || b.postal_code)";
+
+// 关键词按空格/逗号拆成词，每个词都要能在"街道, 城市, 州 ZIP"拼接串里找到（或命中州名），
+// 这样整行地址、无逗号写法、"加州 90017" 这类混合输入都能搜到
 function buildBlacklistWhere(filters: PublicBlacklistFilters) {
   const where = ["b.status = 'approved'"];
   const params: string[] = [];
 
-  if (filters.q) {
-    const keyword = `%${escapeLike(filters.q)}%`;
-    const keywordStateCode = findUsStateCodeByKeyword(filters.q);
-    where.push(`(
-      b.street_address LIKE ? ESCAPE '\\'
-      OR b.city LIKE ? ESCAPE '\\'
-      OR b.state LIKE ? ESCAPE '\\'
-      OR b.postal_code LIKE ? ESCAPE '\\'
-      ${keywordStateCode ? 'OR b.state = ?' : ''}
-    )`);
-    params.push(keyword, keyword, keyword, keyword);
+  for (const token of tokenizeKeyword(filters.q)) {
+    const stateCode = findUsStateCodeByKeyword(token);
+    where.push(`(${FULL_ADDRESS_SQL} LIKE ? ESCAPE '\\'${stateCode ? ' OR b.state = ?' : ''})`);
+    params.push(`%${escapeLike(token)}%`);
 
-    if (keywordStateCode) {
-      params.push(keywordStateCode);
+    if (stateCode) {
+      params.push(stateCode);
     }
   }
 
@@ -217,6 +214,15 @@ function buildBlacklistWhere(filters: PublicBlacklistFilters) {
     where: `WHERE ${where.join(' AND ')}`,
     params,
   };
+}
+
+export function tokenizeKeyword(value: string) {
+  return value
+    .split(/[\s,，、]+/)
+    .map((token) => token.replace(/^[.#-]+|[.#-]+$/g, ''))
+    .map((token) => (/^\d{5}-\d{4}$/.test(token) ? token.slice(0, 5) : token))
+    .filter(Boolean)
+    .slice(0, 12);
 }
 
 function groupEntries(keys: string[], rows: EntryRow[]) {

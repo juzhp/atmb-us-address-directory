@@ -184,6 +184,13 @@ test('admin can create approved entries, review, edit and delete', async (t) => 
   const all = await app.inject({ method: 'GET', url: '/api/admin/blacklist?status=all&q=pasadena', headers: { cookie } });
   assert.equal(all.json().total, 1);
 
+  const fullAddress = await app.inject({
+    method: 'GET',
+    url: `/api/admin/blacklist?status=all&q=${encodeURIComponent('123 Main St, Suite 5, Pasadena, CA 90001')}`,
+    headers: { cookie },
+  });
+  assert.equal(fullAddress.json().total, 1);
+
   const emptyPatch = await app.inject({
     method: 'PATCH',
     url: `/api/admin/blacklist/${pendingItem.id}`,
