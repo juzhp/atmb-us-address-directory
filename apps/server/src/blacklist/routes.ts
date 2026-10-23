@@ -64,6 +64,15 @@ const idSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+const markBodySchema = z.object({
+  addressId: z.number().int().positive(),
+});
+
+const markParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  addressId: z.coerce.number().int().positive(),
+});
+
 export function registerBlacklistRoutes(
   app: FastifyInstance,
   blacklistService: BlacklistService,
@@ -142,6 +151,70 @@ export function registerBlacklistRoutes(
     } catch (error) {
       if (error instanceof Error && error.message === 'BLACKLIST_NOT_FOUND') {
         return reply.code(404).send({ message: '黑名单记录不存在' });
+      }
+      throw error;
+    }
+  });
+
+  app.get('/api/admin/blacklist/:id/matches', async (request, reply) => {
+    if (!requireAdmin(request, reply, authService)) return reply;
+    const params = idSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ message: '黑名单 ID 不正确' });
+    }
+
+    try {
+      return { items: blacklistService.listMatches(params.data.id) };
+    } catch (error) {
+      if (error instanceof Error && error.message === 'BLACKLIST_NOT_FOUND') {
+        return reply.code(404).send({ message: '黑名单记录不存在' });
+      }
+      throw error;
+    }
+  });
+
+  app.post('/api/admin/blacklist/:id/marks', async (request, reply) => {
+    const user = requireAdmin(request, reply, authService);
+    if (!user) return reply;
+    const params = idSchema.safeParse(request.params);
+    const parsed = markBodySchema.safeParse(request.body);
+
+    if (!params.success || !parsed.success) {
+      return reply.code(400).send({ message: '标注参数不正确' });
+    }
+
+    try {
+      blacklistService.markAddress(params.data.id, parsed.data.addressId, user.username);
+      return reply.code(204).send();
+    } catch (error) {
+      if (error instanceof Error && error.message === 'BLACKLIST_NOT_FOUND') {
+        return reply.code(404).send({ message: '黑名单记录不存在' });
+      }
+      if (error instanceof Error && error.message === 'ADDRESS_NOT_FOUND') {
+        return reply.code(404).send({ message: '本地地址不存在' });
+      }
+      if (error instanceof Error && error.message === 'BLACKLIST_NOT_APPROVED') {
+        return reply.code(409).send({ message: '只有已通过的黑名单才能标注本地地址' });
+      }
+      throw error;
+    }
+  });
+
+  app.delete('/api/admin/blacklist/:id/marks/:addressId', async (request, reply) => {
+    if (!requireAdmin(request, reply, authService)) return reply;
+    const params = markParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ message: '标注参数不正确' });
+    }
+
+    try {
+      blacklistService.unmarkAddress(params.data.id, params.data.addressId);
+      return reply.code(204).send();
+    } catch (error) {
+      if (error instanceof Error && error.message === 'MARK_NOT_FOUND') {
+        return reply.code(404).send({ message: '该地址没有标注到这条黑名单' });
       }
       throw error;
     }

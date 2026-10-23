@@ -6883,3 +6883,138 @@ a {
     padding: 16px;
   }
 }
+
+/* 地址列表 / 首页卡片：被标注黑名单的地址在名称旁显示警示图标 */
+/* 选择器带上 h3 a 以压过 .addresses-main h3 a / a:visited 的颜色规则 */
+.addresses-unsafe-flag,
+h3 a.addresses-unsafe-flag,
+h3 a.addresses-unsafe-flag:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 8px;
+  border: 1.5px solid #d93636;
+  border-radius: 6px;
+  background: #d93636;
+  color: #fff;
+  vertical-align: -6px;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(217, 54, 54, 0.35);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.addresses-unsafe-flag svg {
+  color: inherit;
+  stroke: currentColor;
+}
+
+/* 悬停反色：白底红图标，保持边框可见 */
+.addresses-unsafe-flag:hover,
+.addresses-unsafe-flag:focus-visible,
+h3 a.addresses-unsafe-flag:hover,
+h3 a.addresses-unsafe-flag:focus-visible {
+  background: #fff;
+  color: #d93636;
+  outline: none;
+}
+
+/* 后台：黑名单匹配本地地址弹窗 */
+.blacklist-match-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 24px;
+  max-height: 52vh;
+  overflow: auto;
+}
+
+.blacklist-match-item > div {
+  min-width: 0;
+}
+
+.blacklist-match-item p {
+  word-break: break-word;
+}
+
+.blacklist-match-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.blacklist-match-item.marked {
+  border-color: #e3b4b4;
+  background: var(--red-soft);
+}
+
+.blacklist-match-item strong {
+  display: block;
+  color: #173052;
+  font-size: 14px;
+}
+
+.blacklist-match-item p {
+  margin: 4px 0 0;
+  color: #405973;
+  font-size: 13px;
+}
+
+.blacklist-match-item .admin-badge {
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.blacklist-match-item button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #fff;
+  color: #173052;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.blacklist-match-item button.primary {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: #fff;
+}
+
+.blacklist-match-item button.primary:hover:not(:disabled) {
+  background: var(--teal-dark);
+}
+
+.blacklist-match-item button.danger {
+  border-color: #b74242;
+  color: #b74242;
+}
+
+.blacklist-match-item button.danger:hover:not(:disabled) {
+  background: #b74242;
+  color: #fff;
+}
+
+.blacklist-match-item button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.blacklist-match-empty {
+  padding: 24px 12px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}

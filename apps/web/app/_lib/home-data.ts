@@ -10,7 +10,12 @@ import {
 
 export { buildAddressDetailRedirectUrl } from './referral-redirect';
 import { buildAddressDetailRedirectUrl } from './referral-redirect';
-import { formatPublicDateTime } from './public-address-data';
+import {
+  BLACKLIST_ADDRESS_SELECT,
+  BLACKLIST_MARK_JOIN,
+  buildPublicBlacklistLookupUrl,
+  formatPublicDateTime,
+} from './public-address-data';
 
 export interface HomeStateOption {
   code: string;
@@ -46,6 +51,7 @@ export interface HomeFeaturedAddress {
   detailUrl: string;
   sourceDetailUrl: string;
   mapsUrl: string;
+  blacklistUrl: string | null;
 }
 
 export interface HomePageData {
@@ -74,6 +80,7 @@ interface FeaturedAddressRow {
   mailboxMin: number | null;
   mailboxMax: number | null;
   imageUrl: string | null;
+  blacklistAddress: string | null;
 }
 
 interface StateRow {
@@ -160,10 +167,12 @@ function listFeaturedAddresses(sqlite: Database.Database) {
         a.c1_precheck_updated_at AS c1PrecheckUpdatedAt,
         a.mailbox_min AS mailboxMin,
         a.mailbox_max AS mailboxMax,
-        img.public_url AS imageUrl
+        img.public_url AS imageUrl,
+        ${BLACKLIST_ADDRESS_SELECT}
       FROM addresses a
       LEFT JOIN address_images img
         ON img.address_id = a.id AND img.is_primary = 1
+      ${BLACKLIST_MARK_JOIN}
       WHERE a.is_active = 1
         AND a.is_visible = 1
         AND a.is_featured = 1
@@ -202,6 +211,7 @@ function listFeaturedAddresses(sqlite: Database.Database) {
       detailUrl: buildAddressDetailRedirectUrl(row.anytimeUrl),
       sourceDetailUrl: row.anytimeUrl,
       mapsUrl: buildGoogleMapsSearchUrl(fullAddress),
+      blacklistUrl: buildPublicBlacklistLookupUrl(row.blacklistAddress),
     } satisfies HomeFeaturedAddress;
   });
 }

@@ -1,8 +1,14 @@
 'use client';
 
-import type { AdminBlacklistItem, AdminBlacklistListResponse, BlacklistStatus } from '@atmb/shared';
-import { BLACKLIST_REASON_MAX_LENGTH, BLACKLIST_STATUS_LABELS, parseOneLineUsAddress, US_STATES } from '@atmb/shared';
-import { Check, Pencil, Plus, Search, Trash2, Wand2, X } from 'lucide-react';
+import type {
+  AdminBlacklistItem,
+  AdminBlacklistListResponse,
+  AdminBlacklistMatchItem,
+  AdminBlacklistMatchesResponse,
+  BlacklistStatus,
+} from '@atmb/shared';
+import { BLACKLIST_REASON_MAX_LENGTH, BLACKLIST_STATUS_LABELS, parseOneLineUsAddress, PLATFORMS, US_STATES } from '@atmb/shared';
+import { Check, MapPinned, Pencil, Plus, Search, Trash2, Wand2, X } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
 
 import { PUBLIC_API_BASE_URL } from '../../lib/api';
@@ -19,7 +25,7 @@ interface Filters {
 
 const initialFilters: Filters = {
   keyword: '',
-  status: 'pending',
+  status: 'all',
 };
 
 const statusTones: Record<BlacklistStatus, 'green' | 'amber' | 'red'> = {
@@ -34,6 +40,7 @@ export function BlacklistManagement() {
   const [page, setPage] = useState(1);
   const [list, setList] = useState<AdminBlacklistListResponse | null>(null);
   const [dialog, setDialog] = useState<{ item: AdminBlacklistItem | null } | null>(null);
+  const [matching, setMatching] = useState<AdminBlacklistItem | null>(null);
   const [rejecting, setRejecting] = useState<AdminBlacklistItem | null>(null);
   const [rejectNote, setRejectNote] = useState('');
   const [deleting, setDeleting] = useState<AdminBlacklistItem | null>(null);
@@ -148,6 +155,7 @@ export function BlacklistManagement() {
           <p className="admin-kicker">地址黑名单</p>
           <p>
             游客提交的地址默认为待审核，通过后才在前台 /address-blacklist 展示；同一地址可以有多条原因。
+            已通过的条目可以匹配并标注本地地址，标注后前台地址旁会显示警示图标。
             {list ? ` 当前待审核 ${list.pendingCount} 条。` : ''}
           </p>
         </div>
@@ -214,7 +222,12 @@ export function BlacklistManagement() {
             <tbody>
               {list?.items.map((item) => (
                 <tr key={item.id}>
-                  <td><strong>{item.streetAddress}</strong></td>
+                  <td>
+                    <strong>{item.streetAddress}</strong>
+                    {item.markedCount > 0 ? (
+                      <div className="blacklist-review-meta">已标注 {item.markedCount} 个本地地址</div>
+                    ) : null}
+                  </td>
                   <td>{item.city}, {item.state} {item.postalCode}</td>
                   <td><ExpandableText className="blacklist-reason-cell" text={item.reason} /></td>
                   <td>
@@ -238,6 +251,12 @@ export function BlacklistManagement() {
                         <button type="button" disabled={isActing} onClick={() => void approve(item)}>
                           <Check size={14} aria-hidden="true" />
                           通过
+                        </button>
+                      ) : null}
+                      {item.status === 'approved' ? (
+                        <button type="button" onClick={() => setMatching(item)}>
+                          <MapPinned size={14} aria-hidden="true" />
+                          匹配地址
                         </button>
                       ) : null}
                       {item.status !== 'rejected' ? (
@@ -303,6 +322,16 @@ export function BlacklistManagement() {
           }}
         />
       ) : null}
+      {matching ? (
+        <BlacklistMatchDialog
+          item={matching}
+          onClose={() => {
+            setMatching(null);
+            startTransition(loadData);
+          }}
+          onError={(message) => showToast(message, 'error')}
+        />
+      ) : null}
       {rejecting ? (
         <AdminConfirmDialog
           title="拒绝这条黑名单提交？"
@@ -329,7 +358,7 @@ export function BlacklistManagement() {
       {deleting ? (
         <AdminConfirmDialog
           title="删除这条黑名单记录？"
-          description={`${deleting.streetAddress}, ${deleting.city}, ${deleting.state} ${deleting.postalCode}。删除后不可恢复。`}
+          description={`${deleting.streetAddress}, ${deleting.city}, ${deleting.state} ${deleting.postalCode}。删除后不可恢复，已标注的本地地址会同时取消标注。`}
           confirmText="删除"
           tone="danger"
           isPending={isActing}
@@ -341,8 +370,129 @@ export function BlacklistManagement() {
   );
 }
 
-function Badge({ children, title, tone }: { children: ReactNode; title?: string; tone: 'green' | 'amber' | 'red' }) {
+function Badge({ children, title, tone }: { children: ReactNode; title?: string; tone: 'green' | 'amber' | 'red' | 'blue' }) {
   return <span className={`admin-badge ${tone}`} title={title}>{children}</span>;
+}
+
+// 已通过的黑名单匹配本地地址：同 ZIP 同门牌号为候选，可逐条标注 / 取消标注
+function BlacklistMatchDialog({
+  item,
+  onClose,
+  onError,
+}: {
+  item: AdminBlacklistItem;
+  onClose: () => void;
+  onError: (message: string) => void;
+}) {
+  const [matches, setMatches] = useState<AdminBlacklistMatchItem[] | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  async function load() {
+    const response = await fetch(`${PUBLIC_API_BASE_URL}/api/admin/blacklist/${item.id}/matches`, { credentials: 'include' });
+
+    if (!response.ok) {
+      onError('加载候选地址失败');
+      setMatches([]);
+      return;
+    }
+
+    setMatches(((await response.json()) as AdminBlacklistMatchesResponse).items);
+  }
+
+  useEffect(() => {
+    void load();
+  }, [item.id]);
+
+  async function toggle(match: AdminBlacklistMatchItem) {
+    setBusyId(match.id);
+
+    try {
+      const marked = match.markedBlacklistId === item.id;
+      const response = await fetch(
+        marked
+          ? `${PUBLIC_API_BASE_URL}/api/admin/blacklist/${item.id}/marks/${match.id}`
+          : `${PUBLIC_API_BASE_URL}/api/admin/blacklist/${item.id}/marks`,
+        {
+          method: marked ? 'DELETE' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: marked ? undefined : JSON.stringify({ addressId: match.id }),
+        },
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        onError(body?.message ?? '操作失败');
+        return;
+      }
+
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="admin-modal-backdrop">
+      <section className="address-dialog blacklist-dialog" role="dialog" aria-modal="true" aria-labelledby="blacklist-match-title">
+        <div className="admin-dialog-heading">
+          <div>
+            <h2 id="blacklist-match-title">匹配本地地址</h2>
+            <span>{item.streetAddress}, {item.city}, {item.state} {item.postalCode} · 同 ZIP 且门牌号相同的地址会列为候选</span>
+          </div>
+          <button type="button" onClick={onClose}>
+            关闭
+          </button>
+        </div>
+        {matches === null ? (
+          <div className="blacklist-match-empty">加载中…</div>
+        ) : matches.length === 0 ? (
+          <div className="blacklist-match-empty">没有找到相近的本地地址</div>
+        ) : (
+          <div className="blacklist-match-list">
+            {matches.map((match) => {
+              const markedHere = match.markedBlacklistId === item.id;
+              const markedElsewhere = match.markedBlacklistId !== null && !markedHere;
+              const pendingImport = match.recordSource === 'discovered';
+              return (
+                <div className={markedHere ? 'blacklist-match-item marked' : 'blacklist-match-item'} key={`${match.recordSource}-${match.id}`}>
+                  <div>
+                    <Badge tone={match.matchType === 'exact' ? 'green' : 'amber'}>
+                      {match.matchType === 'exact' ? '精确匹配' : '相似'}
+                    </Badge>
+                    <Badge tone="blue">{PLATFORMS[match.source]?.label ?? match.source}</Badge>
+                    {pendingImport ? <Badge tone="amber">待同步</Badge> : null}
+                    {markedElsewhere ? <Badge tone="red">已标注到其他黑名单 #{match.markedBlacklistId}</Badge> : null}
+                    <strong>{match.name}</strong>
+                    <p>{match.streetAddress}, {match.city}, {match.state} {match.postalCode}</p>
+                  </div>
+                  {pendingImport ? (
+                    <button type="button" disabled title="该地址还在抓取暂存表中，补齐 RDI/CMRA 并导入后才能标注">
+                      导入后可标注
+                    </button>
+                  ) : (
+                    <button
+                      className={markedHere ? 'danger' : 'primary'}
+                      type="button"
+                      disabled={busyId === match.id}
+                      onClick={() => void toggle(match)}
+                    >
+                      {markedHere ? '取消标注' : markedElsewhere ? '改标到此条' : '标注'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="admin-dialog-actions">
+          <button type="button" onClick={onClose}>
+            完成
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 const emptyForm = {

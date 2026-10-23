@@ -140,7 +140,7 @@ export async function getPublicBlacklistPageData(filters: PublicBlacklistFilters
 }
 
 export function parsePublicBlacklistFilters(searchParams: SearchParams = {}): PublicBlacklistFilters {
-  const q = firstParam(searchParams.q)?.trim().slice(0, 80) ?? '';
+  const q = firstParam(searchParams.q)?.trim().slice(0, 160) ?? '';
   const page = Number.parseInt(firstParam(searchParams.page) ?? '1', 10);
 
   return {

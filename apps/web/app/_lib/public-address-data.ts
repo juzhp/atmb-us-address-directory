@@ -44,6 +44,8 @@ export interface PublicAddressListItem {
   mailbox: string;
   detailUrl: string;
   mapsUrl: string;
+  // 被后台标注到黑名单时，指向黑名单页并搜出该记录
+  blacklistUrl: string | null;
   updatedAt: string;
 }
 
@@ -93,6 +95,7 @@ interface AddressRow {
   c1PrecheckUpdatedAt: string | null;
   mailboxMin: number | null;
   mailboxMax: number | null;
+  blacklistAddress: string | null;
   updatedAt: string;
 }
 
@@ -163,8 +166,10 @@ export async function getPublicAddressesPageData(
           a.c1_precheck_updated_at AS c1PrecheckUpdatedAt,
           a.mailbox_min AS mailboxMin,
           a.mailbox_max AS mailboxMax,
+          ${BLACKLIST_ADDRESS_SELECT},
           a.updated_at AS updatedAt
         FROM addresses a
+        ${BLACKLIST_MARK_JOIN}
         ${where}
         ORDER BY a.updated_at DESC, a.id DESC
         LIMIT ? OFFSET ?
@@ -315,6 +320,19 @@ export function formatPublicMailboxRange(mailboxMin: number | null, mailboxMax: 
 
 export function buildPublicGoogleMapsUrl(fullAddress: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
+}
+
+// 地址被标注到已通过的黑名单时，取黑名单记录自己的地址文本作为搜索词，保证能搜出那条记录
+export const BLACKLIST_MARK_JOIN = `
+        LEFT JOIN address_blacklist_marks bm ON bm.address_id = a.id
+        LEFT JOIN address_blacklist b ON b.id = bm.blacklist_id AND b.status = 'approved'`;
+export const BLACKLIST_ADDRESS_SELECT =
+  "b.street_address || ', ' || b.city || ', ' || b.state || ' ' || b.postal_code AS blacklistAddress";
+
+export function buildPublicBlacklistLookupUrl(blacklistAddress: string | null) {
+  return blacklistAddress
+    ? `/address-blacklist?q=${encodeURIComponent(blacklistAddress)}#blacklist-list-title`
+    : null;
 }
 
 export function resolvePublicAddressDatabaseUrl() {
@@ -482,6 +500,7 @@ function toPublicAddressListItem(row: AddressRow) {
     mailbox: formatPublicMailboxRange(row.mailboxMin, row.mailboxMax),
     detailUrl: buildAddressDetailRedirectUrl(row.anytimeUrl),
     mapsUrl: buildPublicGoogleMapsUrl(fullAddress),
+    blacklistUrl: buildPublicBlacklistLookupUrl(row.blacklistAddress),
     updatedAt: row.updatedAt,
   } satisfies PublicAddressListItem;
 }

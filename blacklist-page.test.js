@@ -98,6 +98,53 @@ test('public blacklist search matches full addresses, partial words and chinese 
   assert.equal((await helpers.getPublicBlacklistPageData({ q: '90017', page: 1 })).items[0].reasons.length, 2);
 });
 
+test('marked local addresses expose a blacklist lookup url only while the entry is approved', async (t) => {
+  const Database = require('better-sqlite3');
+  const { ensureDatabaseSchema } = await import('./packages/db/src/index.ts');
+  const dir = mkdtempSync(join(tmpdir(), 'atmb-blacklist-marks-'));
+  const file = join(dir, 'test.sqlite');
+  const db = new Database(file);
+  ensureDatabaseSchema(db);
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO addresses (
+      id, source, name, slug, anytime_url, state, state_name, city, street_address, postal_code, full_address,
+      price_cents, rdi, cmra, is_featured, created_at, updated_at
+    ) VALUES (
+      1, 'anytimemailbox', 'Demo Mailbox', 'demo', 'https://example.com/demo', 'CA', 'California', 'Los Angeles',
+      '1234 Wilshire Blvd Suite 500', '90017', '1234 Wilshire Blvd Suite 500, Los Angeles, CA 90017', 999,
+      'Residential', 'No', 1, @now, @now
+    )
+  `).run({ now });
+  db.prepare(`
+    INSERT INTO address_blacklist (
+      id, street_address, city, state, postal_code, normalized_address_key, reason, status, submitted_by,
+      reviewed_at, created_at, updated_at
+    ) VALUES (7, '1234 Wilshire Blvd, Suite 500', 'Los Angeles', 'CA', '90017', 'k', 'reason', 'approved', 'admin', @now, @now, @now)
+  `).run({ now });
+  db.prepare("INSERT INTO address_blacklist_marks (address_id, blacklist_id, marked_by, created_at) VALUES (1, 7, 'admin', @now)").run({ now });
+
+  const previousUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = file;
+  t.after(() => {
+    db.close();
+    if (previousUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousUrl;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const addressData = await import('./apps/web/app/_lib/public-address-data.ts');
+  const homeData = await import('./apps/web/app/_lib/home-data.ts');
+  const filters = { q: '', state: '', rdi: '', cmra: '', usps: '', c1: '', price: '', page: 1 };
+  const expectedUrl = '/address-blacklist?q=1234%20Wilshire%20Blvd%2C%20Suite%20500%2C%20Los%20Angeles%2C%20CA%2090017#blacklist-list-title';
+
+  assert.equal((await addressData.getPublicAddressesPageData(filters, 'anytimemailbox')).items[0].blacklistUrl, expectedUrl);
+  assert.equal((await homeData.getHomePageData()).featuredAddresses[0].blacklistUrl, expectedUrl);
+
+  db.prepare("UPDATE address_blacklist SET status = 'rejected' WHERE id = 7").run();
+  assert.equal((await addressData.getPublicAddressesPageData(filters, 'anytimemailbox')).items[0].blacklistUrl, null);
+});
+
 test('one-line us address parser fills street, city, state and zip', async () => {
   const { parseOneLineUsAddress } = await import('./packages/shared/src/address-parse.ts');
 

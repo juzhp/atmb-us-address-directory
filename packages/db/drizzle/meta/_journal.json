@@ -71,6 +71,13 @@
       "when": 1792627200000,
       "tag": "0009_address_blacklist",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792713600000,
+      "tag": "0010_address_blacklist_marks",
+      "breakpoints": true
     }
   ]
 }

@@ -370,3 +370,15 @@ export const addressBlacklist = sqliteTable(
     check('address_blacklist_submitted_by_check', sql`${table.submittedBy} IN ('visitor', 'admin')`),
   ],
 );
+
+// 后台把黑名单条目标注到本地地址：一个地址最多对应一条黑名单
+export const addressBlacklistMarks = sqliteTable(
+  'address_blacklist_marks',
+  {
+    addressId: integer('address_id').primaryKey().references(() => addresses.id, { onDelete: 'cascade' }),
+    blacklistId: integer('blacklist_id').notNull().references(() => addressBlacklist.id, { onDelete: 'cascade' }),
+    markedBy: text('marked_by').notNull(),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('address_blacklist_marks_blacklist_idx').on(table.blacklistId)],
+);

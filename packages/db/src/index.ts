@@ -320,5 +320,14 @@ export function ensureDatabaseSchema(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS address_blacklist_normalized_key_idx ON address_blacklist (normalized_address_key);
     CREATE INDEX IF NOT EXISTS address_blacklist_ip_created_idx ON address_blacklist (submitter_ip_hash, created_at);
     CREATE INDEX IF NOT EXISTS address_blacklist_updated_at_idx ON address_blacklist (updated_at);
+
+    CREATE TABLE IF NOT EXISTS address_blacklist_marks (
+      address_id INTEGER PRIMARY KEY REFERENCES addresses(id) ON DELETE CASCADE,
+      blacklist_id INTEGER NOT NULL REFERENCES address_blacklist(id) ON DELETE CASCADE,
+      marked_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS address_blacklist_marks_blacklist_idx ON address_blacklist_marks (blacklist_id);
   `);
 }

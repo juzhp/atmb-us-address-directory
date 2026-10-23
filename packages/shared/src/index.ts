@@ -307,6 +307,7 @@ export interface AdminBlacklistItem {
   reviewNote: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  markedCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -322,4 +323,24 @@ export interface AdminBlacklistListResponse {
 
 export interface AdminBlacklistResponse {
   item: AdminBlacklistItem;
+}
+
+export type BlacklistMatchType = 'exact' | 'similar';
+
+// recordSource 为 discovered 的是抓取暂存、尚未导入主地址表的记录，只展示不能标注
+export interface AdminBlacklistMatchItem {
+  recordSource: 'address' | 'discovered';
+  id: number;
+  source: AddressSource;
+  name: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  matchType: BlacklistMatchType;
+  markedBlacklistId: number | null;
+}
+
+export interface AdminBlacklistMatchesResponse {
+  items: AdminBlacklistMatchItem[];
 }

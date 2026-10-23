@@ -23,6 +23,7 @@ import {
 
 import { StateCombobox } from './_components/StateCombobox';
 import { PublicHeadCode } from './_components/PublicHeadCode';
+import { BlacklistFlag } from './_components/BlacklistFlag';
 import { SiteFooter, SiteHeader } from './_components/SiteShell';
 import { getHomePageData, type HomeFeaturedAddress } from './_lib/home-data';
 import { getPublicHeadCode } from './_lib/public-head-code';
@@ -376,7 +377,7 @@ export default async function HomePage() {
                     </div>
                   )}
                   <div className="home-address-body">
-                    <h3>{address.name}</h3>
+                    <h3>{address.name}<BlacklistFlag href={address.blacklistUrl} /></h3>
                     <address>
                       {address.streetAddress}
                       <br />

@@ -136,6 +136,56 @@ test('admin blacklist endpoints require login', async (t) => {
   assert.equal(create.statusCode, 401);
 });
 
+test('approved entries can match and mark local addresses', async (t) => {
+  const app = await buildTestServer();
+  t.after(() => app.close());
+  const cookie = await loginCookie(app);
+
+  const addresses = await app.inject({ method: 'GET', url: '/api/admin/addresses?pageSize=1', headers: { cookie } });
+  const local = addresses.json().items[0];
+  assert.ok(local, 'expected seeded demo address');
+
+  const pendingResponse = await submit(app, { ...submission, streetAddress: local.streetAddress, city: local.city, state: local.state, postalCode: local.postalCode });
+  assert.equal(pendingResponse.statusCode, 201);
+  const pendingList = await app.inject({ method: 'GET', url: '/api/admin/blacklist?status=pending', headers: { cookie } });
+  const entry = pendingList.json().items[0];
+
+  const tooEarly = await app.inject({
+    method: 'POST',
+    url: `/api/admin/blacklist/${entry.id}/marks`,
+    headers: { cookie },
+    payload: { addressId: local.id },
+  });
+  assert.equal(tooEarly.statusCode, 409, 'pending entries cannot mark addresses');
+
+  await app.inject({ method: 'PATCH', url: `/api/admin/blacklist/${entry.id}`, headers: { cookie }, payload: { status: 'approved' } });
+
+  const matches = await app.inject({ method: 'GET', url: `/api/admin/blacklist/${entry.id}/matches`, headers: { cookie } });
+  assert.equal(matches.statusCode, 200);
+  const match = matches.json().items.find((item: { id: number }) => item.id === local.id);
+  assert.ok(match, 'seeded address should be a candidate');
+  assert.equal(match.matchType, 'exact');
+  assert.equal(match.markedBlacklistId, null);
+
+  const marked = await app.inject({
+    method: 'POST',
+    url: `/api/admin/blacklist/${entry.id}/marks`,
+    headers: { cookie },
+    payload: { addressId: local.id },
+  });
+  assert.equal(marked.statusCode, 204);
+
+  const afterMark = await app.inject({ method: 'GET', url: `/api/admin/blacklist/${entry.id}/matches`, headers: { cookie } });
+  assert.equal(afterMark.json().items.find((item: { id: number }) => item.id === local.id).markedBlacklistId, entry.id);
+  const listed = await app.inject({ method: 'GET', url: '/api/admin/blacklist?status=approved', headers: { cookie } });
+  assert.equal(listed.json().items[0].markedCount, 1);
+
+  const unmarked = await app.inject({ method: 'DELETE', url: `/api/admin/blacklist/${entry.id}/marks/${local.id}`, headers: { cookie } });
+  assert.equal(unmarked.statusCode, 204);
+  const unmarkedAgain = await app.inject({ method: 'DELETE', url: `/api/admin/blacklist/${entry.id}/marks/${local.id}`, headers: { cookie } });
+  assert.equal(unmarkedAgain.statusCode, 404);
+});
+
 test('admin can create approved entries, review, edit and delete', async (t) => {
   const app = await buildTestServer();
   t.after(() => app.close());

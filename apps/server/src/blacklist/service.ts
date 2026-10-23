@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseContext } from '@atmb/db';
-import type { AdminBlacklistItem, AdminBlacklistListResponse, BlacklistStatus, BlacklistSubmittedBy } from '@atmb/shared';
+import type {
+  AddressSource,
+  AdminBlacklistItem,
+  AdminBlacklistListResponse,
+  AdminBlacklistMatchItem,
+  BlacklistStatus,
+  BlacklistSubmittedBy,
+} from '@atmb/shared';
 
 import type { ServerConfig } from '../auth/config.js';
 import { normalizeAddressKey } from '../crawl/parser.js';
@@ -39,11 +46,25 @@ interface BlacklistRow {
   reviewNote: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  markedCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
+interface MatchRow {
+  recordSource: 'address' | 'discovered';
+  id: number;
+  source: AddressSource;
+  name: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  markedBlacklistId: number | null;
+}
+
 const MAX_PAGE_SIZE = 100;
+const MAX_MATCHES = 50;
 // 游客限频：同一 IP 1 小时 5 条、24 小时 20 条；全站 24 小时内待审核超过上限则暂停接收
 const HOURLY_LIMIT_PER_IP = 5;
 const DAILY_LIMIT_PER_IP = 20;
@@ -64,6 +85,7 @@ const selectColumns = `
   review_note AS reviewNote,
   reviewed_by AS reviewedBy,
   reviewed_at AS reviewedAt,
+  (SELECT COUNT(*) FROM address_blacklist_marks m WHERE m.blacklist_id = address_blacklist.id) AS markedCount,
   created_at AS createdAt,
   updated_at AS updatedAt
 `;
@@ -143,7 +165,7 @@ export class BlacklistService {
     const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(query.pageSize || 20)));
     const params: Record<string, string | number> = {};
     const where = ['1 = 1'];
-    const status = query.status ?? 'pending';
+    const status = query.status ?? 'all';
 
     if (status !== 'all') {
       params.status = status;
@@ -251,6 +273,134 @@ export class BlacklistService {
 
     if (result.changes === 0) {
       throw new Error('BLACKLIST_NOT_FOUND');
+    }
+  }
+
+  // 候选本地地址：同 ZIP 且门牌号相同（无门牌号时按街道模糊），加上已标注到该条目的地址；
+  // 抓取暂存表里尚未导入的记录也列出来（只展示，导入后才能标注）；精确匹配排在前面
+  listMatches(id: number): AdminBlacklistMatchItem[] {
+    const entry = this.getItem(id);
+    const entryKey = normalizeAddressKey(entry);
+    const streetNumber = entry.streetAddress.match(/^\d+[A-Za-z]?/)?.[0] ?? '';
+    const params = {
+      id,
+      zip: entry.postalCode.slice(0, 5),
+      streetLike: streetNumber ? `${streetNumber} %` : `%${entry.streetAddress}%`,
+      streetNumber: streetNumber || entry.streetAddress,
+      limit: MAX_MATCHES,
+    };
+    const rows = this.database.sqlite
+      .prepare(`
+        SELECT * FROM (
+          SELECT
+            'address' AS recordSource,
+            a.id,
+            a.source,
+            a.name,
+            a.street_address AS streetAddress,
+            a.city,
+            a.state,
+            a.postal_code AS postalCode,
+            m.blacklist_id AS markedBlacklistId,
+            a.updated_at AS updatedAt
+          FROM addresses a
+          LEFT JOIN address_blacklist_marks m ON m.address_id = a.id
+          WHERE a.is_active = 1
+            AND (
+              m.blacklist_id = @id
+              OR (
+                substr(a.postal_code, 1, 5) = @zip
+                AND (a.street_address LIKE @streetLike OR a.street_address = @streetNumber)
+              )
+            )
+          UNION ALL
+          SELECT
+            'discovered' AS recordSource,
+            d.id,
+            d.source,
+            d.name,
+            d.street_address AS streetAddress,
+            d.city,
+            d.state,
+            d.postal_code AS postalCode,
+            NULL AS markedBlacklistId,
+            d.updated_at AS updatedAt
+          FROM crawl_discovered_addresses d
+          WHERE d.imported_address_id IS NULL
+            AND d.crawl_status <> 'imported'
+            AND substr(d.postal_code, 1, 5) = @zip
+            AND (d.street_address LIKE @streetLike OR d.street_address = @streetNumber)
+        )
+        ORDER BY recordSource ASC, updatedAt DESC, id DESC
+        LIMIT @limit
+      `)
+      .all(params) as MatchRow[];
+
+    // 暂存表里同一地址可能被多次抓到，按规范化地址去重；已在主表里的也不再重复列出
+    const seenKeys = new Set<string>();
+    const items: AdminBlacklistMatchItem[] = [];
+
+    for (const row of rows) {
+      const key = normalizeAddressKey(row);
+
+      if (row.recordSource === 'discovered') {
+        if (seenKeys.has(key)) continue;
+      }
+
+      seenKeys.add(key);
+      items.push({
+        recordSource: row.recordSource,
+        id: row.id,
+        source: row.source,
+        name: row.name,
+        streetAddress: row.streetAddress,
+        city: row.city,
+        state: row.state,
+        postalCode: row.postalCode,
+        matchType: key === entryKey ? 'exact' : 'similar',
+        markedBlacklistId: row.markedBlacklistId,
+      });
+    }
+
+    return items.sort((a, b) => {
+      if (a.matchType !== b.matchType) return a.matchType === 'exact' ? -1 : 1;
+      if (a.recordSource !== b.recordSource) return a.recordSource === 'address' ? -1 : 1;
+      return 0;
+    });
+  }
+
+  markAddress(blacklistId: number, addressId: number, markedBy: string) {
+    const entry = this.getItem(blacklistId);
+
+    if (entry.status !== 'approved') {
+      throw new Error('BLACKLIST_NOT_APPROVED');
+    }
+
+    const address = this.database.sqlite.prepare('SELECT 1 FROM addresses WHERE id = ?').get(addressId);
+
+    if (!address) {
+      throw new Error('ADDRESS_NOT_FOUND');
+    }
+
+    this.database.sqlite
+      .prepare(`
+        INSERT INTO address_blacklist_marks (address_id, blacklist_id, marked_by, created_at)
+        VALUES (@addressId, @blacklistId, @markedBy, @now)
+        ON CONFLICT(address_id) DO UPDATE SET
+          blacklist_id = excluded.blacklist_id,
+          marked_by = excluded.marked_by,
+          created_at = excluded.created_at
+      `)
+      .run({ addressId, blacklistId, markedBy, now: new Date().toISOString() });
+  }
+
+  unmarkAddress(blacklistId: number, addressId: number) {
+    const result = this.database.sqlite
+      .prepare('DELETE FROM address_blacklist_marks WHERE address_id = ? AND blacklist_id = ?')
+      .run(addressId, blacklistId);
+
+    if (result.changes === 0) {
+      throw new Error('MARK_NOT_FOUND');
     }
   }
 

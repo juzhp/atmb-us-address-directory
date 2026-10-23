@@ -25,6 +25,7 @@ import { getPublicHeadCode } from '../_lib/public-head-code';
 import { ActiveFilterChips, type ActiveFilterChip } from '../_components/ActiveFilterChips';
 import { AddressRowClickState } from '../_components/AddressRowClickState';
 import { PublicHeadCode } from '../_components/PublicHeadCode';
+import { BlacklistFlag } from '../_components/BlacklistFlag';
 import { SiteFooter, SiteHeader } from '../_components/SiteShell';
 import { StateFilterPanel, StateFilterPanelSkeleton } from '../_components/StateFilterPanel';
 
@@ -464,7 +465,7 @@ async function ResidentialResults({
           {data.items.map((address) => (
             <article className="addresses-row" data-address-row-id={address.id} key={address.id} role="listitem">
               <div className="addresses-main">
-                <h3><a href={address.detailUrl} rel="noreferrer" target="_blank">{address.name}</a></h3>
+                <h3><a href={address.detailUrl} rel="noreferrer" target="_blank">{address.name}</a><BlacklistFlag href={address.blacklistUrl} /></h3>
                 <p>{address.streetAddress}<br />{address.cityLine}</p>
               </div>
               <div className="addresses-data-cell"><strong>{address.stateLabel}</strong>州/地区</div>
