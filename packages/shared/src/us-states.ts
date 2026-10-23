@@ -64,6 +64,7 @@ const US_STATE_DATA = [
 
 const US_STATE_ALIASES: Partial<Record<(typeof US_STATE_DATA)[number][0], string[]>> = {
   CA: ['加州'],
+  DC: ['District of Columbia'],
   FL: ['佛州'],
   NY: ['纽约'],
   TX: ['德州', '得州'],

@@ -14,6 +14,8 @@ import { SqliteSessionStore } from './auth/session-store.js';
 import { registerAddressRoutes } from './addresses/routes.js';
 import { seedDevelopmentAddresses } from './addresses/seed.js';
 import { AddressService } from './addresses/service.js';
+import { registerBlacklistRoutes } from './blacklist/routes.js';
+import { BlacklistService } from './blacklist/service.js';
 import { CrawlPipeline, type CrawlFetcher, type SmartyLookupClient } from './crawl/pipeline.js';
 import { registerSettingsRoutes } from './settings/routes.js';
 import { SettingsService, type ProxyTester, type SmartyClient } from './settings/service.js';
@@ -52,6 +54,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   const addressService = new AddressService(database);
   const settingsService = new SettingsService(database, config, options.smartyClient, options.proxyTester);
   settingsService.ensureDefaultSettings();
+  const blacklistService = new BlacklistService(database, config);
   const taskService = new TaskService(database);
   const resumeTaskIds = taskService.recoverInterruptedTasks();
   const crawlPipeline = new CrawlPipeline({
@@ -74,6 +77,8 @@ export async function createServer(options: CreateServerOptions = {}) {
 
   const app = Fastify({
     logger: options.logger ?? true,
+    // 生产环境由同机 Nginx 反代，只信任本机回环地址转发的 X-Forwarded-For，供游客提交限频取真实 IP
+    trustProxy: 'loopback',
   });
 
   await app.register(cors, {
@@ -107,6 +112,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   registerAuthRoutes(app, authService);
   registerAddressRoutes(app, addressService, config, taskService, taskExecutor, crawlPipeline);
   registerSettingsRoutes(app, settingsService);
+  registerBlacklistRoutes(app, blacklistService, authService);
   registerTaskRoutes(app, taskService, authService, taskExecutor, crawlPipeline);
 
   taskScheduler?.start();

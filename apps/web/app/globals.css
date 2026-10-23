@@ -6472,3 +6472,377 @@ a {
     scroll-behavior: auto !important;
   }
 }
+
+/* ===== 地址黑名单：前台搜索 / 列表 / 提交表单 ===== */
+.blacklist-search-form {
+  grid-template-columns: 1fr 180px;
+}
+
+.blacklist-list {
+  display: grid;
+}
+
+.blacklist-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) 1.6fr;
+  gap: 22px;
+  padding: 18px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.blacklist-row:first-child {
+  border-top: 0;
+}
+
+.blacklist-row-address .addresses-badge {
+  gap: 4px;
+  min-width: 0;
+}
+
+.blacklist-row-address h3 {
+  margin: 10px 0 4px;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.blacklist-row-address p {
+  margin: 0;
+  color: #213a5a;
+  font-weight: 650;
+}
+
+.blacklist-row-address small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.blacklist-reasons {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.blacklist-reasons li p {
+  margin: 0 0 6px;
+  color: #213a5a;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.blacklist-reason-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.blacklist-reason-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--teal-dark);
+  text-decoration: none;
+}
+
+.blacklist-reason-meta a:hover {
+  text-decoration: underline;
+}
+
+.blacklist-submit-panel {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.blacklist-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.blacklist-form label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: #122849;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.blacklist-form-wide {
+  grid-column: 1 / -1;
+}
+
+.blacklist-form input,
+.blacklist-form select,
+.blacklist-form textarea {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 0 14px;
+  background: #fbfdff;
+  color: #213a5a;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  outline: 0;
+}
+
+.blacklist-form textarea {
+  min-height: 120px;
+  padding: 12px 14px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.blacklist-form input:focus,
+.blacklist-form select:focus,
+.blacklist-form textarea:focus {
+  border-color: #68b7c6;
+  box-shadow: 0 0 0 4px rgba(5, 127, 147, 0.08);
+}
+
+.blacklist-parse-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.blacklist-parse-row button,
+.blacklist-form-actions button,
+.blacklist-form-success button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--teal-dark);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.blacklist-parse-row button:disabled,
+.blacklist-form-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.blacklist-form-actions button.primary {
+  border: 0;
+  background: var(--teal);
+  color: #fff;
+}
+
+.blacklist-form-actions button.primary:hover:not(:disabled) {
+  background: var(--teal-dark);
+}
+
+.blacklist-counter {
+  justify-self: end;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.blacklist-counter.limit {
+  color: var(--red);
+}
+
+/* 蜜罐字段：对真人不可见、不可聚焦，机器人填了即拒绝 */
+.blacklist-honeypot {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.blacklist-form-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.blacklist-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.blacklist-form-actions p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.blacklist-form-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 6px 4px;
+  color: var(--green);
+}
+
+.blacklist-form-success strong {
+  display: block;
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.blacklist-form-success p {
+  margin: 6px 0 12px;
+  color: var(--muted);
+}
+
+/* ===== 地址黑名单：后台 ===== */
+.blacklist-filter-panel {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.6fr) auto;
+}
+
+.blacklist-reason-cell {
+  max-width: 360px;
+  color: #213a5a;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.blacklist-review-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.blacklist-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.blacklist-row-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: #173052;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.blacklist-row-actions button:hover:not(:disabled) {
+  border-color: #68b7c6;
+  color: var(--teal-dark);
+}
+
+.blacklist-row-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.blacklist-row-actions button.danger {
+  color: var(--red);
+}
+
+.blacklist-dialog-wide {
+  grid-column: 1 / -1;
+}
+
+.blacklist-dialog .blacklist-parse-row button {
+  min-height: 42px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.address-dialog-grid textarea,
+.blacklist-note-field textarea {
+  width: 100%;
+  min-height: 110px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: #fbfdff;
+  color: #173052;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.5;
+  resize: vertical;
+  outline: 0;
+}
+
+.address-dialog-grid textarea:focus,
+.blacklist-note-field textarea:focus {
+  border-color: #68b7c6;
+  box-shadow: 0 0 0 4px rgba(5, 127, 147, 0.07);
+}
+
+.blacklist-note-field {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.blacklist-note-field > span {
+  color: #37556e;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+@media (max-width: 1024px) {
+  .blacklist-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .blacklist-filter-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .blacklist-search-form,
+  .blacklist-form,
+  .blacklist-parse-row,
+  .blacklist-filter-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .blacklist-submit-panel {
+    padding: 16px;
+  }
+}

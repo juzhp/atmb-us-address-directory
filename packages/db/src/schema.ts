@@ -340,3 +340,33 @@ export const systemSettings = sqliteTable(
     check('system_settings_minute_check', sql`${table.updateMinute} IN (0, 30)`),
   ],
 );
+
+export const addressBlacklist = sqliteTable(
+  'address_blacklist',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    streetAddress: text('street_address').notNull(),
+    city: text('city').notNull(),
+    state: text('state').notNull(),
+    postalCode: text('postal_code').notNull(),
+    normalizedAddressKey: text('normalized_address_key').notNull(),
+    reason: text('reason').notNull(),
+    sourceUrl: text('source_url'),
+    status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
+    submittedBy: text('submitted_by', { enum: ['visitor', 'admin'] }).notNull(),
+    submitterIpHash: text('submitter_ip_hash'),
+    reviewNote: text('review_note'),
+    reviewedBy: text('reviewed_by'),
+    reviewedAt: text('reviewed_at'),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index('address_blacklist_status_idx').on(table.status),
+    index('address_blacklist_normalized_key_idx').on(table.normalizedAddressKey),
+    index('address_blacklist_ip_created_idx').on(table.submitterIpHash, table.createdAt),
+    index('address_blacklist_updated_at_idx').on(table.updatedAt),
+    check('address_blacklist_status_check', sql`${table.status} IN ('pending', 'approved', 'rejected')`),
+    check('address_blacklist_submitted_by_check', sql`${table.submittedBy} IN ('visitor', 'admin')`),
+  ],
+);

@@ -35,6 +35,13 @@ export const publicRoutes = [
     summary: 'iPostal1 平台已默认过滤 RDI = Residential 的地址精选页，可再按州、CMRA、USPS CMRA、C1 预审与关键词二次筛选。',
   },
   {
+    path: '/address-blacklist',
+    priority: 0.8,
+    title: '美国地址黑名单',
+    summary:
+      '收集用户反馈的美国问题地址：被银行、信用卡、支付平台拒绝，房东或运营方不配合，邮件丢失、额外收费等。支持按街道、城市、州、ZIP 搜索，也可以提交自己遇到的问题地址。',
+  },
+  {
     path: '/guide/anytime-mailbox-tutorial',
     priority: 0.8,
     title: 'Anytime Mailbox(ATMB) 注册教程',

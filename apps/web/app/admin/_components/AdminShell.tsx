@@ -8,6 +8,7 @@ import {
   LogOut,
   MapPinned,
   Settings,
+  ShieldBan,
   TableProperties,
 } from 'lucide-react';
 import { FormEvent, ReactNode, useState, useTransition } from 'react';
@@ -19,6 +20,7 @@ import { AdminToastStack, useAdminToasts } from './AdminToast';
 const navItems = [
   { href: '/admin/addresses', label: '地址管理', icon: TableProperties },
   { href: '/admin/tasks', label: '任务管理', icon: ListChecks },
+  { href: '/admin/blacklist', label: '地址黑名单', icon: ShieldBan },
   { href: '/go/get-us-residential-address', label: '获得美国住宅地址', icon: MapPinned, external: true },
   { href: '/admin/settings', label: '系统设置', icon: Settings },
 ];

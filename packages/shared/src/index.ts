@@ -1,6 +1,7 @@
 export const APP_NAME = 'ATMB Address Guide';
 
 export * from './us-states.js';
+export * from './address-parse.js';
 
 export interface AdminUserProfile {
   id: number;
@@ -282,4 +283,43 @@ export interface AdminTaskSubtasksResponse {
   pageSize: number;
   total: number;
   totalPages: number;
+}
+
+export const BLACKLIST_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export type BlacklistStatus = (typeof BLACKLIST_STATUSES)[number];
+export type BlacklistSubmittedBy = 'visitor' | 'admin';
+export const BLACKLIST_STATUS_LABELS: Record<BlacklistStatus, string> = {
+  pending: '待审核',
+  approved: '已通过',
+  rejected: '已拒绝',
+};
+
+export interface AdminBlacklistItem {
+  id: number;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  reason: string;
+  sourceUrl: string | null;
+  status: BlacklistStatus;
+  submittedBy: BlacklistSubmittedBy;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminBlacklistListResponse {
+  items: AdminBlacklistItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  pendingCount: number;
+}
+
+export interface AdminBlacklistResponse {
+  item: AdminBlacklistItem;
 }

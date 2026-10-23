@@ -296,5 +296,29 @@ export function ensureDatabaseSchema(sqlite: Database.Database) {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS address_blacklist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      street_address TEXT NOT NULL,
+      city TEXT NOT NULL,
+      state TEXT NOT NULL,
+      postal_code TEXT NOT NULL,
+      normalized_address_key TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      source_url TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      submitted_by TEXT NOT NULL CHECK (submitted_by IN ('visitor', 'admin')),
+      submitter_ip_hash TEXT,
+      review_note TEXT,
+      reviewed_by TEXT,
+      reviewed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS address_blacklist_status_idx ON address_blacklist (status);
+    CREATE INDEX IF NOT EXISTS address_blacklist_normalized_key_idx ON address_blacklist (normalized_address_key);
+    CREATE INDEX IF NOT EXISTS address_blacklist_ip_created_idx ON address_blacklist (submitter_ip_hash, created_at);
+    CREATE INDEX IF NOT EXISTS address_blacklist_updated_at_idx ON address_blacklist (updated_at);
   `);
 }

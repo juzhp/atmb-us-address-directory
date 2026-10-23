@@ -536,11 +536,11 @@ function normalizePage(value: string | undefined) {
   return Number.isFinite(page) && page > 0 ? page : 1;
 }
 
-function escapeLike(value: string) {
+export function escapeLike(value: string) {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
-function isUnavailableDatabaseError(error: unknown) {
+export function isUnavailableDatabaseError(error: unknown) {
   return error instanceof Error
     && /(no such table|unable to open database file|cannot open database because the directory does not exist)/i.test(error.message);
 }

@@ -4,7 +4,7 @@ import { SiteNav } from './SiteNav';
 
 const CONTACT_EMAIL = 'juzhpcom@gmail.com';
 
-type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'ipostal1Residential' | 'guide' | 'faq';
+type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'ipostal1Residential' | 'blacklist' | 'guide' | 'faq';
 
 function navClass(active: SiteNavKey, key: SiteNavKey) {
   return active === key ? 'site-nav-active' : undefined;
@@ -24,6 +24,7 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
           <Link className={navClass(active, 'residential')} href="/residential-addresses">ATMB 住宅地址</Link>
           <Link className={navClass(active, 'ipostal1')} href="/ipostal1">iPostal1 所有地址</Link>
           <Link className={navClass(active, 'ipostal1Residential')} href="/ipostal1-residential-addresses">iPostal1 住宅地址</Link>
+          <Link className={navClass(active, 'blacklist')} href="/address-blacklist">地址黑名单</Link>
           <div className="site-nav-group">
             <Link
               className={navClass(active, 'guide')}
@@ -68,6 +69,7 @@ export function SiteFooter() {
           <Link href="/residential-addresses">ATMB 住宅地址</Link>
           <Link href="/ipostal1">iPostal1 所有地址</Link>
           <Link href="/ipostal1-residential-addresses">iPostal1 住宅地址</Link>
+          <Link href="/address-blacklist">地址黑名单</Link>
           <Link href="/guide/anytime-mailbox-tutorial">注册教程</Link>
           <Link href="/guide/us-residential-address-verification">地址验证</Link>
           <Link href="/guide/us-credit-card-address">信用卡地址</Link>
