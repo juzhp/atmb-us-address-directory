@@ -5963,7 +5963,8 @@ a {
     padding: 0 0 12px;
   }
 
-  .addresses-row {
+  .addresses-row,
+  .addresses-row.addresses-row--no-mailbox {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
   }
@@ -6007,6 +6008,7 @@ a {
   .addresses-proof-list,
   .addresses-search-form,
   .addresses-row,
+  .addresses-row.addresses-row--no-mailbox,
   .addresses-row-actions {
     grid-template-columns: 1fr;
   }
