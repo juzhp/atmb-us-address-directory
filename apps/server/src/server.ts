@@ -17,6 +17,8 @@ import { AddressService } from './addresses/service.js';
 import { registerBlacklistRoutes } from './blacklist/routes.js';
 import { BlacklistService } from './blacklist/service.js';
 import { CrawlPipeline, type CrawlFetcher, type SmartyLookupClient } from './crawl/pipeline.js';
+import { registerExtensionRoutes } from './extension/routes.js';
+import { ExtensionLookupService } from './extension/service.js';
 import { registerSettingsRoutes } from './settings/routes.js';
 import { SettingsService, type ProxyTester, type SmartyClient } from './settings/service.js';
 import { QueuedTaskExecutor } from './tasks/executor.js';
@@ -55,6 +57,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   const settingsService = new SettingsService(database, config, options.smartyClient, options.proxyTester);
   settingsService.ensureDefaultSettings();
   const blacklistService = new BlacklistService(database, config);
+  const extensionLookupService = new ExtensionLookupService(database, config);
   const taskService = new TaskService(database);
   const resumeTaskIds = taskService.recoverInterruptedTasks();
   const crawlPipeline = new CrawlPipeline({
@@ -113,6 +116,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   registerAddressRoutes(app, addressService, config, taskService, taskExecutor, crawlPipeline);
   registerSettingsRoutes(app, settingsService);
   registerBlacklistRoutes(app, blacklistService, authService);
+  registerExtensionRoutes(app, extensionLookupService);
   registerTaskRoutes(app, taskService, authService, taskExecutor, crawlPipeline);
 
   taskScheduler?.start();

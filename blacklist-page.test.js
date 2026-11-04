@@ -11,7 +11,7 @@ test('address blacklist page is a server component built on the blacklist data l
   assert.match(source, /searchParams/);
   assert.match(source, /FAQPage/);
   assert.match(source, /<SiteHeader active="blacklist" \/>/);
-  assert.match(source, /<BlacklistSubmitForm \/>/);
+  assert.match(source, /<BlacklistSubmitForm prefill=\{parseBlacklistPrefill\(params\)\} \/>/);
   assert.match(source, /<ExpandableText text=\{item\.reason\} \/>/);
   assert.match(source, /#blacklist-list-title/);
   assert.match(source, /rel="nofollow noreferrer noopener"/);

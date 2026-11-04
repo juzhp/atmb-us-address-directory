@@ -2,6 +2,7 @@ export const APP_NAME = 'ATMB Address Guide';
 
 export * from './us-states.js';
 export * from './address-parse.js';
+export * from './address-key.js';
 
 export interface AdminUserProfile {
   id: number;
@@ -343,4 +344,60 @@ export interface AdminBlacklistMatchItem {
 
 export interface AdminBlacklistMatchesResponse {
   items: AdminBlacklistMatchItem[];
+}
+
+// 浏览器扩展：在 ATMB / iPostal1 页面上按页批量查询本站数据
+export const EXTENSION_LOOKUP_MAX_ITEMS = 500;
+export type ExtensionMatchedBy = 'sourceId' | 'key' | 'loose';
+
+export interface ExtensionLookupItem {
+  ref: string;
+  platform: AddressSource;
+  sourceId?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  // 页面上拆不出结构化字段时给整行地址文本，服务端按 ZIP + 文本包含宽松匹配
+  text?: string;
+}
+
+export interface ExtensionLookupRequest {
+  items: ExtensionLookupItem[];
+}
+
+export interface ExtensionLookupAddress {
+  id: number;
+  source: AddressSource;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  rdi: AddressRdi;
+  cmra: AddressCmra;
+  uspsCmra: AddressUspsCmra | null;
+  c1Precheck: AddressC1Precheck | null;
+  priceCents: number;
+  mailboxMin: number | null;
+  mailboxMax: number | null;
+  updatedAt: string;
+  matchedBy: ExtensionMatchedBy;
+}
+
+export interface ExtensionLookupBlacklistEntry {
+  id: number;
+  address: string;
+  reason: string;
+  sourceUrl: string | null;
+}
+
+export interface ExtensionLookupResult {
+  ref: string;
+  address: ExtensionLookupAddress | null;
+  blacklist: ExtensionLookupBlacklistEntry[];
+}
+
+export interface ExtensionLookupResponse {
+  generatedAt: string;
+  results: ExtensionLookupResult[];
 }

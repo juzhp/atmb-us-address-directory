@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>usaddres 地址助手</title>
+  <style>
+    body { width: 320px; margin: 0; padding: 14px 16px; font: 13px/1.5 "Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans SC",Arial,sans-serif; color: #071a3f; background: #fff; }
+    h1 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+    h1 .logo { width: 26px; height: 26px; border-radius: 6px; background: #057f93; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+    h1 .ver { margin-left: auto; font-size: 11px; color: #52677f; font-weight: 400; }
+    .kv { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e8eef3; }
+    .kv span:first-child { color: #52677f; }
+    .kv span:last-child { font-weight: 600; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    button { width: 100%; margin: 10px 0 12px; padding: 8px; border: 1px solid #68b7c6; border-radius: 6px; background: #fbfeff; color: #006a7b; font: inherit; cursor: pointer; }
+    button:hover { background: #eef8fb; }
+    .tg { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+    .tg + .tg { border-top: 1px solid #e8eef3; }
+    .tg input { width: 16px; height: 16px; margin: 0; accent-color: #057f93; }
+    .foot { margin-top: 8px; font-size: 11px; color: #52677f; }
+    .ok { color: #116a49; }
+  </style>
+</head>
+<body>
+  <h1><span class="logo">U</span>usaddres 地址助手<span class="ver" id="version"></span></h1>
+  <div class="kv"><span>上次查询</span><span id="last-lookup">—</span></div>
+  <div class="kv"><span>缓存条目</span><span id="cache-entries">0</span></div>
+  <div class="kv"><span>数据来源</span><span id="api-base" title=""></span></div>
+  <button type="button" id="clear-cache">清除缓存并重新查询</button>
+  <label class="tg"><span>默认展开数据条</span><input type="checkbox" id="defaultExpanded"></label>
+  <label class="tg"><span>列表页显示筛选栏</span><input type="checkbox" id="showFilterBar"></label>
+  <label class="tg"><span>未收录地址显示提示</span><input type="checkbox" id="showUnrecorded"></label>
+  <div class="foot" id="status">数据仅供辅助判断，最终以平台与银行实际结果为准。</div>
+  <script src="popup.js"></script>
+</body>
+</html>

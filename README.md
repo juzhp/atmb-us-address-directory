@@ -169,6 +169,19 @@ npm run build
 pm2 restart ecosystem.config.cjs --update-env
 ```
 
+## 浏览器扩展（Chrome / Edge）
+
+`apps/extension` 是一个 Manifest V3 扩展：打开 Anytime Mailbox（州列表页、地址详情页、城市落地页）和 iPostal1（地址选择页、办公楼页、选套餐页）时，在每个地址旁显示本站已有的 RDI、CMRA、USPS CMRA、C1 预审、价格、邮箱编号范围和黑名单信息，并在列表页提供「仅 RDI 住宅 / 排除黑名单 / 仅 USPS CMRA=N / 仅已收录」筛选栏。数据条默认收起成一枚芯片，点击展开；弹窗里可以改成默认展开、关闭筛选栏或隐藏未收录提示。
+
+数据来自服务端新增的公开接口 `POST /api/public/extension/lookup`：扩展把当前页面上的地址（store-id / slug / 地址文本）批量发过去，服务端按 `source_id`、归一化地址 key、ZIP + 街道核心词三级匹配，并带回已审核的黑名单记录。接口每 IP 每分钟限 60 次、单次最多 500 条；扩展侧会把结果缓存 15 分钟。扩展的「提交黑名单」链接会带着地址跳到 `/address-blacklist`，表单自动预填。
+
+构建并加载：
+
+```bash
+npm run build --workspace @atmb/extension
+```
+
+产物在 `apps/extension/dist`。Chrome 打开 `chrome://extensions`、Edge 打开 `edge://extensions`，开启「开发者模式」，选择「加载已解压的扩展程序」并指向该目录即可。联调本地服务端时用 `npm run build:dev --workspace @atmb/extension`，请求会指向 `http://localhost:3001`，同时 manifest 会多出 localhost 的 host permission。
 ## 常用命令
 
 ```bash

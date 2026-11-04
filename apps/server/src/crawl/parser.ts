@@ -181,19 +181,7 @@ export function normalizeText(value: unknown) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
-export function normalizeAddressKey(input: {
-  streetAddress: string;
-  city: string;
-  state: string;
-  postalCode: string;
-}) {
-  return [
-    normalizeComparable(input.streetAddress),
-    normalizeComparable(input.city),
-    normalizeComparable(input.state),
-    normalizeComparable(input.postalCode),
-  ].join('|');
-}
+export { normalizeAddressKey } from '@atmb/shared';
 
 export function slugify(value: string) {
   return normalizeText(value)
@@ -212,16 +200,6 @@ export function parsePriceCents(value: string) {
 
 export function stateCodeForName(name: string) {
   return stateCodeMap[normalizeText(name).toLowerCase()] ?? slugify(name).slice(0, 2).toUpperCase();
-}
-
-function normalizeComparable(value: string) {
-  return normalizeText(value)
-    .replace(/\bunit\b/gi, ' ')
-    .replace(/[-#]/g, ' ')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
 }
 
 export function textWithBreaks(
