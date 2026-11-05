@@ -171,9 +171,11 @@ pm2 restart ecosystem.config.cjs --update-env
 
 ## 浏览器扩展（Chrome / Edge）
 
-`apps/extension` 是一个 Manifest V3 扩展：打开 Anytime Mailbox（州列表页、地址详情页、城市落地页）和 iPostal1（地址选择页、办公楼页、选套餐页）时，在每个地址旁显示本站已有的 RDI、CMRA、USPS CMRA、C1 预审、价格、邮箱编号范围和黑名单信息，并在列表页提供「仅 RDI 住宅 / 排除黑名单 / 仅 USPS CMRA=N / 仅已收录」筛选栏。数据条默认收起成一枚芯片，点击展开；弹窗里可以改成默认展开、关闭筛选栏或隐藏未收录提示。
+`apps/extension` 是一个 Manifest V3 扩展：打开 Anytime Mailbox（州列表页、地址详情页、城市落地页）和 iPostal1（地址选择页、办公楼页、选套餐页）时，在每个地址旁显示本站已有的 RDI、CMRA、USPS CMRA、C1 预审、价格、邮箱编号范围和黑名单信息，并在列表页提供筛选栏：收录（全部 / 已收录 / 未收录）、RDI、CMRA、USPS CMRA、C1 预审、黑名单（全部 / 排除 / 仅黑名单）都是下拉选择。列表里的每个地址旁有「隐藏」，点了就不再在列表里显示（只记在本机浏览器里）；筛选栏的「已隐藏」可以切到「仅已隐藏」把它们列出来取消隐藏，弹窗里可以一键清空隐藏记录。数据条默认收起成一枚芯片，点击展开；弹窗里可以改成默认展开、关闭筛选栏或隐藏未收录提示。弹窗还有两个平台功能开关，默认关闭，需要手动开启：开启即表示通过 usaddres 推荐链接访问该平台，开启的瞬间会直接访问一次推荐链接；之后进入平台时扩展按上次访问推荐链接的时间判断，超过 30 天就先经推荐链接再跳回原页，归因没完成前页面上只显示「点击启用 usaddres 数据」。
 
-数据来自服务端新增的公开接口 `POST /api/public/extension/lookup`：扩展把当前页面上的地址（store-id / slug / 地址文本）批量发过去，服务端按 `source_id`、归一化地址 key、ZIP + 街道核心词三级匹配，并带回已审核的黑名单记录。接口每 IP 每分钟限 60 次、单次最多 500 条；扩展侧会把结果缓存 15 分钟。扩展的「提交黑名单」链接会带着地址跳到 `/address-blacklist`，表单自动预填。
+数据来自服务端新增的公开接口 `POST /api/public/extension/lookup`：扩展把当前页面上的地址（store-id / slug / 地址文本）批量发过去，服务端按 `source_id`、归一化地址 key、ZIP + 街道核心词三级匹配，并带回已审核的黑名单记录。接口每 IP 每分钟限 60 次、单次最多 500 条；扩展侧会把结果缓存 15 分钟。
+
+展开的数据条里还有「Smarty 实时查询」和「USPS 实时查询」：前者在后台标签页打开 Smarty 官网的地址验证演示页，像人一样填好地址、点 View Results，读到页面结果后带回卡片；后者在新标签页打开 USPS ZIP 查询页，同样自动填好地址并点 Find，页面出结果后带回卡片并切回原页面，查询标签页默认保留，可在弹窗里打开「实时查询后自动关闭查询页」（走的是页面自己的表单，不直接调接口；USPS 没有反应时可在该页手动点 Find，结果照样带回）。
 
 构建并加载：
 
@@ -182,6 +184,8 @@ npm run build --workspace @atmb/extension
 ```
 
 产物在 `apps/extension/dist`。Chrome 打开 `chrome://extensions`、Edge 打开 `edge://extensions`，开启「开发者模式」，选择「加载已解压的扩展程序」并指向该目录即可。联调本地服务端时用 `npm run build:dev --workspace @atmb/extension`，请求会指向 `http://localhost:3001`，同时 manifest 会多出 localhost 的 host permission。
+上架商店用的安装包由 `npm run package --workspace @atmb/extension` 生成（`apps/extension/release/usaddres-extension-v<版本>.zip`）；商店文案、权限说明、截图和宣传图都在 `apps/extension/store/`，填写指引见其中的 `STORE_LISTING.md`。扩展隐私政策页是网站的 `/extension-privacy`。
+
 ## 常用命令
 
 ```bash

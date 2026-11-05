@@ -1,10 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "usaddres 地址助手",
-  "version": "0.1.0",
-  "description": "在 Anytime Mailbox / iPostal1 地址页面上显示 usaddres.com 的 RDI、CMRA、USPS CMRA、C1 预审、价格、邮箱编号与黑名单信息",
-  "default_locale": null,
-  "permissions": ["storage"],
+  "name": "ATMB / iPostal1 美国住宅地址筛选 - usaddres",
+  "short_name": "usaddres",
+  "version": "1.0.0",
+  "description": "选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。",
+  "homepage_url": "https://usaddres.com/",
+  "minimum_chrome_version": "120",
+  "permissions": ["storage", "tabs"],
   "host_permissions": ["https://usaddres.com/*"],
   "background": {
     "service_worker": "background.js"
@@ -32,6 +34,16 @@
     {
       "matches": ["https://ipostal1.com/*", "https://www.ipostal1.com/*"],
       "js": ["content/ipostal1.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.smarty.com/products/us-address-verification*"],
+      "js": ["content/smarty.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://tools.usps.com/zip-code-lookup.htm*", "https://zh-tools.usps.com/zip-code-lookup.htm*"],
+      "js": ["content/usps.js"],
       "run_at": "document_idle"
     }
   ]

@@ -17,11 +17,8 @@ const emptyForm = {
   website: '',
 };
 
-export type BlacklistSubmitPrefill = Partial<Pick<typeof emptyForm, 'streetAddress' | 'city' | 'state' | 'postalCode' | 'sourceUrl'>>;
-
-// 浏览器扩展会带着页面上的地址跳到这里，表单直接预填
-export function BlacklistSubmitForm({ prefill }: { prefill?: BlacklistSubmitPrefill } = {}) {
-  const [form, setForm] = useState({ ...emptyForm, ...prefill });
+export function BlacklistSubmitForm() {
+  const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isPending, startTransition] = useTransition();

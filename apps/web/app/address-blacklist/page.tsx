@@ -119,23 +119,6 @@ export async function generateMetadata({ searchParams }: BlacklistPageProps): Pr
   };
 }
 
-function firstParam(value: string | string[] | undefined) {
-  const text = Array.isArray(value) ? value[0] : value;
-  return (text ?? '').trim().slice(0, 500);
-}
-
-// 扩展「提交黑名单」链接带 street / city / state / zip / source 参数预填表单
-function parseBlacklistPrefill(params: Record<string, string | string[] | undefined>) {
-  const prefill = {
-    streetAddress: firstParam(params.street),
-    city: firstParam(params.city),
-    state: firstParam(params.state).toUpperCase(),
-    postalCode: firstParam(params.zip),
-    sourceUrl: firstParam(params.source),
-  };
-  return Object.values(prefill).some(Boolean) ? prefill : undefined;
-}
-
 export default async function AddressBlacklistPage({ searchParams }: BlacklistPageProps) {
   const params = searchParams ? await searchParams : {};
   const filters = parsePublicBlacklistFilters(params);
@@ -218,7 +201,7 @@ export default async function AddressBlacklistPage({ searchParams }: BlacklistPa
             </div>
           </div>
           <div className="blacklist-submit-panel">
-            <BlacklistSubmitForm prefill={parseBlacklistPrefill(params)} />
+            <BlacklistSubmitForm />
           </div>
         </section>
 

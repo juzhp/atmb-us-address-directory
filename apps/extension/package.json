@@ -1,6 +1,6 @@
 {
   "name": "@atmb/extension",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "usaddres 地址助手：在 Anytime Mailbox / iPostal1 页面上叠加 RDI、CMRA、黑名单等信息的 Chrome / Edge 扩展",
@@ -8,6 +8,7 @@
     "prebuild": "npm run build --workspace @atmb/shared",
     "build": "node scripts/build.mjs",
     "build:dev": "node scripts/build.mjs --dev",
+    "package": "node scripts/package.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --import tsx --test test/**/*.test.ts"
   },

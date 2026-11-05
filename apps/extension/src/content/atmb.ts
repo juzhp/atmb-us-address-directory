@@ -1,4 +1,5 @@
 import { atmbSlugFromHref, collapseWhitespace, parseAddressLines, splitHtmlLines, stripMailboxPlaceholder } from '../shared/extract.js';
+import { extractOnclickUrl } from '../shared/referral.js';
 import { scanGenericAddressText, startContentScript, type ScannedCard, type SiteAdapter } from './runtime.js';
 
 const PLATFORM = 'anytimemailbox' as const;
@@ -68,6 +69,12 @@ const adapter: SiteAdapter = {
   },
   listContainer() {
     return location.pathname.startsWith('/l/usa/') ? document.querySelector<HTMLElement>('.left-plans') : null;
+  },
+  // 列表页 Select Plan、详情页 Select（onclick 跳 signup）、城市页直接指向 signup 的按钮
+  ctaSelector: 'a.gt-plan, #myear, a[href*="signup.anytimemailbox.com"]',
+  ctaTarget(element) {
+    if (element instanceof HTMLAnchorElement && element.href) return element.href;
+    return extractOnclickUrl(element.getAttribute('onclick'));
   },
 };
 

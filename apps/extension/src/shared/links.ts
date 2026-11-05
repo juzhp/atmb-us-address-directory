@@ -19,22 +19,6 @@ export function buildGoogleMapsUrl(fullAddress: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
 }
 
-export function buildSubmitBlacklistUrl(input: {
-  street?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  sourceUrl: string;
-}) {
-  const params = new URLSearchParams();
-  if (input.street) params.set('street', input.street);
-  if (input.city) params.set('city', input.city);
-  if (input.state) params.set('state', input.state);
-  if (input.postalCode) params.set('zip', input.postalCode);
-  params.set('source', input.sourceUrl);
-  return `${SITE_BASE}/address-blacklist?${params.toString()}#submit`;
-}
-
 export function formatPrice(priceCents: number) {
   return `US$ ${(priceCents / 100).toFixed(2)}`;
 }

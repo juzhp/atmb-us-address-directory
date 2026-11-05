@@ -19,6 +19,8 @@ await build({
     background: 'src/background.ts',
     'content/atmb': 'src/content/atmb.ts',
     'content/ipostal1': 'src/content/ipostal1.ts',
+    'content/smarty': 'src/content/smarty.ts',
+    'content/usps': 'src/content/usps.ts',
     'popup/popup': 'src/popup/popup.ts',
   },
   bundle: true,
@@ -34,7 +36,6 @@ await build({
 });
 
 const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.json'), 'utf8'));
-delete manifest.default_locale;
 if (dev) {
   manifest.name += ' (dev)';
   manifest.host_permissions.push(`${apiBase}/*`);

@@ -6,29 +6,61 @@
   <style>
     body { width: 320px; margin: 0; padding: 14px 16px; font: 13px/1.5 "Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans SC",Arial,sans-serif; color: #071a3f; background: #fff; }
     h1 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; font-weight: 600; }
-    h1 .logo { width: 26px; height: 26px; border-radius: 6px; background: #057f93; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+    h1 img { width: 26px; height: 26px; border-radius: 6px; }
     h1 .ver { margin-left: auto; font-size: 11px; color: #52677f; font-weight: 400; }
+    .sec { margin: 0 0 6px; font-size: 11px; color: #52677f; }
     .kv { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e8eef3; }
     .kv span:first-child { color: #52677f; }
-    .kv span:last-child { font-weight: 600; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    button { width: 100%; margin: 10px 0 12px; padding: 8px; border: 1px solid #68b7c6; border-radius: 6px; background: #fbfeff; color: #006a7b; font: inherit; cursor: pointer; }
+    .kv span:last-child, .kv a { font-weight: 600; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kv a { color: #006a7b; }
+    button { width: 100%; margin: 10px 0 14px; padding: 8px; border: 1px solid #68b7c6; border-radius: 6px; background: #fbfeff; color: #006a7b; font: inherit; cursor: pointer; }
     button:hover { background: #eef8fb; }
     .tg { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
     .tg + .tg { border-top: 1px solid #e8eef3; }
-    .tg input { width: 16px; height: 16px; margin: 0; accent-color: #057f93; }
+    .sw { position: relative; width: 34px; height: 20px; flex: none; }
+    .sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .sw i { position: absolute; inset: 0; border-radius: 10px; background: #c9d6df; transition: background .15s; pointer-events: none; }
+    .sw i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(7, 26, 63, .25); transition: transform .15s; }
+    .sw input:checked + i { background: #057f93; }
+    .sw input:checked + i::after { transform: translateX(14px); }
+    .sw input:focus-visible + i { outline: 2px solid #68b7c6; outline-offset: 2px; }
+    .group { border: 1px solid #d3e3ec; border-radius: 6px; padding: 2px 10px; margin-bottom: 12px; background: #f5f9fc; }
+    .nav { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    .nav a { display: block; padding: 7px 8px; border: 1px solid #d3e3ec; border-radius: 6px; background: #fbfeff; color: #006a7b; text-decoration: none; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+    .nav a:hover { background: #eef8fb; border-color: #68b7c6; }
+    .nav a.wide { grid-column: 1 / -1; }
+    .hint { margin: -6px 0 12px; font-size: 11px; color: #52677f; }
     .foot { margin-top: 8px; font-size: 11px; color: #52677f; }
     .ok { color: #116a49; }
   </style>
 </head>
 <body>
-  <h1><span class="logo">U</span>usaddres 地址助手<span class="ver" id="version"></span></h1>
-  <div class="kv"><span>上次查询</span><span id="last-lookup">—</span></div>
+  <h1><img src="../icons/icon-48.png" alt="">usaddres 地址助手<span class="ver" id="version"></span></h1>
+  <p class="sec">启用平台</p>
+  <div class="group">
+    <label class="tg"><span>在 Anytime Mailbox 启用</span><span class="sw"><input type="checkbox" id="enableAnytimemailbox"><i></i></span></label>
+    <label class="tg"><span>在 iPostal1 启用</span><span class="sw"><input type="checkbox" id="enableIpostal1"><i></i></span></label>
+  </div>
+  <p class="hint">开启后会通过 usaddres 推荐链接打开该平台，不影响价格。</p>
+  <p class="sec">显示</p>
+  <label class="tg"><span>默认展开数据条</span><span class="sw"><input type="checkbox" id="defaultExpanded"><i></i></span></label>
+  <label class="tg"><span>列表页显示筛选栏</span><span class="sw"><input type="checkbox" id="showFilterBar"><i></i></span></label>
+  <label class="tg"><span>未收录地址显示提示</span><span class="sw"><input type="checkbox" id="showUnrecorded"><i></i></span></label>
+  <label class="tg"><span>实时查询后自动关闭查询页</span><span class="sw"><input type="checkbox" id="autoCloseVerifyTab"><i></i></span></label>
+  <div class="kv" style="margin-top:8px"><span>上次查询</span><span id="last-lookup">—</span></div>
   <div class="kv"><span>缓存条目</span><span id="cache-entries">0</span></div>
-  <div class="kv"><span>数据来源</span><span id="api-base" title=""></span></div>
+  <div class="kv"><span>数据来源</span><a id="api-base" href="https://usaddres.com/" target="_blank" rel="noopener noreferrer" title=""></a></div>
   <button type="button" id="clear-cache">清除缓存并重新查询</button>
-  <label class="tg"><span>默认展开数据条</span><input type="checkbox" id="defaultExpanded"></label>
-  <label class="tg"><span>列表页显示筛选栏</span><input type="checkbox" id="showFilterBar"></label>
-  <label class="tg"><span>未收录地址显示提示</span><input type="checkbox" id="showUnrecorded"></label>
+  <div class="kv"><span>已隐藏的地址</span><span id="hidden-count">0</span></div>
+  <button type="button" id="clear-hidden">清空隐藏记录</button>
+  <p class="sec">快捷导航</p>
+  <div class="nav">
+    <a class="wide" href="https://usaddres.com/" target="_blank" rel="noopener noreferrer">usaddres.com 美国地址筛选</a>
+    <a id="nav-anytimemailbox" href="#">Anytime Mailbox</a>
+    <a id="nav-ipostal1" href="#">iPostal1</a>
+    <a href="https://www.smarty.com/products/us-address-verification" target="_blank" rel="noopener noreferrer">Smarty 地址验证</a>
+    <a href="https://zh-tools.usps.com/zip-code-lookup.htm?byaddress" target="_blank" rel="noopener noreferrer">USPS ZIP 查询</a>
+  </div>
   <div class="foot" id="status">数据仅供辅助判断，最终以平台与银行实际结果为准。</div>
   <script src="popup.js"></script>
 </body>

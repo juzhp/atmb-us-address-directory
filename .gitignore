@@ -49,3 +49,6 @@ apps/web/next-env.d.ts
 
 # 推广文章素材，不入库
 promo/
+
+# 扩展上架用的 zip 包，由 npm run package 生成
+apps/extension/release/

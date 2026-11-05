@@ -62,6 +62,10 @@ const adapter: SiteAdapter = {
   listContainer() {
     return document.querySelector<HTMLElement>('#mail-center-listings');
   },
+  ctaSelector: 'a.choose-location-btn',
+  ctaTarget(element) {
+    return element instanceof HTMLAnchorElement && element.href ? element.href : null;
+  },
 };
 
 void startContentScript(adapter);
