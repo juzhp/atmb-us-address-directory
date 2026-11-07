@@ -1,13 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "ATMB / iPostal1 美国住宅地址筛选 - usaddres",
-  "short_name": "usaddres",
+  "name": "__MSG_extName__",
+  "short_name": "__MSG_extShortName__",
   "version": "1.0.0",
-  "description": "选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。",
+  "description": "__MSG_extDesc__",
+  "default_locale": "zh_CN",
   "homepage_url": "https://usaddres.com/",
   "minimum_chrome_version": "120",
-  "permissions": ["storage", "tabs"],
-  "host_permissions": ["https://usaddres.com/*"],
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://usaddres.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -27,23 +33,41 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.anytimemailbox.com/*"],
-      "js": ["content/atmb.js"],
+      "matches": [
+        "https://www.anytimemailbox.com/*"
+      ],
+      "js": [
+        "content/atmb.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://ipostal1.com/*", "https://www.ipostal1.com/*"],
-      "js": ["content/ipostal1.js"],
+      "matches": [
+        "https://ipostal1.com/*",
+        "https://www.ipostal1.com/*"
+      ],
+      "js": [
+        "content/ipostal1.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.smarty.com/products/us-address-verification*"],
-      "js": ["content/smarty.js"],
+      "matches": [
+        "https://www.smarty.com/products/us-address-verification*"
+      ],
+      "js": [
+        "content/smarty.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://tools.usps.com/zip-code-lookup.htm*", "https://zh-tools.usps.com/zip-code-lookup.htm*"],
-      "js": ["content/usps.js"],
+      "matches": [
+        "https://tools.usps.com/zip-code-lookup.htm*",
+        "https://zh-tools.usps.com/zip-code-lookup.htm*"
+      ],
+      "js": [
+        "content/usps.js"
+      ],
       "run_at": "document_idle"
     }
   ]

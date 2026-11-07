@@ -1,0 +1,5 @@
+{
+  "extName": { "message": "ATMB / iPostal1 美国住宅地址筛选 - usaddres", "description": "扩展名称（商店与浏览器扩展管理页显示）" },
+  "extShortName": { "message": "usaddres", "description": "短名称（工具栏等窄处显示）" },
+  "extDesc": { "message": "选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。", "description": "商店里的简短说明" }
+}

@@ -17,7 +17,7 @@ Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套
 | 短名称（工具栏等窄处显示） | usaddres |
 | 简短说明（来自 manifest，88 字符） | 选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。 |
 | 版本 | 1.0.0 |
-| 语言 | 中文（简体） |
+| 语言 | 中文（简体）。商店后台的语言不是手选的，由包里的 `default_locale: zh_CN` 和 `_locales/zh_CN/messages.json` 决定；名称、短名称、简短说明都从这个文件读，改文案改它，`manifest.json` 里只保留 `__MSG_…__` 占位 |
 | Chrome 类别 | 工具（Tools） |
 | Edge 类别 | Productivity |
 | 官方网址 | https://usaddres.com/ |
@@ -97,9 +97,9 @@ This is a third-party tool by usaddres.com. It is not affiliated with Anytime Ma
 | 商店徽标 | `store/assets/store-logo-300x300.png` | 300×300 | — | 必填 |
 | 小宣传图 | `store/assets/promo-small-440x280.png` | 440×280，无透明 | 建议上传 | 可选 |
 | 大宣传图 | `store/assets/promo-marquee-1400x560.png` | 1400×560，无透明 | 可选 | 可选（Edge 要 1400×560） |
-| 截图 1 | `store/screenshots/01-atmb-list.jpg` | 1280×800 | 至少 1 张，最多 5 张 | 最多 10 张 |
-| 截图 2 | `store/screenshots/02-live-lookup.jpg` | 1280×800 | | |
-| 截图 3 | `store/screenshots/03-ipostal1-list.jpg` | 1280×800 | | |
+| 截图 1 | `store/screenshots/01-atmb-list.png` | 1280×800 | 至少 1 张，最多 5 张 | 最多 6 张 |
+| 截图 2 | `store/screenshots/02-live-lookup.png` | 1280×800 | | |
+| 截图 3 | `store/screenshots/03-ipostal1-list.png` | 1280×800 | | |
 | 截图 4 | `store/screenshots/04-popup.png` | 1280×800 | | |
 
 截图说明（上传时可填）：

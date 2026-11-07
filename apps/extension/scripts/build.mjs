@@ -37,11 +37,14 @@ await build({
 
 const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.json'), 'utf8'));
 if (dev) {
-  manifest.name += ' (dev)';
+  // 开发版名称不能再走 __MSG__ 占位，直接用中文名加 (dev)
+  const messages = JSON.parse(readFileSync(resolve(root, '_locales/zh_CN/messages.json'), 'utf8'));
+  manifest.name = `${messages.extName.message} (dev)`;
   manifest.host_permissions.push(`${apiBase}/*`);
 }
 writeFileSync(resolve(dist, 'manifest.json'), JSON.stringify(manifest, null, 2));
 cpSync(resolve(root, 'src/popup/popup.html'), resolve(dist, 'popup/popup.html'));
 cpSync(resolve(root, 'public/icons'), resolve(dist, 'icons'), { recursive: true });
+cpSync(resolve(root, '_locales'), resolve(dist, '_locales'), { recursive: true });
 
 console.log(`extension built → ${dist} (API ${apiBase})`);
