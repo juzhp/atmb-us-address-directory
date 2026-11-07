@@ -7413,3 +7413,74 @@ h3 a.addresses-unsafe-flag:focus-visible {
   font-size: 14px;
   text-align: center;
 }
+
+/* 路由切换反馈：导航链接的 pending 转圈 + 列表页的加载骨架 */
+.link-pending {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-left: 6px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.75;
+  animation: linkPendingSpin 700ms linear infinite;
+}
+
+@keyframes linkPendingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.route-loading {
+  min-height: 70vh;
+}
+
+.route-loading-bar {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #e9f1f6 0%, #f4f9fc 45%, #e9f1f6 90%);
+  background-size: 200% 100%;
+  animation: routeLoadingShimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes routeLoadingShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.route-loading-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.route-loading-list {
+  display: grid;
+  gap: 12px;
+  margin: 28px auto 56px;
+}
+
+@media (max-width: 1024px) {
+  .route-loading-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .route-loading-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link-pending,
+  .route-loading-bar {
+    animation: none;
+  }
+}
