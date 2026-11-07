@@ -92,7 +92,7 @@ function markCardResult(card: HTMLElement, result: Pick<ExtensionLookupResult, '
   card.dataset.usaddrC1 = result.address?.c1Precheck ?? '';
 }
 
-// 推荐链接没走通时页面上只留这一枚芯片，点击重试
+// 推荐链接没走通时页面上只留这一枚标签，点击重试
 function renderEnablePrompt(onClick: () => void) {
   const host = document.createElement('div');
   host.setAttribute(PROMPT_ATTR, '1');

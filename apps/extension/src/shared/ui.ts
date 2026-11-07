@@ -152,7 +152,7 @@ export function renderCard(model: CardModel): CardView {
   const collapse = el('span', 'collapse', '▲ 收起');
   head.append(collapse);
 
-  // 收起态芯片旁和展开态标题行各放一个「隐藏 / 取消隐藏」
+  // 收起态标签旁和展开态标题行各放一个「隐藏 / 取消隐藏」
   const hideToggles: HTMLElement[] = [];
   const onToggleHidden = model.onToggleHidden;
   function makeHideToggle() {

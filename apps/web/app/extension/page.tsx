@@ -50,7 +50,7 @@ const screenshots = [
     width: 1792,
     height: 1573,
     alt: 'usaddres 地址助手在 Anytime Mailbox 加州地址列表页：顶部筛选栏，每个地址下方的数据条显示 RDI、CMRA、USPS CMRA、C1 预审、价格和邮箱编号',
-    caption: 'Anytime Mailbox 州列表页：列表顶部多出 usaddres 筛选栏，每个地址下方是数据条和「隐藏」按钮；未展开时只显示一枚带颜色的小芯片。',
+    caption: 'Anytime Mailbox 州列表页：列表顶部多出 usaddres 筛选栏，每个地址下方是数据条和「隐藏」按钮；未展开时只显示一枚带颜色的小标签。',
   },
   {
     src: '/assets/extension/anytime-mailbox-detail-smarty-usps-live-lookup.webp',
@@ -64,7 +64,7 @@ const screenshots = [
     width: 1861,
     height: 1429,
     alt: 'usaddres 地址助手在 iPostal1 地址选择页：筛选栏与每个地址卡片下方的 RDI、CMRA、价格数据条',
-    caption: 'iPostal1 地址选择页：同样的筛选栏、芯片与数据条，可按 RDI、CMRA、黑名单等条件直接过滤整页地址。',
+    caption: 'iPostal1 地址选择页：同样的筛选栏、标签与数据条，可按 RDI、CMRA、黑名单等条件直接过滤整页地址。',
   },
   {
     src: '/assets/extension/ipostal1-plan-blacklist-usps-live-lookup.webp',
@@ -104,8 +104,8 @@ const chromeSteps = [
     text: '点击本页的「添加到 Chrome」按钮，进入 Chrome 应用商店中「ATMB / iPostal1 美国住宅地址筛选 - usaddres」的页面。',
   },
   {
-    name: '点击「添加至 Chrome」并确认',
-    text: '在弹出的权限提示里点击「添加扩展程序」。扩展只请求存储、标签页权限和对 usaddres.com 的访问，不读取其它网站。',
+    name: '在商店页面点击「添加至 Chrome」并确认',
+    text: '在弹出的权限提示里点击「添加扩展程序」。扩展只请求存储、标签页权限和对 usaddres.com 的访问，不读取其他网站。',
   },
   {
     name: '固定到工具栏（可选）',
@@ -117,7 +117,7 @@ const chromeSteps = [
   },
   {
     name: '打开地址页面开始使用',
-    text: '访问 Anytime Mailbox 的州列表页、地址详情页，或 iPostal1 的地址选择页，每个地址旁会出现 usaddres 芯片；点击芯片展开完整数据条。',
+    text: '访问 Anytime Mailbox 的州列表页、地址详情页，或 iPostal1 的地址选择页，每个地址旁会出现 usaddres 标签；点击标签展开完整数据条。',
   },
 ];
 
@@ -275,7 +275,7 @@ export default async function ExtensionPage() {
               ))}
             </div>
             <p>
-              每个地址旁的小芯片用颜色一眼区分：<strong>绿色</strong>住宅且无风险项，<strong>黄色</strong>有商业、CMRA 等风险项，<strong>红色</strong>在黑名单，<strong>灰色</strong>未收录。点击芯片展开完整数据条。
+              每个地址旁的小标签用颜色一眼区分：<strong>绿色</strong>住宅且无风险项，<strong>黄色</strong>有商业、CMRA 等风险项，<strong>红色</strong>在黑名单，<strong>灰色</strong>未收录。点击标签展开完整数据条。
             </p>
 
             <h2 id="screenshots">二、效果截图</h2>
@@ -327,9 +327,9 @@ export default async function ExtensionPage() {
                   Microsoft Edge 加载项商店的版本正在审核中，通过后本页会更新为商店链接。现在可以在 Edge 里直接从 Chrome 应用商店安装，功能完全一样：
                 </p>
                 <ol>
-                  <li><strong>允许其它商店的扩展：</strong>在 Edge 地址栏输入 <code>edge://extensions</code> 回车，在左下角打开「允许来自其他应用商店的扩展」。</li>
+                  <li><strong>允许其他商店的扩展：</strong>在 Edge 地址栏输入 <code>edge://extensions</code> 回车，在左下角打开「允许来自其他应用商店的扩展」。</li>
                   <li><strong>打开 Chrome 应用商店页面：</strong>点击上面的「添加到 Chrome」按钮，Edge 会正常打开该页面。</li>
-                  <li><strong>点击「获取」并确认：</strong>页面上的按钮在 Edge 中显示为「获取」或「添加到 Chrome」，点击后在权限提示里选择「添加扩展」。</li>
+                  <li><strong>点击「获取」并确认：</strong>页面上的按钮在 Edge 中显示为「获取」或「添加至 Chrome」，点击后在权限提示里选择「添加扩展」。</li>
                   <li><strong>开启平台：</strong>点击工具栏上的扩展图标，开启需要的平台，之后的用法与 Chrome 相同。</li>
                 </ol>
               </>

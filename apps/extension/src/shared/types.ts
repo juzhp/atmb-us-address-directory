@@ -21,7 +21,7 @@ export interface Settings {
   // 平台功能开关：默认关闭，由用户手动开启；开启即表示通过 usaddres 推荐链接访问该平台
   enableAnytimemailbox: boolean;
   enableIpostal1: boolean;
-  // 数据条默认展开；关闭时只显示一枚芯片，点击再展开
+  // 数据条默认展开；关闭时只显示一枚标签，点击再展开
   defaultExpanded: boolean;
   // 列表页顶部显示筛选栏
   showFilterBar: boolean;

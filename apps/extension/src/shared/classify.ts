@@ -4,11 +4,11 @@ export type MatchState = 'blacklisted' | 'good' | 'caution' | 'unrecorded';
 
 export interface Classification {
   state: MatchState;
-  // 收起态芯片上的短文案
+  // 收起态标签上的短文案
   chipText: string;
 }
 
-// 芯片颜色与文案：黑名单 > 未收录 > 住宅且无风险项 > 其余提示风险项
+// 标签颜色与文案：黑名单 > 未收录 > 住宅且无风险项 > 其余提示风险项
 export function classify(result: Pick<ExtensionLookupResult, 'address' | 'blacklist'>): Classification {
   const { address, blacklist } = result;
   const cautions: string[] = [];
