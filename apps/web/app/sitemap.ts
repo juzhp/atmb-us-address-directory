@@ -17,6 +17,7 @@ const routeLastModified: Record<PublicRoutePath, AddressSource | 'address_blackl
   '/ipostal1': 'ipostal1',
   '/ipostal1-residential-addresses': 'ipostal1',
   '/address-blacklist': 'address_blacklist',
+  '/extension': '2026-11-06',
   '/guide/anytime-mailbox-tutorial': '2026-09-16',
   '/guide/usps-form-1583': '2026-09-16',
   '/guide/us-residential-address-verification': '2026-09-16',

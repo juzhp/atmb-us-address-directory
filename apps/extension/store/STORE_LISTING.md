@@ -1,11 +1,11 @@
-# ATMB / iPostal1 美国住宅地址筛选 - usaddres · 上架资料（v1.0.0）
+# ATMB / iPostal1 美国住宅地址筛选 - usaddres · 上架资料（v1.1.0）
 
 Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套素材。本文件里的文案可以直接复制到两个商店的后台。
 
 ## 0. 提交前检查
 
 - [ ] **网站已部署到线上**，`https://usaddres.com/extension-privacy` 能打开（隐私政策页，本次新增，两个商店都要填这个地址）。
-- [ ] 重新打包：`npm run package --workspace @atmb/extension`，产物是 `apps/extension/release/usaddres-extension-v1.0.0.zip`。
+- [ ] 重新打包：`npm run package --workspace @atmb/extension`，产物是 `apps/extension/release/usaddres-extension-v1.1.0.zip`。
 - [ ] 用这个 zip 解压后的内容在 Chrome 和 Edge 各「加载已解压的扩展程序」走一遍：开启平台开关、看到数据条、筛选、隐藏、实时查询。
 - [ ] 开发者账号：Chrome Web Store 需一次性 5 美元注册费；Edge Add-ons（Partner Center）免费。
 
@@ -16,7 +16,7 @@ Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套
 | 名称（35 字符） | ATMB / iPostal1 美国住宅地址筛选 - usaddres |
 | 短名称（工具栏等窄处显示） | usaddres |
 | 简短说明（来自 manifest，88 字符） | 选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。 |
-| 版本 | 1.0.0 |
+| 版本 | 1.1.0 |
 | 语言 | 中文（简体）。商店后台的语言不是手选的，由包里的 `default_locale: zh_CN` 和 `_locales/zh_CN/messages.json` 决定；名称、短名称、简短说明都从这个文件读，改文案改它，`manifest.json` 里只保留 `__MSG_…__` 占位 |
 | Chrome 类别 | 工具（Tools） |
 | Edge 类别 | Productivity |
@@ -127,6 +127,7 @@ Show address-quality information (RDI, CMRA, USPS CMRA, Capital One pre-check, p
 | tabs | `Used only for actions the user triggers: opening the Smarty / USPS lookup page in a new tab for a live lookup and returning to the original tab with the result; opening a platform through the referral link when the user turns that platform on or it expires (about every 30 days); and reloading the current tab after the user clears the cache in the popup. The extension does not read the user's tab list or history.` |
 | 主机权限 `https://usaddres.com/*` | `The background service worker sends the mailbox addresses shown on the current page to the usaddres.com lookup API (POST /api/public/extension/lookup) and receives the address-quality data to display.` |
 | 内容脚本 `www.anytimemailbox.com`、`ipostal1.com`、`www.ipostal1.com` | `Reads the mailbox addresses listed on these pages and inserts the information chip, detail strip and filter bar next to them. This is the extension's core function.` |
+| 内容脚本 `usaddres.com` | `Runs only on our own site usaddres.com. It marks the page as "extension installed" and relays the user's click on "Smarty 实时查询" / "USPS 实时查询" in the usaddres.com address lists to the same live-lookup flow described below, then returns the result to that page. It reads nothing else from the page.` |
 | 内容脚本 `www.smarty.com/products/us-address-verification*`、`tools.usps.com/zip-code-lookup.htm*`、`zh-tools.usps.com/zip-code-lookup.htm*` | `Only active in a tab the extension itself opened after the user clicked "Smarty 实时查询" or "USPS 实时查询". It fills the address into the page's own lookup form, submits it, reads the result shown on the page and passes it back to the original tab. It does nothing when the user visits these pages on their own.` |
 
 ### 远程代码（Remote code）
@@ -183,7 +184,7 @@ The extension is a third-party helper by usaddres.com and is not affiliated with
 
 | 页面 | 字段 | 内容 |
 | --- | --- | --- |
-| Packages | 上传 | 同一个 `usaddres-extension-v1.0.0.zip` |
+| Packages | 上传 | 同一个 `usaddres-extension-v1.1.0.zip` |
 | Availability | 可见性 / 市场 | Public，全部市场 |
 | Properties | Category | Productivity |
 | Properties | Privacy policy requirements | 选「是」，URL 填 `https://usaddres.com/extension-privacy` |
@@ -205,3 +206,4 @@ The extension is a third-party helper by usaddres.com and is not affiliated with
 - **品牌名称**：名称里带了 ATMB、iPostal1 两个平台词，用来命中这两个词的搜索，属于「说明适用网站」的用法，说明末尾有「无隶属关系」的声明。这是有意的取舍：如果审核以商标或误导为由退回，或者平台方投诉，就把名称换成不带平台词的备用名 `美国住宅地址助手：RDI/CMRA 地址验证 - usaddres`（平台词仍保留在简短说明里），改 `manifest.json` 的 `name` 后重新打包即可。弹窗和工具栏显示的仍是「usaddres 地址助手」/「usaddres」。
 - **审核时长**：Chrome 通常 1–3 个工作日，带 `tabs` 和多站点内容脚本的扩展可能进入更长的人工审核；Edge 通常 1–7 个工作日。
 - **发版**：以后每次更新把 `manifest.json` 和 `package.json` 的版本号一起加一，再跑 `npm run package`。
+- **v1.1.0 变更**：新增只在 `usaddres.com` 上运行的桥接内容脚本（`content/usaddres.js`），让网站地址列表里的「Smarty / USPS 实时查询」能借扩展完成；没有新增权限（usaddres.com 本来就在 host_permissions 里）。网站上的实时查询要等这个版本在商店发布后才能用。

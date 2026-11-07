@@ -3,6 +3,7 @@ export const APP_NAME = 'ATMB Address Guide';
 export * from './us-states.js';
 export * from './address-parse.js';
 export * from './address-key.js';
+export * from './extension-bridge.js';
 
 export interface AdminUserProfile {
   id: number;

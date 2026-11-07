@@ -30,6 +30,7 @@ import { ActiveFilterChips, type ActiveFilterChip } from '../_components/ActiveF
 import { AddressRowClickState } from '../_components/AddressRowClickState';
 import { PublicHeadCode } from '../_components/PublicHeadCode';
 import { BlacklistFlag } from '../_components/BlacklistFlag';
+import { LiveLookup } from '../_components/LiveLookup';
 import { SiteFooter, SiteHeader } from '../_components/SiteShell';
 import { StateFilterPanel, StateFilterPanelSkeleton } from '../_components/StateFilterPanel';
 
@@ -552,6 +553,7 @@ async function AddressResults({
                   查看照片
                 </a>
               </div>
+              <LiveLookup street={address.streetAddress} city={address.city} state={address.state} postalCode={address.postalCode} />
             </article>
           ))}
         </div>

@@ -21,6 +21,7 @@ await build({
     'content/ipostal1': 'src/content/ipostal1.ts',
     'content/smarty': 'src/content/smarty.ts',
     'content/usps': 'src/content/usps.ts',
+    'content/usaddres': 'src/content/usaddres.ts',
     'popup/popup': 'src/popup/popup.ts',
   },
   bundle: true,
@@ -41,6 +42,8 @@ if (dev) {
   const messages = JSON.parse(readFileSync(resolve(root, '_locales/zh_CN/messages.json'), 'utf8'));
   manifest.name = `${messages.extName.message} (dev)`;
   manifest.host_permissions.push(`${apiBase}/*`);
+  // 本地跑网站（localhost:3000）时也注入桥接脚本，方便调网站上的实时查询
+  manifest.content_scripts.push({ matches: ['http://localhost/*'], js: ['content/usaddres.js'], run_at: 'document_start' });
 }
 writeFileSync(resolve(dist, 'manifest.json'), JSON.stringify(manifest, null, 2));
 cpSync(resolve(root, 'src/popup/popup.html'), resolve(dist, 'popup/popup.html'));

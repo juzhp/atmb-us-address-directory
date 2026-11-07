@@ -1,6 +1,6 @@
 {
   "name": "@atmb/extension",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "usaddres 地址助手：在 Anytime Mailbox / iPostal1 页面上叠加 RDI、CMRA、黑名单等信息的 Chrome / Edge 扩展",

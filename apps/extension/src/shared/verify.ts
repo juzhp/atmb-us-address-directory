@@ -1,30 +1,19 @@
-import { parseOneLineUsAddress } from '@atmb/shared';
+import {
+  parseOneLineUsAddress,
+  type ExtensionVerifyAddress,
+  type ExtensionVerifyField,
+  type ExtensionVerifyProvider,
+  type ExtensionVerifyResult,
+  type ExtensionVerifyTone,
+} from '@atmb/shared';
 
-// 实时查询：在用户自己的浏览器里打开 Smarty 演示页 / USPS 查询页，读取页面给出的结果带回数据卡片
-export type VerifyProvider = 'smarty' | 'usps';
-
-export interface VerifyAddress {
-  street: string;
-  city: string;
-  state: string;
-  postalCode: string;
-}
-
-export type VerifyTone = 'good' | 'warn' | 'muted' | 'info';
-
-export interface VerifyField {
-  label: string;
-  value: string;
-  tone: VerifyTone;
-}
-
-export interface VerifyResult {
-  ok: boolean;
-  error?: string;
-  // 对方标准化后的地址
-  address?: string;
-  fields?: VerifyField[];
-}
+// 实时查询：在用户自己的浏览器里打开 Smarty 演示页 / USPS 查询页，读取页面给出的结果带回数据卡片。
+// 结果类型与网站共用（usaddres.com 页面也通过扩展发起同样的查询），定义在 @atmb/shared
+export type VerifyProvider = ExtensionVerifyProvider;
+export type VerifyAddress = ExtensionVerifyAddress;
+export type VerifyTone = ExtensionVerifyTone;
+export type VerifyField = ExtensionVerifyField;
+export type VerifyResult = ExtensionVerifyResult;
 
 export const SMARTY_DEMO_URL = 'https://www.smarty.com/products/us-address-verification';
 export const USPS_LOOKUP_URL = 'https://tools.usps.com/zip-code-lookup.htm?byaddress';

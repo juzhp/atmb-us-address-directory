@@ -31,6 +31,10 @@ export interface PublicAddressListItem {
   name: string;
   streetAddress: string;
   cityLine: string;
+  // 拆开的城市 / 州 / 邮编：实时查询要按字段填进 Smarty / USPS 的表单
+  city: string;
+  state: string;
+  postalCode: string;
   stateLabel: string;
   price: string;
   rdi: string;
@@ -487,6 +491,9 @@ function toPublicAddressListItem(row: AddressRow) {
     name: row.name,
     streetAddress: row.streetAddress,
     cityLine: `${row.city}, ${row.state} ${row.postalCode}`,
+    city: row.city,
+    state: row.state,
+    postalCode: row.postalCode,
     stateLabel: state.label,
     price: formatPublicPrice(row.priceCents),
     rdi: row.rdi ?? '无',
