@@ -304,10 +304,10 @@ export default async function HomePage() {
             </button>
           </form>
           <div className="home-filter-note">
-            <span><ShieldCheck size={16} aria-hidden="true" /><strong>RDI / CMRA</strong> 来源于 Smarty 地址验证结果</span>
-            <span><MapPinned size={16} aria-hidden="true" />街景通过 Google Maps 链接跳转后由用户自行判断</span>
-            <span><RefreshCw size={16} aria-hidden="true" />地址、价格与邮箱编号范围每日监控更新</span>
-            <span><CreditCard size={16} aria-hidden="true" /><strong>USPS CMRA</strong> 与 <strong>C1 预审</strong> 可在地址列表中筛选并直接展示</span>
+            <span><ShieldCheck size={16} aria-hidden="true" /><span><strong>RDI / CMRA</strong> 来源于 Smarty 地址验证结果</span></span>
+            <span><MapPinned size={16} aria-hidden="true" /><span>街景通过 Google Maps 链接跳转后由用户自行判断</span></span>
+            <span><RefreshCw size={16} aria-hidden="true" /><span>地址、价格与邮箱编号范围每日监控更新</span></span>
+            <span><CreditCard size={16} aria-hidden="true" /><span><strong>USPS CMRA</strong> 与 <strong>C1 预审</strong> 可在地址列表中筛选并直接展示</span></span>
           </div>
         </section>
 

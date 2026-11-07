@@ -3792,13 +3792,14 @@ a {
   font-weight: 650;
 }
 
-.home-filter-note span {
+.home-filter-note > span {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
 .home-filter-note svg {
+  flex: none;
   width: 20px;
   height: 20px;
   border: 1px solid #9bd5df;
@@ -4429,17 +4430,21 @@ a {
 }
 
 .site-footer-inner {
-  grid-template-columns: 1fr auto;
-  gap: 29px;
-  padding: 29px 0 32px;
+  grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr));
+  gap: 32px 48px;
+  padding: 40px 0 22px;
 }
 
 .site-footer strong {
-  display: none;
+  display: block;
+  margin-bottom: 10px;
+  color: #142b4d;
+  font-size: 16px;
+  font-weight: 850;
 }
 
 .site-footer p {
-  max-width: 1120px;
+  max-width: 520px;
   margin: 0;
   color: #53677d;
   font-size: 14px;
@@ -4448,8 +4453,18 @@ a {
 }
 
 .site-footer nav {
-  justify-content: flex-end;
-  gap: 36px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.site-footer-group-title {
+  margin-bottom: 4px;
+  color: #142b4d;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
 }
 
 .site-footer nav a {
@@ -4458,9 +4473,34 @@ a {
   border-radius: 0;
   padding: 0;
   background: transparent;
-  color: #1c3657;
+  color: #33516f;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 600;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.site-footer nav a:hover,
+.site-footer-meta a:hover {
+  color: var(--home-teal-dark);
+}
+
+.site-footer-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+  border-top: 1px solid var(--home-line);
+  padding-top: 18px;
+  color: #6b7f94;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.site-footer-meta a {
+  color: #33516f;
+  font-weight: 600;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 @media (max-width: 1320px) {
@@ -4588,9 +4628,18 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .home-insight,
-  .site-footer-inner {
+  .home-insight {
     grid-template-columns: 1fr;
+  }
+
+  .site-footer-inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 32px;
+    padding-top: 32px;
+  }
+
+  .site-footer-brand {
+    grid-column: 1 / -1;
   }
 
   .home-featured-top {
@@ -4632,9 +4681,6 @@ a {
     border-bottom: 1px solid var(--home-line);
   }
 
-  .site-footer nav {
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 680px) {
@@ -4669,16 +4715,122 @@ a {
     min-height: 36px;
   }
 
+  /* 手机端：展开后的导航作为浮层面板挂在页头下方，推荐入口做成按钮，教程单独分组 */
+  .site-nav.is-open {
+    position: absolute;
+    top: 100%;
+    right: calc(-1 * var(--site-gutter));
+    left: calc(-1 * var(--site-gutter));
+    z-index: 80;
+    width: auto;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 2px;
+    max-height: calc(100vh - 66px);
+    overflow-y: auto;
+    border-top: 1px solid var(--home-line);
+    padding: 10px var(--site-gutter) 18px;
+    background: #fff;
+    box-shadow: 0 24px 40px rgba(7, 26, 63, 0.14);
+  }
+
+  .site-nav.is-open a {
+    min-height: 46px;
+    justify-content: flex-start;
+    border-radius: 10px;
+    padding: 0 12px;
+    color: var(--home-ink);
+    font-size: 15px;
+    font-weight: 650;
+  }
+
+  .site-nav.is-open a:hover,
+  .site-nav.is-open .site-nav-active {
+    background: var(--home-soft);
+    color: var(--home-teal-dark);
+  }
+
+  .site-nav.is-open .site-nav-active::after {
+    display: none;
+  }
+
+  .site-nav.is-open .site-nav-recommend {
+    order: -1;
+    align-self: flex-start;
+    min-height: 40px;
+    margin: 4px 0 8px;
+    border: 1px solid var(--home-line-strong);
+    border-radius: 999px;
+    padding: 0 16px;
+    background: #f3fbfc;
+    color: var(--home-teal-dark);
+    box-shadow: none;
+  }
+
+  .site-nav.is-open .site-nav-dropdown {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    margin-top: 8px;
+    border: 0;
+    border-top: 1px solid var(--home-line);
+    border-radius: 0;
+    padding: 8px 0 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+  }
+
+  .site-nav.is-open .site-nav-dropdown::before {
+    content: "教程";
+    padding: 8px 12px 4px;
+    color: var(--home-muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .site-nav.is-open .site-nav-dropdown a {
+    width: 100%;
+    min-height: 46px;
+    justify-content: flex-start;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 15px;
+    white-space: normal;
+  }
+
+  .site-nav.is-open .site-github-link {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-top: 8px;
+    border: 0;
+    border-top: 1px solid var(--home-line);
+    border-radius: 0 0 10px 10px;
+    padding: 8px 12px 0;
+    background: transparent;
+    color: var(--home-ink);
+  }
+
+  .site-nav.is-open .site-github-link::after {
+    content: "GitHub 开源仓库";
+    font-size: 15px;
+    font-weight: 650;
+  }
+
   .home-hero {
     padding-top: 30px;
   }
 
   .home-hero-copy h1 {
-    font-size: 29px;
-  }
-
-  .home-hero-copy h1 br {
-    display: none;
+    font-size: clamp(22px, 7.2vw, 27px);
   }
 
   .home-hero-lede {
@@ -4803,7 +4955,7 @@ a {
   }
 
   .site-footer nav {
-    gap: 15px;
+    gap: 8px;
   }
 }
 

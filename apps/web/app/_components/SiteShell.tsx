@@ -4,7 +4,7 @@ import { SiteNav } from './SiteNav';
 
 const CONTACT_EMAIL = 'juzhpcom@gmail.com';
 
-type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'ipostal1Residential' | 'blacklist' | 'extension' | 'guide' | 'faq';
+type SiteNavKey = 'home' | 'addresses' | 'residential' | 'ipostal1' | 'ipostal1Residential' | 'blacklist' | 'extension' | 'guide';
 
 function navClass(active: SiteNavKey, key: SiteNavKey) {
   return active === key ? 'site-nav-active' : undefined;
@@ -41,7 +41,6 @@ export function SiteHeader({ active = 'home' }: { active?: SiteNavKey }) {
               <Link role="menuitem" href="/guide/usps-form-1583">USPS Form 1583 公证教程</Link>
             </div>
           </div>
-          <Link className={navClass(active, 'faq')} href={active === 'home' ? '#faq' : '/#faq'}>FAQ</Link>
           <a className="site-github-link" href="https://github.com/juzhp/atmb-us-address-directory" rel="noreferrer" target="_blank" aria-label="GitHub">
             <GitHubMark />
           </a>
@@ -55,29 +54,33 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="site-footer-inner">
-        <div>
+        <div className="site-footer-brand">
           <strong>Anytime Mailbox住宅地址指南</strong>
           <p>
             本站为第三方地址筛选指南，非 Anytime Mailbox 官方网站。所有数据均来自公开信息与第三方服务，仅供参考与研究使用，
             不构成任何承诺、保证或租用建议。
           </p>
-          <p>
-            联系邮箱：<a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-          </p>
         </div>
-        <nav aria-label="页脚导航">
+        <nav aria-label="地址列表">
+          <span className="site-footer-group-title">地址列表</span>
           <Link href="/addresses">ATMB 所有地址</Link>
           <Link href="/residential-addresses">ATMB 住宅地址</Link>
           <Link href="/ipostal1">iPostal1 所有地址</Link>
           <Link href="/ipostal1-residential-addresses">iPostal1 住宅地址</Link>
           <Link href="/address-blacklist">地址黑名单</Link>
-          <Link href="/extension">浏览器插件</Link>
-          <Link href="/guide/anytime-mailbox-tutorial">注册教程</Link>
-          <Link href="/guide/us-residential-address-verification">地址验证</Link>
-          <Link href="/guide/us-credit-card-address">信用卡地址</Link>
-          <Link href="/guide/usps-form-1583">1583 公证</Link>
-          <Link href="/#faq">FAQ</Link>
         </nav>
+        <nav aria-label="插件与教程">
+          <span className="site-footer-group-title">插件与教程</span>
+          <Link href="/extension">浏览器插件</Link>
+          <Link href="/guide/anytime-mailbox-tutorial">ATMB 注册教程</Link>
+          <Link href="/guide/us-residential-address-verification">住宅地址验证教程</Link>
+          <Link href="/guide/us-credit-card-address">信用卡与账单地址</Link>
+          <Link href="/guide/usps-form-1583">USPS 1583 公证</Link>
+        </nav>
+        <div className="site-footer-meta">
+          <span>© {new Date().getFullYear()} usaddres.com</span>
+          <a href={`mailto:${CONTACT_EMAIL}`}>联系邮箱：{CONTACT_EMAIL}</a>
+        </div>
       </div>
     </footer>
   );
