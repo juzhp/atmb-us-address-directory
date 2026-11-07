@@ -13,7 +13,7 @@ const EFFECTIVE_DATE = '2026-11-05';
 export const metadata: Metadata = {
   title: 'usaddres 地址助手隐私政策 | Privacy Policy',
   description:
-    'usaddres 地址助手（Chrome / Edge 浏览器扩展）的隐私政策：扩展处理哪些数据、发送到哪里、保存在哪里，以及推荐链接说明。',
+    'usaddres 地址助手（Chrome / Edge 浏览器插件）的隐私政策：扩展处理哪些数据、发送到哪里、保存在哪里，以及推荐链接说明。',
   alternates: {
     canonical: '/extension-privacy',
   },
@@ -36,7 +36,7 @@ export default async function ExtensionPrivacyPage() {
             </nav>
             <h1>usaddres 地址助手隐私政策</h1>
             <p className="addresses-hero-copy">
-              适用于 Chrome 与 Edge 浏览器扩展「ATMB / iPostal1 美国住宅地址筛选 - usaddres」（扩展内显示为「usaddres 地址助手」）。生效日期：{EFFECTIVE_DATE}。English version below.
+              适用于 Chrome 与 Edge 浏览器插件「ATMB / iPostal1 美国住宅地址筛选 - usaddres」（扩展内显示为「usaddres 地址助手」）。生效日期：{EFFECTIVE_DATE}。English version below.
             </p>
           </div>
         </section>

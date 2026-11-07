@@ -15,7 +15,7 @@ const PAGE_PATH = '/extension';
 const GITHUB_URL = 'https://github.com/juzhp/atmb-us-address-directory/tree/main/apps/extension';
 
 export const metadata: Metadata = {
-  title: 'usaddres 地址助手：Chrome / Edge 浏览器扩展，在 ATMB、iPostal1 页面直接显示 RDI、CMRA 与地址黑名单',
+  title: 'usaddres 地址助手：Chrome / Edge 浏览器插件，在 ATMB、iPostal1 页面直接显示 RDI、CMRA 与地址黑名单',
   description:
     '免费 Chrome / Edge 扩展：浏览 Anytime Mailbox(ATMB) 和 iPostal1 的美国地址页面时，每个地址旁自动显示 RDI、CMRA、USPS CMRA、C1 预审、价格和用户黑名单，支持页面内筛选、本地隐藏，以及一键 Smarty / USPS 实时查询。附安装教程与常见问题。',
   alternates: {
@@ -29,14 +29,14 @@ export const metadata: Metadata = {
     '美国住宅地址筛选插件',
     'Chrome 扩展 美国地址',
     'Edge 扩展 美国地址',
-    'RDI CMRA 浏览器扩展',
+    'RDI CMRA 浏览器插件',
     'USPS CMRA 查询',
     'Smarty 地址验证',
     '美国地址黑名单',
     '虚拟邮箱地址筛选',
   ],
   openGraph: {
-    title: 'usaddres 地址助手：ATMB / iPostal1 美国住宅地址筛选浏览器扩展',
+    title: 'usaddres 地址助手：ATMB / iPostal1 美国住宅地址筛选浏览器插件',
     description: '在 Anytime Mailbox 与 iPostal1 页面直接看到每个地址的 RDI、CMRA、黑名单，一键 Smarty / USPS 实时查询。免费，Chrome 与 Edge 可用。',
     type: 'website',
     locale: 'zh_CN',
@@ -163,7 +163,7 @@ const jsonLd = {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: '首页', item: `${SITE_URL}/` },
-        { '@type': 'ListItem', position: 2, name: '浏览器扩展' },
+        { '@type': 'ListItem', position: 2, name: '浏览器插件' },
       ],
     },
     {
@@ -217,9 +217,9 @@ export default async function ExtensionPage() {
             <nav className="addresses-breadcrumb" aria-label="面包屑">
               <Link href="/">首页</Link>
               <span>/</span>
-              <strong>浏览器扩展</strong>
+              <strong>浏览器插件</strong>
             </nav>
-            <h1>usaddres 地址助手：在 Anytime Mailbox 与 iPostal1 页面直接显示 RDI、CMRA 与地址黑名单的浏览器扩展</h1>
+            <h1>usaddres 地址助手：在 Anytime Mailbox 与 iPostal1 页面直接显示 RDI、CMRA 与地址黑名单的浏览器插件</h1>
             <p className="addresses-hero-copy">
               挑美国地址时不用再在平台页面和本站之间来回切换。装上这个免费的 Chrome / Edge 扩展，ATMB 和 iPostal1
               的每个地址旁都会显示 usaddres.com 整理的 RDI、CMRA、USPS CMRA、C1 预审、价格和用户黑名单，还能在页面里筛选、隐藏，并一键发起 Smarty / USPS 实时查询。

@@ -44,7 +44,7 @@ export const publicRoutes = [
   {
     path: '/extension',
     priority: 0.8,
-    title: 'usaddres 地址助手浏览器扩展',
+    title: 'usaddres 地址助手浏览器插件',
     summary:
       '免费 Chrome / Edge 扩展的介绍与安装教程：在 Anytime Mailbox 与 iPostal1 的地址页面上直接显示 RDI、CMRA、USPS CMRA、C1 预审、价格与地址黑名单，支持页面内筛选、本地隐藏和 Smarty / USPS 一键实时查询；装好后本站地址列表每一行也能发起实时查询。',
   },

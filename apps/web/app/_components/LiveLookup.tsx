@@ -7,7 +7,7 @@ import type { ExtensionVerifyProvider, ExtensionVerifyResult } from '@atmb/share
 import { isExtensionInstalled, verifyWithExtension } from '../_lib/extension-bridge';
 import { EXTENSION_LIVE_LOOKUP_URL } from '../_lib/extension-links';
 
-// 地址行底部的「Smarty / USPS 实时查询」：通过浏览器扩展在新标签页打开官方查询页并把结果带回来，
+// 地址行底部的「Smarty / USPS 实时查询」：通过浏览器插件在新标签页打开官方查询页并把结果带回来，
 // 与扩展在 ATMB / iPostal1 页面数据卡片里的实时查询是同一条链路；没装扩展就跳到扩展介绍页
 interface LiveLookupProps {
   street: string;
@@ -52,13 +52,13 @@ export function LiveLookup({ street, city, state, postalCode }: LiveLookupProps)
             key={provider}
             type="button"
             disabled={slots[provider]?.status === 'pending'}
-            title={`通过 usaddres 浏览器扩展在新标签页打开 ${label.replace(' 实时查询', '')} 官方查询页，把结果带回这里`}
+            title={`通过 usaddres 浏览器插件在新标签页打开 ${label.replace(' 实时查询', '')} 官方查询页，把结果带回这里`}
             onClick={() => void run(provider)}
           >
             {label}
           </button>
         ))}
-        {!installed ? <a href={EXTENSION_LIVE_LOOKUP_URL}>需先安装浏览器扩展</a> : null}
+        {!installed ? <a href={EXTENSION_LIVE_LOOKUP_URL}>需先安装浏览器插件</a> : null}
       </div>
       {PROVIDERS.map(({ provider, title, pending }) => {
         const slot = slots[provider];
