@@ -7415,12 +7415,22 @@ h3 a.addresses-unsafe-flag:focus-visible {
   position: relative;
 }
 
+/* 只在手机端（折叠菜单）显示；PC 端导航不需要这个转圈 */
+.link-pending {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .link-pending {
+    display: block;
+  }
+}
+
 /* 绝对定位，不占行内空间，避免点击后相邻链接被挤动 */
 .link-pending {
   position: absolute;
   top: 50%;
   right: -17px;
-  display: block;
   width: 11px;
   height: 11px;
   margin-top: -6px;
