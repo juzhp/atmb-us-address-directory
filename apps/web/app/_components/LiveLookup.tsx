@@ -1,7 +1,7 @@
 'use client';
 
 import { Zap } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ExtensionVerifyProvider, ExtensionVerifyResult } from '@atmb/shared';
 
 import { isExtensionInstalled, verifyWithExtension } from '../_lib/extension-bridge';
@@ -25,12 +25,6 @@ type Slot = { status: 'pending' } | { status: 'done'; result: ExtensionVerifyRes
 
 export function LiveLookup({ street, city, state, postalCode }: LiveLookupProps) {
   const [slots, setSlots] = useState<Partial<Record<ExtensionVerifyProvider, Slot>>>({});
-  // 服务端不知道浏览器有没有装扩展，挂载后再判断，避免水合不一致
-  const [installed, setInstalled] = useState(true);
-
-  useEffect(() => {
-    setInstalled(isExtensionInstalled());
-  }, []);
 
   async function run(provider: ExtensionVerifyProvider) {
     if (slots[provider]?.status === 'pending') return;
@@ -58,7 +52,6 @@ export function LiveLookup({ street, city, state, postalCode }: LiveLookupProps)
             {label}
           </button>
         ))}
-        {!installed ? <a href={EXTENSION_LIVE_LOOKUP_URL}>需先安装浏览器插件</a> : null}
       </div>
       {PROVIDERS.map(({ provider, title, pending }) => {
         const slot = slots[provider];

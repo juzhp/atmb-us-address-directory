@@ -5937,11 +5937,6 @@ a {
   cursor: default;
 }
 
-.addresses-live-actions a {
-  color: #86570d;
-  font-weight: 650;
-}
-
 .addresses-live-item {
   padding: 7px 10px;
   border: 1px dashed var(--line-strong);
@@ -7415,16 +7410,30 @@ h3 a.addresses-unsafe-flag:focus-visible {
 }
 
 /* 路由切换反馈：导航链接的 pending 转圈 + 列表页的加载骨架 */
+.site-nav a,
+.site-footer nav a {
+  position: relative;
+}
+
+/* 绝对定位，不占行内空间，避免点击后相邻链接被挤动 */
 .link-pending {
-  display: inline-block;
+  position: absolute;
+  top: 50%;
+  right: -17px;
+  display: block;
   width: 11px;
   height: 11px;
-  margin-left: 6px;
+  margin-top: -6px;
   border: 2px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
   opacity: 0.75;
   animation: linkPendingSpin 700ms linear infinite;
+}
+
+.site-nav .site-nav-dropdown .link-pending,
+.site-nav.is-open .link-pending {
+  right: 12px;
 }
 
 @keyframes linkPendingSpin {
@@ -7433,8 +7442,9 @@ h3 a.addresses-unsafe-flag:focus-visible {
   }
 }
 
+/* 骨架至少撑满一屏：列表页都比视口长，保证切换前后都有滚动条，内容不会左右跳 */
 .route-loading {
-  min-height: 70vh;
+  min-height: 100vh;
 }
 
 .route-loading-bar {
