@@ -4492,7 +4492,7 @@ a {
   gap: 8px 24px;
   border-top: 1px solid var(--home-line);
   padding-top: 18px;
-  color: #6b7f94;
+  color: #53677d;
   font-size: 13px;
   font-weight: 500;
 }
@@ -5172,7 +5172,7 @@ a {
   align-items: center;
   gap: 8px;
   margin-bottom: 17px;
-  color: #658098;
+  color: #53677d;
   font-size: 13px;
   font-weight: 650;
 }
@@ -5436,17 +5436,17 @@ a {
 .addresses-state-link.is-empty:not(.active) {
   border-color: #e3e9ef;
   background: #f7f9fb;
-  color: #7b8ea3;
+  color: #586c82;
   box-shadow: none;
 }
 
 .addresses-state-link.is-empty:not(.active) .addresses-state-name small {
-  color: #9aa9b8;
+  color: #586c82;
 }
 
 .addresses-state-link.is-empty:not(.active) .addresses-state-count {
   background: #eef2f5;
-  color: #7b8ea3;
+  color: #586c82;
 }
 
 .addresses-state-skeleton {
@@ -6078,7 +6078,10 @@ a {
 }
 
 .addresses-pagination .disabled {
-  opacity: 0.48;
+  border-color: #e3e9ef;
+  background: #f4f7fa;
+  color: #586c82;
+  cursor: default;
 }
 
 .addresses-seo-grid {
