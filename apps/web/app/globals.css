@@ -7507,3 +7507,27 @@ h3 a.addresses-unsafe-flag:focus-visible {
     animation: none;
   }
 }
+
+/* 黑名单同一地址的反馈：默认只显示两条，其余可展开 */
+.blacklist-reason-list {
+  min-width: 0;
+}
+
+.blacklist-reasons-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 10px 0 0 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--teal-dark);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.blacklist-reasons-toggle:hover {
+  text-decoration: underline;
+}

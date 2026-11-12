@@ -3,7 +3,6 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import {
   Database,
-  ExternalLink,
   Flag,
   MessageSquareWarning,
   RefreshCw,
@@ -24,7 +23,7 @@ import {
 import { getPublicHeadCode } from '../_lib/public-head-code';
 import { ActiveFilterChips, type ActiveFilterChip } from '../_components/ActiveFilterChips';
 import { BlacklistSubmitForm } from '../_components/BlacklistSubmitForm';
-import { ExpandableText } from '../_components/ExpandableText';
+import { BlacklistReasonList } from '../_components/BlacklistReasonList';
 import { PublicHeadCode } from '../_components/PublicHeadCode';
 import { SiteFooter, SiteHeader } from '../_components/SiteShell';
 
@@ -307,22 +306,7 @@ async function BlacklistResults({
                 <p>{entry.cityLine}</p>
                 <small>{entry.stateLabel}</small>
               </div>
-              <ol className="blacklist-reasons">
-                {entry.reasons.map((item) => (
-                  <li key={item.id}>
-                    <ExpandableText text={item.reason} />
-                    <div className="blacklist-reason-meta">
-                      <span>收录于 {item.approvedAt}</span>
-                      {item.sourceUrl ? (
-                        <a href={item.sourceUrl} rel="nofollow noreferrer noopener" target="_blank">
-                          <ExternalLink size={14} aria-hidden="true" />
-                          来源链接
-                        </a>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ol>
+              <BlacklistReasonList reasons={entry.reasons} />
             </article>
           ))}
         </div>

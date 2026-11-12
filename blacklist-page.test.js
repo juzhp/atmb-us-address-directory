@@ -12,10 +12,16 @@ test('address blacklist page is a server component built on the blacklist data l
   assert.match(source, /FAQPage/);
   assert.match(source, /<SiteHeader active="blacklist" \/>/);
   assert.match(source, /<BlacklistSubmitForm \/>/);
-  assert.match(source, /<ExpandableText text=\{item\.reason\} \/>/);
+  assert.match(source, /<BlacklistReasonList reasons=\{entry\.reasons\} \/>/);
   assert.match(source, /#blacklist-list-title/);
-  assert.match(source, /rel="nofollow noreferrer noopener"/);
   assert.doesNotMatch(source, /'use client'|"use client"/);
+
+  // 同一地址的反馈默认只显示两条，其余折叠；来源链接不传权重
+  const reasonList = readFileSync('apps/web/app/_components/BlacklistReasonList.tsx', 'utf8');
+  assert.match(reasonList, /^'use client';/);
+  assert.match(reasonList, /const VISIBLE_COUNT = 2;/);
+  assert.match(reasonList, /<ExpandableText text=\{item\.reason\} \/>/);
+  assert.match(reasonList, /rel="nofollow noreferrer noopener"/);
 });
 
 test('public blacklist data only reads approved entries from a read-only connection', () => {

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Check, Download, Filter, Puzzle, ShieldAlert, Zap } from 'lucide-react';
 
 import { getPublicHeadCode } from '../_lib/public-head-code';
-import { CHROME_STORE_URL, EDGE_STORE_LIVE, EDGE_STORE_URL } from '../_lib/extension-links';
+import { CHROME_STORE_URL, EDGE_STORE_URL } from '../_lib/extension-links';
 import { SITE_URL } from '../_lib/site-routes';
 import { PublicHeadCode } from '../_components/PublicHeadCode';
 import { SiteFooter, SiteHeader } from '../_components/SiteShell';
@@ -121,6 +121,25 @@ const chromeSteps = [
   },
 ];
 
+const edgeSteps = [
+  {
+    name: '打开 Microsoft Edge 加载项页面',
+    text: '在 Edge 里点击本页的「添加到 Edge」按钮，进入 Microsoft Edge 加载项商店中「ATMB / iPostal1 美国住宅地址筛选 - usaddres」的页面。',
+  },
+  {
+    name: '点击「获取」并确认',
+    text: '点击页面上的「获取」，在弹出的权限提示里选择「添加扩展」。Edge 版与 Chrome 版是同一个安装包，权限和功能完全一样。',
+  },
+  {
+    name: '显示到工具栏（可选）',
+    text: '点击地址栏右侧的拼图图标，在列表里点「usaddres」旁边的眼睛图标，让它固定显示在工具栏上。',
+  },
+  {
+    name: '开启平台并打开地址页面',
+    text: '点击扩展图标，开启「在 Anytime Mailbox 启用」或「在 iPostal1 启用」，再访问对应平台的地址页面，之后的用法与 Chrome 相同。',
+  },
+];
+
 const faqs = [
   {
     question: '扩展收费吗？需要注册账号吗？',
@@ -175,6 +194,7 @@ const jsonLd = {
       operatingSystem: 'Chrome, Microsoft Edge',
       installUrl: CHROME_STORE_URL,
       downloadUrl: CHROME_STORE_URL,
+      sameAs: [CHROME_STORE_URL, EDGE_STORE_URL],
       isAccessibleForFree: true,
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
       screenshot: screenshots.map((shot) => `${SITE_URL}${shot.src}`),
@@ -187,6 +207,16 @@ const jsonLd = {
       '@type': 'HowTo',
       name: '在 Chrome 中安装 usaddres 地址助手',
       step: chromeSteps.map((step, index) => ({
+        '@type': 'HowToStep',
+        position: index + 1,
+        name: step.name,
+        text: step.text,
+      })),
+    },
+    {
+      '@type': 'HowTo',
+      name: '在 Microsoft Edge 中安装 usaddres 地址助手',
+      step: edgeSteps.map((step, index) => ({
         '@type': 'HowToStep',
         position: index + 1,
         name: step.name,
@@ -229,17 +259,10 @@ export default async function ExtensionPage() {
                 <Puzzle size={18} aria-hidden="true" />
                 添加到 Chrome
               </a>
-              {EDGE_STORE_LIVE ? (
-                <a className="extension-install-button is-secondary" href={EDGE_STORE_URL} rel="noreferrer" target="_blank">
-                  <Download size={18} aria-hidden="true" />
-                  添加到 Edge
-                </a>
-              ) : (
-                <a className="extension-install-button is-secondary" href="#install-edge">
-                  <Download size={18} aria-hidden="true" />
-                  Edge 安装方法
-                </a>
-              )}
+              <a className="extension-install-button is-secondary" href={EDGE_STORE_URL} rel="noreferrer" target="_blank">
+                <Download size={18} aria-hidden="true" />
+                添加到 Edge
+              </a>
               <span className="extension-install-note">免费 · 开源 · 无广告 · 不需要注册</span>
             </div>
           </div>
@@ -307,33 +330,24 @@ export default async function ExtensionPage() {
             </div>
 
             <h2 id="install-edge">四、Edge 安装教程</h2>
-            {EDGE_STORE_LIVE ? (
-              <>
-                <p>扩展已在 Microsoft Edge 加载项商店上架：打开商店页面，点击「获取」并确认权限提示即可。安装后的开启步骤与 Chrome 相同。</p>
-                <div className="guide-cta">
-                  <div>
-                    <strong>Microsoft Edge 加载项：ATMB / iPostal1 美国住宅地址筛选 - usaddres</strong>
-                    <span>与 Chrome 版本是同一个安装包、同一套功能。</span>
-                  </div>
-                  <a href={EDGE_STORE_URL} rel="noreferrer" target="_blank">
-                    添加到 Edge
-                    <ArrowRight size={16} aria-hidden="true" />
-                  </a>
-                </div>
-              </>
-            ) : (
-              <>
-                <p>
-                  Microsoft Edge 加载项商店的版本正在审核中，通过后本页会更新为商店链接。现在可以在 Edge 里直接从 Chrome 应用商店安装，功能完全一样：
-                </p>
-                <ol>
-                  <li><strong>允许其他商店的扩展：</strong>在 Edge 地址栏输入 <code>edge://extensions</code> 回车，在左下角打开「允许来自其他应用商店的扩展」。</li>
-                  <li><strong>打开 Chrome 应用商店页面：</strong>点击上面的「添加到 Chrome」按钮，Edge 会正常打开该页面。</li>
-                  <li><strong>点击「获取」并确认：</strong>页面上的按钮在 Edge 中显示为「获取」或「添加至 Chrome」，点击后在权限提示里选择「添加扩展」。</li>
-                  <li><strong>开启平台：</strong>点击工具栏上的扩展图标，开启需要的平台，之后的用法与 Chrome 相同。</li>
-                </ol>
-              </>
-            )}
+            <p>扩展已在 Microsoft Edge 加载项商店上架，Edge 用户直接从微软商店安装即可，不需要再绕道 Chrome 应用商店。</p>
+            <ol>
+              {edgeSteps.map((step) => (
+                <li key={step.name}>
+                  <strong>{step.name}：</strong>{step.text}
+                </li>
+              ))}
+            </ol>
+            <div className="guide-cta">
+              <div>
+                <strong>Microsoft Edge 加载项：ATMB / iPostal1 美国住宅地址筛选 - usaddres</strong>
+                <span>与 Chrome 版本是同一个安装包、同一套功能，更新由 Edge 自动完成。</span>
+              </div>
+              <a href={EDGE_STORE_URL} rel="noreferrer" target="_blank">
+                添加到 Edge
+                <ArrowRight size={16} aria-hidden="true" />
+              </a>
+            </div>
             <div className="guide-callout">
               也可以从 <a href={GITHUB_URL} rel="noreferrer" target="_blank">GitHub 仓库</a> 获取源码自行构建，在扩展管理页开启「开发者模式」后加载 dist 目录。日常使用建议走商店安装，才能自动收到更新。
             </div>
