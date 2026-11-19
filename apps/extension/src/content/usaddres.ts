@@ -8,6 +8,7 @@ import {
   type ExtensionVerifyResult,
 } from '@atmb/shared';
 
+import { t } from '../shared/i18n.js';
 import type { VerifyPush, VerifyStartReply } from '../shared/types.js';
 
 // 只在 usaddres.com 上运行的桥接脚本：给页面打上「扩展已安装」的标记，
@@ -25,7 +26,7 @@ window.addEventListener('message', (event) => {
   if (message?.source !== EXTENSION_PAGE_MESSAGE_SOURCE || message.type !== 'verify' || !message.requestId || !message.provider || !message.address) return;
   const { requestId, provider, address } = message;
   chrome.runtime.sendMessage({ type: 'verify', provider, address, requestId }, (reply: VerifyStartReply | undefined) => {
-    const error = chrome.runtime.lastError?.message ?? (reply?.started ? null : (reply?.error ?? '无法打开查询页面'));
+    const error = chrome.runtime.lastError?.message ?? (reply?.started ? null : (reply?.error ?? t('errOpenLookupPage')));
     if (error) postResult(requestId, provider, { ok: false, error });
   });
 });

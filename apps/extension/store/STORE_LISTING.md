@@ -1,23 +1,23 @@
-# ATMB / iPostal1 美国住宅地址筛选 - usaddres · 上架资料（v1.1.0）
+# ATMB / iPostal1 美国住宅地址筛选 - usaddres · 上架资料（v1.2.0）
 
 Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套素材。本文件里的文案可以直接复制到两个商店的后台。
 
 ## 0. 提交前检查
 
 - [ ] **网站已部署到线上**，`https://usaddres.com/extension-privacy` 能打开（隐私政策页，本次新增，两个商店都要填这个地址）。
-- [ ] 重新打包：`npm run package --workspace @atmb/extension`，产物是 `apps/extension/release/usaddres-extension-v1.1.0.zip`。
-- [ ] 用这个 zip 解压后的内容在 Chrome 和 Edge 各「加载已解压的扩展程序」走一遍：开启平台开关、看到数据条、筛选、隐藏、实时查询。
+- [ ] 重新打包：`npm run package --workspace @atmb/extension`，产物是 `apps/extension/release/usaddres-extension-v1.2.0.zip`。
+- [ ] 用这个 zip 解压后的内容在 Chrome 和 Edge 各「加载已解压的扩展程序」走一遍：开启平台开关、看到数据条、筛选、隐藏、实时查询。浏览器界面语言切到英文再看一遍，确认界面是英文。
 - [ ] 开发者账号：Chrome Web Store 需一次性 5 美元注册费；Edge Add-ons（Partner Center）免费。
 
 ## 1. 基本信息
 
 | 项目 | 内容 |
 | --- | --- |
-| 名称（35 字符） | ATMB / iPostal1 美国住宅地址筛选 - usaddres |
+| 名称 | 按语言不同，见下表（上限 75 字符） |
 | 短名称（工具栏等窄处显示） | usaddres |
-| 简短说明（来自 manifest，88 字符） | 选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。 |
-| 版本 | 1.1.0 |
-| 语言 | 中文（简体）。商店后台的语言不是手选的，由包里的 `default_locale: zh_CN` 和 `_locales/zh_CN/messages.json` 决定；名称、短名称、简短说明都从这个文件读，改文案改它，`manifest.json` 里只保留 `__MSG_…__` 占位 |
+| 简短说明 | 按语言不同，见下表（上限 132 字符；英文那条正好 132，改动时注意别超） |
+| 版本 | 1.2.0 |
+| 语言 | English（默认）、中文（简体）、中文（繁體）。商店后台的语言不是手选的，由包里的 `default_locale: en` 和 `_locales/<语言>/messages.json` 决定；名称、短名称、简短说明以及扩展界面上的全部文字都从这些文件读，`manifest.json` 里只保留 `__MSG_…__` 占位。没覆盖到的语言一律显示英文 |
 | Chrome 类别 | 工具（Tools） |
 | Edge 类别 | Productivity |
 | 官方网址 | https://usaddres.com/ |
@@ -25,7 +25,17 @@ Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套
 | 支持邮箱 | juzhpcom@gmail.com |
 | 成人内容 | 否 |
 
-## 2. 详细说明（中文，贴到商店「说明」）
+### 各语言的名称与简短说明（来自 `_locales/<语言>/messages.json` 的 `extName` / `extDesc`）
+
+| 语言 | 名称 | 简短说明 |
+| --- | --- | --- |
+| English（`en`，默认） | ATMB / iPostal1 US Residential Address Checker - usaddres | See RDI, CMRA, USPS CMRA, Capital One pre-check and blacklist flags on Anytime Mailbox (ATMB) & iPostal1 US addresses as you browse. |
+| 中文（简体，`zh_CN`） | ATMB / iPostal1 美国住宅地址筛选 - usaddres | 选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。 |
+| 中文（繁體，`zh_TW`） | ATMB / iPostal1 美國住宅地址篩選 - usaddres | 選 Anytime Mailbox(ATMB) / iPostal1 美國地址時，直接顯示 RDI、CMRA、USPS CMRA、C1 預審與黑名單，快速篩出美國真實住宅地址。 |
+
+改名称或简短说明：改对应语言的 `messages.json`，重新打包上传即可，后台会自动带出。`test/i18n.test.ts` 会检查三种语言的键是否一致、长度是否超限。
+
+## 2. 详细说明（简体中文，贴到商店「说明」的中文（简体）一栏）
 
 ```text
 在 Anytime Mailbox 和 iPostal1 上挑美国地址时，直接在页面上看到每个地址的关键信息，不用再来回切换查询。
@@ -57,7 +67,7 @@ Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套
 本扩展由 usaddres.com 提供，是第三方工具，与 Anytime Mailbox、iPostal1、Smarty、USPS、Capital One 均无隶属关系。所有数据仅供辅助判断，最终结果以各平台和金融机构的实际审核为准。
 ```
 
-## 3. Detailed description (English，审核人员阅读或以后加英文语言时用)
+## 3. Detailed description (English，默认语言，贴到 English 一栏)
 
 ```text
 See the key facts about every US mailbox address right on the page while you browse Anytime Mailbox and iPostal1.
@@ -72,21 +82,59 @@ What you see
 How it works
 1. Click the toolbar icon and turn on the platform you want (both are off by default).
 2. Open an Anytime Mailbox state list or location page, or the iPostal1 location picker.
-3. A small chip appears next to each address: green for residential, amber for risk flags, red for blacklisted, grey for not in our data. Click it for details.
+3. A small label appears next to each address: green for residential, amber for risk flags, red for blacklisted, grey for not in our data. Click it for details.
 
 Extras
-• A filter bar on list pages (recorded, RDI, CMRA, USPS CMRA, pre-check, blacklist).
+• A filter bar on list pages (in our data, RDI, CMRA, USPS CMRA, pre-check, blacklist).
 • Hide addresses locally; hidden items stay in your browser only and can be restored or cleared.
 • On-demand live lookup: opens Smarty's public address verification page or the USPS ZIP Code Lookup page in a new tab, fills in the address and brings the displayed result back to the card.
 
 Affiliate disclosure
 After you turn a platform on, the extension opens that platform through a usaddres referral link (about once every 30 days). If you later purchase a service there, we may earn a referral commission at no extra cost to you. Nothing happens unless you turn a platform on, and you can turn it off at any time.
 
+Good to know
+The extension interface is available in English, Simplified Chinese and Traditional Chinese. Blacklist reports are written by users in Chinese and are shown as submitted, and the usaddres.com website is in Chinese.
+
 Privacy
 The extension only sends the mailbox addresses shown on the page to usaddres.com for lookup. It collects no personal information and contains no ads or analytics. Privacy policy: https://usaddres.com/extension-privacy
 
 Disclaimer
 This is a third-party tool by usaddres.com. It is not affiliated with Anytime Mailbox, iPostal1, Smarty, USPS or Capital One. All data is for reference only.
+```
+
+## 3.1 詳細說明（繁體中文，貼到中文（繁體）一欄）
+
+```text
+在 Anytime Mailbox 和 iPostal1 上挑美國地址時，直接在頁面上看到每個地址的關鍵資訊，不用再來回切換查詢。
+
+【能看到什麼】
+• RDI：住宅（Residential）還是商業（Commercial）
+• CMRA 與 USPS CMRA：是否被標記為商業郵件代收機構
+• C1 預審：Capital One 地址預審核是否通過
+• 價格、信箱編號範圍
+• 地址黑名單：其他使用者回報過的問題（被銀行、信用卡或平台拒絕等）
+
+【怎麼用】
+1. 點擊工具列圖示，在彈出視窗裡開啟需要的平台（預設關閉）。
+2. 開啟 Anytime Mailbox 的州列表頁、地址詳情頁，或 iPostal1 的地址選擇頁。
+3. 每個地址旁會出現一枚小標籤，顏色一眼區分：綠色住宅、黃色有風險項、紅色在黑名單、灰色未收錄；點擊展開完整資訊。
+
+【幫你更快篩選】
+• 列表頂部的篩選列：按收錄狀態、RDI、CMRA、USPS CMRA、C1 預審、黑名單篩選。
+• 本機隱藏：不想再看的地址點「隱藏」，只記在你自己的瀏覽器裡，隨時可以找回或清空。
+• 即時查詢：展開後可以一鍵在新分頁查詢 Smarty 和 USPS 的公開查詢頁面，結果會帶回目前的資料列。
+
+【關於推薦連結】
+開啟某個平台後，擴充功能會透過 usaddres 的推薦連結開啟該平台（此後大約每 30 天一次）。如果你隨後在該平台開通服務，我們可能獲得推薦佣金，這不會增加你的費用。不開啟就不會發生，隨時可以在彈出視窗裡關閉。
+
+【補充說明】
+黑名單內容由使用者以簡體中文提交，會原樣顯示；usaddres.com 網站目前為簡體中文。
+
+【隱私】
+擴充功能只把頁面上顯示的信箱地址傳送到 usaddres.com 用於查詢，不蒐集你的個人資訊，不含廣告和統計程式碼。詳見隱私權政策：https://usaddres.com/extension-privacy
+
+【說明】
+本擴充功能由 usaddres.com 提供，是第三方工具，與 Anytime Mailbox、iPostal1、Smarty、USPS、Capital One 均無隸屬關係。所有資料僅供輔助判斷，最終結果以各平台和金融機構的實際審核為準。
 ```
 
 ## 4. 图片素材
@@ -111,6 +159,34 @@ This is a third-party tool by usaddres.com. It is not affiliated with Anytime Ma
 
 宣传图和弹窗展示图由 `node scripts/make-store-assets.mjs` 生成；图标或文案变了重新跑一次即可。截图 1–3 是真实页面截图，界面有变化时需要重新截。
 
+### 各语言的图片
+
+上表是简体中文的一套。英文和繁体的宣传图、弹窗展示图在同名子目录里，两个商店都支持按语言单独上传：
+
+| 语言 | 小宣传图 / 大宣传图 | 截图 4（弹窗） | 截图 1–3（真实页面） |
+| --- | --- | --- | --- |
+| 中文（简体） | `store/assets/` | `store/screenshots/04-popup.png` | `store/screenshots/01`–`03` |
+| English | `store/assets/en/` | `store/screenshots/en/04-popup.png` | **还没有**，暂时沿用简体中文的三张 |
+| 中文（繁體） | `store/assets/zh_TW/` | `store/screenshots/zh_TW/04-popup.png` | 沿用简体中文的三张即可 |
+
+英文截图 1–3 要在英文界面的浏览器里重截：Chrome 设置里把显示语言改成 English（或用 `chrome.exe --lang=en-US` 启动一个单独的用户目录），装上 1.2.0 后打开同样的三个页面截 1280×800。没截之前英文商店页会显示中文界面的截图，不影响提交。
+
+弹窗展示图的原图是对应语言界面的 2 倍截图：`store/raw/popup.png`（简体）、`popup.en.png`、`popup.zh_TW.png`；弹窗有改动时重新截这三张再跑脚本。
+
+Screenshot captions (English):
+
+1. Anytime Mailbox state list: a label under every address and a filter bar on top
+2. Expanded data strip with a live Smarty lookup result
+3. iPostal1 location picker: the same labels, data strips and filter bar
+4. Popup: per-platform switches, display options, cleanup and quick links
+
+截圖說明（繁體）：
+
+1. Anytime Mailbox 州列表：每個地址旁的標籤和頂部篩選列
+2. 展開資料列，Smarty 即時查詢結果直接顯示在資料列裡
+3. iPostal1 地址選擇頁：同樣的標籤、資料列和篩選列
+4. 彈出視窗：按平台開啟、顯示設定、清理與快速入口
+
 ## 5. Chrome Web Store「隐私权规范」页签
 
 ### 单一用途（Single purpose）
@@ -126,9 +202,9 @@ Show address-quality information (RDI, CMRA, USPS CMRA, Capital One pre-check, p
 | storage | `Stores the user's settings (which platforms are enabled, display options), the per-page filter choice, the list of addresses the user chose to hide, a 15-minute lookup cache, and the time of the last referral-link visit per platform. All of it stays in the browser.` |
 | tabs | `Used only for actions the user triggers: opening the Smarty / USPS lookup page in a new tab for a live lookup and returning to the original tab with the result; opening a platform through the referral link when the user turns that platform on or it expires (about every 30 days); and reloading the current tab after the user clears the cache in the popup. The extension does not read the user's tab list or history.` |
 | 主机权限 `https://usaddres.com/*` | `The background service worker sends the mailbox addresses shown on the current page to the usaddres.com lookup API (POST /api/public/extension/lookup) and receives the address-quality data to display.` |
-| 内容脚本 `www.anytimemailbox.com`、`ipostal1.com`、`www.ipostal1.com` | `Reads the mailbox addresses listed on these pages and inserts the information chip, detail strip and filter bar next to them. This is the extension's core function.` |
-| 内容脚本 `usaddres.com` | `Runs only on our own site usaddres.com. It marks the page as "extension installed" and relays the user's click on "Smarty 实时查询" / "USPS 实时查询" in the usaddres.com address lists to the same live-lookup flow described below, then returns the result to that page. It reads nothing else from the page.` |
-| 内容脚本 `www.smarty.com/products/us-address-verification*`、`tools.usps.com/zip-code-lookup.htm*`、`zh-tools.usps.com/zip-code-lookup.htm*` | `Only active in a tab the extension itself opened after the user clicked "Smarty 实时查询" or "USPS 实时查询". It fills the address into the page's own lookup form, submits it, reads the result shown on the page and passes it back to the original tab. It does nothing when the user visits these pages on their own.` |
+| 内容脚本 `www.anytimemailbox.com`、`ipostal1.com`、`www.ipostal1.com` | `Reads the mailbox addresses listed on these pages and inserts the information label, data strip and filter bar next to them. This is the extension's core function.` |
+| 内容脚本 `usaddres.com` | `Runs only on our own site usaddres.com. It marks the page as "extension installed" and relays the user's click on the Smarty / USPS live lookup links ("Smarty 实时查询" / "USPS 实时查询") in the usaddres.com address lists to the same live-lookup flow described below, then returns the result to that page. It reads nothing else from the page.` |
+| 内容脚本 `www.smarty.com/products/us-address-verification*`、`tools.usps.com/zip-code-lookup.htm*`、`zh-tools.usps.com/zip-code-lookup.htm*` | `Only active in a tab the extension itself opened after the user clicked "Smarty live lookup" or "USPS live lookup". It fills the address into the page's own lookup form, submits it, reads the result shown on the page and passes it back to the original tab. It does nothing when the user visits these pages on their own.` |
 
 ### 远程代码（Remote code）
 
@@ -171,11 +247,14 @@ Chrome Web Store 的「Affiliate Ads」政策要求：
 ```text
 No account or login is required.
 
-1. Click the extension icon. In the popup, turn on "在 Anytime Mailbox 启用" (Anytime Mailbox) and/or "在 iPostal1 启用" (iPostal1). Both are off by default. Turning one on opens that platform once through our referral link (disclosed in the listing and the privacy policy).
-2. Open https://www.anytimemailbox.com/l/usa/alabama . A chip appears under every address and a filter bar appears above the list. Click a chip to expand the detail strip.
-3. For iPostal1, open https://ipostal1.com/choose-digital-mailbox-location.php , pick a state and a city; chips appear on each location card.
-4. In an expanded strip, "Smarty 实时查询" opens Smarty's public address verification page in a background tab, submits the address through the page's own form and shows the result in the strip. "USPS 实时查询" does the same with the USPS ZIP Code Lookup page.
-5. "隐藏" hides an address locally; use the "已隐藏" filter to list hidden addresses and restore them. The popup can clear all hidden records.
+The interface follows the browser language (English, Simplified Chinese or Traditional Chinese). The names below are the English ones.
+
+1. Click the extension icon. In the popup, turn on "Enable on Anytime Mailbox" and/or "Enable on iPostal1". Both are off by default. Turning one on opens that platform once through our referral link (disclosed in the listing and the privacy policy).
+2. Open https://www.anytimemailbox.com/l/usa/alabama . A label appears under every address and a filter bar appears above the list. Click a label to expand the data strip.
+3. For iPostal1, open https://ipostal1.com/choose-digital-mailbox-location.php , pick a state and a city; labels appear on each location card.
+4. In an expanded strip, "Smarty live lookup" opens Smarty's public address verification page in a background tab, submits the address through the page's own form and shows the result in the strip. "USPS live lookup" does the same with the USPS ZIP Code Lookup page.
+5. "Hide" hides an address locally; use the "Hidden" filter to list hidden addresses and restore them. The popup can clear all hidden records.
+6. Blacklist reports are user-submitted text in Chinese and are shown as submitted; the linked usaddres.com pages are in Chinese.
 
 The extension is a third-party helper by usaddres.com and is not affiliated with the sites it runs on. All code is bundled; no remote code is loaded.
 ```
@@ -184,19 +263,23 @@ The extension is a third-party helper by usaddres.com and is not affiliated with
 
 | 页面 | 字段 | 内容 |
 | --- | --- | --- |
-| Packages | 上传 | 同一个 `usaddres-extension-v1.1.0.zip` |
+| Packages | 上传 | 同一个 `usaddres-extension-v1.2.0.zip` |
 | Availability | 可见性 / 市场 | Public，全部市场 |
 | Properties | Category | Productivity |
 | Properties | Privacy policy requirements | 选「是」，URL 填 `https://usaddres.com/extension-privacy` |
 | Properties | Website URL | https://usaddres.com/ |
 | Properties | Support contact | juzhpcom@gmail.com |
 | Properties | Mature content | 否 |
+| Store listings（English，默认） | Description | 第 3 节 |
 | Store listings（中文简体） | Description | 第 2 节 |
+| Store listings（中文繁體） | Description | 第 3.1 节 |
 | Store listings | Extension Store logo | `store-logo-300x300.png` |
-| Store listings | Small promotional tile | `promo-small-440x280.png` |
-| Store listings | Large promotional tile | `promo-marquee-1400x560.png` |
-| Store listings | Screenshots | 4 张截图 |
-| Store listings | Search terms | 美国住宅地址、美国地址、地址验证、RDI、CMRA、ATMB、iPostal1 |
+| Store listings | Small promotional tile | 各语言目录下的 `promo-small-440x280.png` |
+| Store listings | Large promotional tile | 各语言目录下的 `promo-marquee-1400x560.png` |
+| Store listings | Screenshots | 4 张截图，见第 4 节「各语言的图片」 |
+| Store listings（English） | Search terms | US residential address、virtual mailbox、Anytime Mailbox、iPostal1、RDI CMRA、address verification、US address |
+| Store listings（中文简体） | Search terms | 美国住宅地址、美国地址、地址验证、RDI、CMRA、ATMB、iPostal1 |
+| Store listings（中文繁體） | Search terms | 美國住宅地址、美國地址、地址驗證、虛擬信箱、RDI、CMRA、ATMB |
 | Submit | Notes for certification | 第 7 节 |
 
 ## 9. 其他可能被问到的点
@@ -207,3 +290,9 @@ The extension is a third-party helper by usaddres.com and is not affiliated with
 - **审核时长**：Chrome 通常 1–3 个工作日，带 `tabs` 和多站点内容脚本的扩展可能进入更长的人工审核；Edge 通常 1–7 个工作日。
 - **发版**：以后每次更新把 `manifest.json` 和 `package.json` 的版本号一起加一，再跑 `npm run package`。
 - **v1.1.0 变更**：新增只在 `usaddres.com` 上运行的桥接内容脚本（`content/usaddres.js`），让网站地址列表里的「Smarty / USPS 实时查询」能借扩展完成；没有新增权限（usaddres.com 本来就在 host_permissions 里）。网站上的实时查询要等这个版本在商店发布后才能用。
+- **v1.2.0 变更（多语言）**：界面文字全部改为从 `_locales` 读取，新增 English 与中文（繁體），默认语言从简体中文改为英文；功能和权限都没有变化。提交后两个后台会多出语言入口：
+  - **Chrome Web Store**：上传新包后，「商品详情」页顶部的语言下拉里会出现 English、中文（简体）、中文（繁體）。逐个切换，把第 3 / 2 / 3.1 节的详细说明贴进去；原来填在中文下的说明会保留在中文（简体）里。默认语言变成 English 后，English 一栏的说明是必填的。宣传图和截图可以先用全局那一套，再按语言补上传。
+  - **Edge Add-ons**：上传新包后在「Store listings」里添加 English 和中文（繁體）两个语言，各填说明、搜索词和图片；Edge 要求每个语言都填完才能提交。
+  - 界面语言跟随浏览器的显示语言，不是跟随网页语言；用户无法在扩展里手动切换。
+  - 黑名单原因是用户提交的中文原文，不翻译；「在 usaddres.com 查看」跳到的网站也是中文。英文和繁体的说明里已如实写明。
+  - 实时查询带回网站列表（usaddres.com）的结果标签同样跟随浏览器语言，英文浏览器的用户会在中文网站上看到英文标签。

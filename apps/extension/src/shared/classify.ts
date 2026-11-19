@@ -1,4 +1,6 @@
-import { C1_PRECHECK_LABELS, type ExtensionLookupResult } from '@atmb/shared';
+import type { ExtensionLookupResult } from '@atmb/shared';
+
+import { t } from './i18n.js';
 
 export type MatchState = 'blacklisted' | 'good' | 'caution' | 'unrecorded';
 
@@ -13,21 +15,21 @@ export function classify(result: Pick<ExtensionLookupResult, 'address' | 'blackl
   const { address, blacklist } = result;
   const cautions: string[] = [];
   if (address) {
-    if (address.rdi === 'Commercial') cautions.push('商业');
+    if (address.rdi === 'Commercial') cautions.push(t('labelCommercial'));
     if (address.cmra === 'Yes') cautions.push('CMRA Yes');
     if (address.uspsCmra === 'Y') cautions.push('USPS CMRA Y');
-    if (address.c1Precheck === 'fail') cautions.push(`C1 ${C1_PRECHECK_LABELS.fail}`);
+    if (address.c1Precheck === 'fail') cautions.push(t('chipC1Fail'));
   }
 
   if (blacklist.length > 0) {
-    const tail = address ? (cautions[0] ?? '住宅') : '未收录';
-    return { state: 'blacklisted', chipText: `黑名单 ${blacklist.length} 条 · ${tail}` };
+    const tail = address ? (cautions[0] ?? t('labelResidential')) : t('labelUnrecorded');
+    return { state: 'blacklisted', chipText: t('chipBlacklist', blacklist.length, tail) };
   }
   if (!address) {
-    return { state: 'unrecorded', chipText: '未收录' };
+    return { state: 'unrecorded', chipText: t('labelUnrecorded') };
   }
   if (cautions.length === 0) {
-    return { state: 'good', chipText: '住宅 · 无黑名单' };
+    return { state: 'good', chipText: t('chipGood') };
   }
   return { state: 'caution', chipText: cautions.join(' · ') };
 }

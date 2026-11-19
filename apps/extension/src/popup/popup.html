@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="zh-CN">
+<html>
 <head>
   <meta charset="utf-8">
-  <title>usaddres 地址助手</title>
+  <title>usaddres</title>
   <style>
     body { width: 320px; margin: 0; padding: 14px 16px; font: 13px/1.5 "Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans SC",Arial,sans-serif; color: #071a3f; background: #fff; }
     h1 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; font-weight: 600; }
@@ -35,33 +35,33 @@
   </style>
 </head>
 <body>
-  <h1><img src="../icons/icon-48.png" alt="">usaddres 地址助手<span class="ver" id="version"></span></h1>
-  <p class="sec">启用平台</p>
+  <h1><img src="../icons/icon-48.png" alt=""><span data-i18n="appName"></span><span class="ver" id="version"></span></h1>
+  <p class="sec" data-i18n="popupPlatforms"></p>
   <div class="group">
-    <label class="tg"><span>在 Anytime Mailbox 启用</span><span class="sw"><input type="checkbox" id="enableAnytimemailbox"><i></i></span></label>
-    <label class="tg"><span>在 iPostal1 启用</span><span class="sw"><input type="checkbox" id="enableIpostal1"><i></i></span></label>
+    <label class="tg"><span data-i18n="popupEnableAtmb"></span><span class="sw"><input type="checkbox" id="enableAnytimemailbox"><i></i></span></label>
+    <label class="tg"><span data-i18n="popupEnableIpostal1"></span><span class="sw"><input type="checkbox" id="enableIpostal1"><i></i></span></label>
   </div>
-  <p class="hint">开启后会通过 usaddres 推荐链接打开该平台，不影响价格。</p>
-  <p class="sec">显示</p>
-  <label class="tg"><span>默认展开数据条</span><span class="sw"><input type="checkbox" id="defaultExpanded"><i></i></span></label>
-  <label class="tg"><span>列表页显示筛选栏</span><span class="sw"><input type="checkbox" id="showFilterBar"><i></i></span></label>
-  <label class="tg"><span>未收录地址显示提示</span><span class="sw"><input type="checkbox" id="showUnrecorded"><i></i></span></label>
-  <label class="tg"><span>实时查询后自动关闭查询页</span><span class="sw"><input type="checkbox" id="autoCloseVerifyTab"><i></i></span></label>
-  <div class="kv" style="margin-top:8px"><span>上次查询</span><span id="last-lookup">—</span></div>
-  <div class="kv"><span>缓存条目</span><span id="cache-entries">0</span></div>
-  <div class="kv"><span>数据来源</span><a id="api-base" href="https://usaddres.com/" target="_blank" rel="noopener noreferrer" title=""></a></div>
-  <button type="button" id="clear-cache">清除缓存并重新查询</button>
-  <div class="kv"><span>已隐藏的地址</span><span id="hidden-count">0</span></div>
-  <button type="button" id="clear-hidden">清空隐藏记录</button>
-  <p class="sec">快捷导航</p>
+  <p class="hint" data-i18n="popupReferralHint"></p>
+  <p class="sec" data-i18n="popupDisplay"></p>
+  <label class="tg"><span data-i18n="popupDefaultExpanded"></span><span class="sw"><input type="checkbox" id="defaultExpanded"><i></i></span></label>
+  <label class="tg"><span data-i18n="popupShowFilterBar"></span><span class="sw"><input type="checkbox" id="showFilterBar"><i></i></span></label>
+  <label class="tg"><span data-i18n="popupShowUnrecorded"></span><span class="sw"><input type="checkbox" id="showUnrecorded"><i></i></span></label>
+  <label class="tg"><span data-i18n="popupAutoCloseVerifyTab"></span><span class="sw"><input type="checkbox" id="autoCloseVerifyTab"><i></i></span></label>
+  <div class="kv" style="margin-top:8px"><span data-i18n="popupLastLookup"></span><span id="last-lookup">—</span></div>
+  <div class="kv"><span data-i18n="popupCacheEntries"></span><span id="cache-entries">0</span></div>
+  <div class="kv"><span data-i18n="popupDataSource"></span><a id="api-base" href="https://usaddres.com/" target="_blank" rel="noopener noreferrer" title=""></a></div>
+  <button type="button" id="clear-cache" data-i18n="popupClearCache"></button>
+  <div class="kv"><span data-i18n="popupHiddenCount"></span><span id="hidden-count">0</span></div>
+  <button type="button" id="clear-hidden" data-i18n="popupClearHidden"></button>
+  <p class="sec" data-i18n="popupQuickLinks"></p>
   <div class="nav">
-    <a class="wide" href="https://usaddres.com/" target="_blank" rel="noopener noreferrer">usaddres.com 美国地址筛选</a>
+    <a class="wide" href="https://usaddres.com/" target="_blank" rel="noopener noreferrer" data-i18n="popupLinkSite"></a>
     <a id="nav-anytimemailbox" href="#">Anytime Mailbox</a>
     <a id="nav-ipostal1" href="#">iPostal1</a>
-    <a href="https://www.smarty.com/products/us-address-verification" target="_blank" rel="noopener noreferrer">Smarty 地址验证</a>
-    <a href="https://zh-tools.usps.com/zip-code-lookup.htm?byaddress" target="_blank" rel="noopener noreferrer">USPS ZIP 查询</a>
+    <a href="https://www.smarty.com/products/us-address-verification" target="_blank" rel="noopener noreferrer" data-i18n="popupLinkSmarty"></a>
+    <a id="nav-usps" href="https://tools.usps.com/zip-code-lookup.htm?byaddress" target="_blank" rel="noopener noreferrer" data-i18n="popupLinkUsps"></a>
   </div>
-  <div class="foot" id="status">数据仅供辅助判断，最终以平台与银行实际结果为准。</div>
+  <div class="foot" id="status" data-i18n="popupDisclaimer"></div>
   <script src="popup.js"></script>
 </body>
 </html>

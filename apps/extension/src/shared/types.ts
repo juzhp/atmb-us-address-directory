@@ -6,6 +6,7 @@ import type {
   ExtensionLookupResult,
 } from '@atmb/shared';
 
+import type { MessageKey } from './i18n.js';
 import type { VerifyAddress, VerifyProvider, VerifyResult } from './verify.js';
 
 export type { ExtensionLookupItem, ExtensionLookupRequest, ExtensionLookupResponse, ExtensionLookupResult };
@@ -62,43 +63,44 @@ export const DEFAULT_FILTERS: FilterState = {
   hidden: 'exclude',
 };
 
-export const FILTER_OPTIONS: { [K in keyof FilterState]: Array<{ value: FilterState[K]; label: string }> } = {
+// label 是文案键，渲染时再取当前语言的文字；null 表示数据本身的取值（Yes / No、Y / N），原样显示
+export const FILTER_OPTIONS: { [K in keyof FilterState]: Array<{ value: FilterState[K]; label: MessageKey | null }> } = {
   recorded: [
-    { value: 'all', label: '全部' },
-    { value: 'recorded', label: '已收录' },
-    { value: 'unrecorded', label: '未收录' },
+    { value: 'all', label: 'optAll' },
+    { value: 'recorded', label: 'optRecorded' },
+    { value: 'unrecorded', label: 'labelUnrecorded' },
   ],
   rdi: [
-    { value: 'all', label: '全部' },
-    { value: 'Residential', label: '住宅' },
-    { value: 'Commercial', label: '商业' },
+    { value: 'all', label: 'optAll' },
+    { value: 'Residential', label: 'labelResidential' },
+    { value: 'Commercial', label: 'labelCommercial' },
   ],
   cmra: [
-    { value: 'all', label: '全部' },
-    { value: 'No', label: 'No' },
-    { value: 'Yes', label: 'Yes' },
+    { value: 'all', label: 'optAll' },
+    { value: 'No', label: null },
+    { value: 'Yes', label: null },
   ],
   usps: [
-    { value: 'all', label: '全部' },
-    { value: 'N', label: 'N' },
-    { value: 'Y', label: 'Y' },
-    { value: 'unknown', label: '未知' },
+    { value: 'all', label: 'optAll' },
+    { value: 'N', label: null },
+    { value: 'Y', label: null },
+    { value: 'unknown', label: 'optUnknown' },
   ],
   c1: [
-    { value: 'all', label: '全部' },
-    { value: 'pass', label: '通过' },
-    { value: 'fail', label: '不通过' },
-    { value: 'unknown', label: '未知' },
+    { value: 'all', label: 'optAll' },
+    { value: 'pass', label: 'c1Pass' },
+    { value: 'fail', label: 'c1Fail' },
+    { value: 'unknown', label: 'optUnknown' },
   ],
   blacklist: [
-    { value: 'all', label: '全部' },
-    { value: 'exclude', label: '排除黑名单' },
-    { value: 'only', label: '仅黑名单' },
+    { value: 'all', label: 'optAll' },
+    { value: 'exclude', label: 'optBlacklistExclude' },
+    { value: 'only', label: 'optBlacklistOnly' },
   ],
   hidden: [
-    { value: 'exclude', label: '不显示' },
-    { value: 'only', label: '仅已隐藏' },
-    { value: 'all', label: '全部' },
+    { value: 'exclude', label: 'optHiddenExclude' },
+    { value: 'only', label: 'optHiddenOnly' },
+    { value: 'all', label: 'optAll' },
   ],
 };
 

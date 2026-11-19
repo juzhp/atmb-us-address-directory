@@ -39,7 +39,7 @@ await build({
 const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.json'), 'utf8'));
 if (dev) {
   // 开发版名称不能再走 __MSG__ 占位，直接用中文名加 (dev)
-  const messages = JSON.parse(readFileSync(resolve(root, '_locales/zh_CN/messages.json'), 'utf8'));
+  const messages = JSON.parse(readFileSync(resolve(root, `_locales/${manifest.default_locale}/messages.json`), 'utf8'));
   manifest.name = `${messages.extName.message} (dev)`;
   manifest.host_permissions.push(`${apiBase}/*`);
   // 本地跑网站（localhost:3000）时也注入桥接脚本，方便调网站上的实时查询

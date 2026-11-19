@@ -1,4 +1,5 @@
 import { uspsResultFromPage, type VerifyAddress, type VerifyResult } from '../shared/verify.js';
+import { t } from '../shared/i18n.js';
 import type { VerifyJobReply } from '../shared/types.js';
 
 // 只在扩展为「USPS 实时查询」打开的标签页里工作：把地址填进表单并点 Find，
@@ -48,7 +49,7 @@ function fillForm(address: VerifyAddress) {
 
 function showHint(form: HTMLElement) {
   const hint = document.createElement('div');
-  hint.textContent = 'usaddres 正在自动查询这个地址，结果会带回原来的页面。如果没有反应，请手动点击下方的 Find。';
+  hint.textContent = t('uspsAutoHint');
   hint.style.cssText = 'margin:0 0 12px;padding:10px 12px;border:1px solid #68b7c6;border-left:4px solid #057f93;border-radius:4px;background:#eef8fb;color:#071a3f;font:14px/1.5 Arial,"Microsoft YaHei",sans-serif;';
   form.prepend(hint);
 }
@@ -74,7 +75,7 @@ async function main() {
 
   const form = await waitFor(() => (document.getElementById('tAddress') ? document.getElementById('zip-code-address-form') : null), FORM_WAIT_MS);
   if (!form) {
-    report({ ok: false, error: 'USPS 查询页没有加载出表单，请在该页面手动查询' });
+    report({ ok: false, error: t('errUspsNoForm') });
     return;
   }
 
@@ -90,7 +91,7 @@ async function main() {
     } else if (errorShown()) {
       done = true;
       observer.disconnect();
-      report({ ok: false, error: 'USPS 未找到该地址，可在 USPS 页面修改后重新查询' });
+      report({ ok: false, error: t('errUspsNoMatch') });
     }
   });
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });

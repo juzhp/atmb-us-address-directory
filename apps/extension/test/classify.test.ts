@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { classify } from '../src/shared/classify.ts';
+import { useLocale } from './helpers/fake-i18n.ts';
+
+// 断言里的文案是简体中文
+useLocale('zh_CN');
 
 const base: ExtensionLookupAddress = {
   id: 1,

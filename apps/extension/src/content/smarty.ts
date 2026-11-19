@@ -1,4 +1,5 @@
 import { extractSmartyCandidate, oneLineAddress, smartyResultFromCandidate, type VerifyResult } from '../shared/verify.js';
+import { t } from '../shared/i18n.js';
 import type { VerifyJobReply } from '../shared/types.js';
 
 // 只在扩展自己为「Smarty 实时查询」打开的标签页里工作：像人一样填好地址、点 View Results，读页面给出的结果
@@ -49,7 +50,7 @@ async function main() {
     const elapsed = Date.now() - startedAt;
     if (clicked && /Found 0 valid|No valid address|0 valid address/i.test(document.body.innerText)) {
       clearInterval(timer);
-      report({ ok: false, error: 'Smarty 未找到有效地址' });
+      report({ ok: false, error: t('errSmartyNoMatch') });
       return;
     }
 
@@ -65,7 +66,7 @@ async function main() {
 
     if (elapsed > GIVE_UP_MS) {
       clearInterval(timer);
-      report({ ok: false, error: 'Smarty 页面没有返回结果，请稍后重试' });
+      report({ ok: false, error: t('errSmartyNoResult') });
     }
   }, POLL_MS);
 }

@@ -1,6 +1,7 @@
-import { C1_PRECHECK_LABELS, PLATFORMS, type AddressSource, type ExtensionLookupResult } from '@atmb/shared';
+import { PLATFORMS, type AddressSource, type ExtensionLookupResult } from '@atmb/shared';
 
 import { classify, type MatchState } from './classify.js';
+import { t } from './i18n.js';
 import type { VerifyProvider, VerifyResult } from './verify.js';
 import { buildBlacklistUrl, buildGoogleMapsUrl, buildSiteSearchUrl, formatPrice } from './links.js';
 
@@ -135,21 +136,21 @@ export function renderCard(model: CardModel): CardView {
 
   const chip = el('button', `chip ${state}`);
   chip.type = 'button';
-  chip.title = '点击查看 usaddres 数据';
+  chip.title = t('cardChipTitle');
   const dot = el('span', 'dot');
   dot.style.background = DOT_COLORS[state];
   chip.append(dot, el('span', undefined, `usaddres · ${chipText}`), el('span', 'chev', '▼'));
 
   const strip = el('div', `strip ${state}`);
   const head = el('div', 'head');
-  head.append(el('b', undefined, 'usaddres 数据'));
+  head.append(el('b', undefined, t('cardTitle')));
   if (address) {
-    const via = address.source !== model.platform ? `，同址数据来自 ${PLATFORMS[address.source].label}` : '';
-    head.append(el('span', undefined, `· 已收录（${PLATFORMS[address.source].label}${via}）`));
+    const sourceLabel = PLATFORMS[address.source].label;
+    head.append(el('span', undefined, t(address.source !== model.platform ? 'cardRecordedVia' : 'cardRecorded', sourceLabel)));
   } else {
-    head.append(el('span', undefined, '· 未收录此地址，近期尚未抓取或已下架，请自行核实'));
+    head.append(el('span', undefined, t('cardUnrecorded')));
   }
-  const collapse = el('span', 'collapse', '▲ 收起');
+  const collapse = el('span', 'collapse', t('cardCollapse'));
   head.append(collapse);
 
   // 收起态标签旁和展开态标题行各放一个「隐藏 / 取消隐藏」
@@ -175,21 +176,21 @@ export function renderCard(model: CardModel): CardView {
     );
     row.append(
       address.c1Precheck
-        ? badge(`C1 预审 ${C1_PRECHECK_LABELS[address.c1Precheck]}`, address.c1Precheck === 'pass' ? 'good' : 'warn')
-        : badge('C1 预审 —', 'muted'),
+        ? badge(t('cardC1', t(address.c1Precheck === 'pass' ? 'c1Pass' : 'c1Fail')), address.c1Precheck === 'pass' ? 'good' : 'warn')
+        : badge(t('cardC1', '—'), 'muted'),
     );
     // 价格和邮箱编号是平台自己的；iPostal1 页面命中 ATMB 同址记录时只展示地址本身的属性
     if (address.source === model.platform) {
-      row.append(badge(`${formatPrice(address.priceCents)} / 月`, 'info'));
+      row.append(badge(t('cardPricePerMonth', formatPrice(address.priceCents)), 'info'));
       if (address.mailboxMin != null || address.mailboxMax != null) {
-        row.append(badge(`邮箱 ${address.mailboxMin ?? 0} – ${address.mailboxMax ?? 0}`, 'info'));
+        row.append(badge(t('cardMailboxRange', address.mailboxMin ?? 0, address.mailboxMax ?? 0), 'info'));
       }
     }
   } else {
-    row.append(badge('未收录', 'muted'));
+    row.append(badge(t('labelUnrecorded'), 'muted'));
   }
   if (blacklist.length > 0) {
-    row.append(badge(`⚠ 黑名单 · ${blacklist.length} 条`, 'bad'));
+    row.append(badge(t('cardBlacklistBadge', blacklist.length), 'bad'));
   }
   strip.append(row);
 
@@ -200,10 +201,10 @@ export function renderCard(model: CardModel): CardView {
       // 原因可能很长，最多显示 3 行，完整内容放 title
       const reason = el('div', 'reason', `· ${entry.reason}`);
       reason.title = entry.reason;
-      line.append(reason, link(buildBlacklistUrl(entry), '查看记录'));
+      line.append(reason, link(buildBlacklistUrl(entry), t('cardViewRecord')));
       if (entry.sourceUrl) {
         line.append(document.createTextNode(' '));
-        line.append(link(entry.sourceUrl, '来源'));
+        line.append(link(entry.sourceUrl, t('cardSource')));
       }
       box.append(line);
     }
@@ -211,17 +212,17 @@ export function renderCard(model: CardModel): CardView {
   }
 
   const links = el('div', 'links');
-  if (address) links.append(link(buildSiteSearchUrl(address), '在 usaddres.com 查看'));
+  if (address) links.append(link(buildSiteSearchUrl(address), t('cardViewOnSite')));
   const full = fullAddressText(model);
-  if (full) links.append(link(buildGoogleMapsUrl(full), 'Google 地图'));
+  if (full) links.append(link(buildGoogleMapsUrl(full), t('cardGoogleMaps')));
   strip.append(links);
 
   const verify = model.verify;
   if (verify) {
     const live = el('div', 'live');
     const providers: Array<{ provider: VerifyProvider; label: string; pending: string }> = [
-      { provider: 'smarty', label: 'Smarty 实时查询', pending: 'Smarty 查询中…' },
-      { provider: 'usps', label: 'USPS 实时查询', pending: 'USPS 查询中…（已在新标签页自动填写并查询）' },
+      { provider: 'smarty', label: t('liveSmarty'), pending: t('liveSmartyPending') },
+      { provider: 'usps', label: t('liveUsps'), pending: t('liveUspsPending') },
     ];
     for (const { provider, label, pending } of providers) {
       const action = el('span', 'act', label);
@@ -236,14 +237,14 @@ export function renderCard(model: CardModel): CardView {
         busy = false;
         const title = el('span', 'title', provider === 'smarty' ? 'Smarty' : 'USPS');
         if (!result.ok) {
-          item.replaceChildren(title, el('span', 'err', result.error ?? '查询失败'));
+          item.replaceChildren(title, el('span', 'err', result.error ?? t('liveFailed')));
           return;
         }
         const fields = el('div', 'row');
         for (const field of result.fields ?? []) {
           fields.append(badge(`${field.label} ${field.value}`, field.tone));
         }
-        item.replaceChildren(title, el('span', 'note', '实时结果'), el('div', 'addr', result.address ?? ''), fields);
+        item.replaceChildren(title, el('span', 'note', t('liveResult')), el('div', 'addr', result.address ?? ''), fields);
       });
       links.append(action);
     }
@@ -263,7 +264,7 @@ export function renderCard(model: CardModel): CardView {
     },
     setLocalHidden(hidden) {
       for (const toggle of hideToggles) {
-        toggle.textContent = hidden ? '取消隐藏' : '隐藏';
+        toggle.textContent = t(hidden ? 'cardUnhide' : 'cardHide');
         toggle.classList.toggle('on', hidden);
         toggle.style.setProperty('--eye', hidden ? EYE_ICON : EYE_OFF_ICON);
       }

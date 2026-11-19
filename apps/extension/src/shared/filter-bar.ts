@@ -1,3 +1,4 @@
+import { t, type MessageKey } from './i18n.js';
 import { DEFAULT_FILTERS, FILTER_OPTIONS, type FilterState } from './types.js';
 
 const STYLE = `
@@ -12,14 +13,15 @@ select.active { border-color: #057f93; color: #006a7b; font-weight: 600; }
 .count b { color: #071a3f; }
 `;
 
-const FIELDS: Array<{ key: keyof FilterState; label: string }> = [
-  { key: 'recorded', label: '收录' },
-  { key: 'rdi', label: 'RDI' },
-  { key: 'cmra', label: 'CMRA' },
-  { key: 'usps', label: 'USPS CMRA' },
-  { key: 'c1', label: 'C1 预审' },
-  { key: 'blacklist', label: '黑名单' },
-  { key: 'hidden', label: '已隐藏' },
+// label 是文案键，渲染时取当前语言的文字；RDI / CMRA 是专有名词，各语言都原样显示
+const FIELDS: Array<{ key: keyof FilterState; label: MessageKey | null; text?: string }> = [
+  { key: 'recorded', label: 'filterRecorded' },
+  { key: 'rdi', label: null, text: 'RDI' },
+  { key: 'cmra', label: null, text: 'CMRA' },
+  { key: 'usps', label: null, text: 'USPS CMRA' },
+  { key: 'c1', label: 'filterC1' },
+  { key: 'blacklist', label: 'filterBlacklist' },
+  { key: 'hidden', label: 'filterHidden' },
 ];
 
 export interface FilterBar {
@@ -37,7 +39,7 @@ export function renderFilterBar(initial: FilterState, onChange: (filters: Filter
   const bar = document.createElement('div');
   bar.className = 'bar';
   const title = document.createElement('b');
-  title.textContent = 'usaddres 筛选';
+  title.textContent = t('filterTitle');
   bar.append(title);
 
   const state: FilterState = { ...initial };
@@ -53,12 +55,12 @@ export function renderFilterBar(initial: FilterState, onChange: (filters: Filter
 
   for (const field of FIELDS) {
     const label = document.createElement('label');
-    label.append(document.createTextNode(field.label));
+    label.append(document.createTextNode(field.label ? t(field.label) : (field.text ?? '')));
     const select = document.createElement('select');
     for (const option of FILTER_OPTIONS[field.key]) {
       const element = document.createElement('option');
       element.value = option.value;
-      element.textContent = option.label;
+      element.textContent = option.label ? t(option.label) : option.value;
       select.append(element);
     }
     select.value = state[field.key];
@@ -74,7 +76,7 @@ export function renderFilterBar(initial: FilterState, onChange: (filters: Filter
 
   const reset = document.createElement('span');
   reset.className = 'reset';
-  reset.textContent = '重置';
+  reset.textContent = t('filterReset');
   reset.addEventListener('click', () => {
     Object.assign(state, DEFAULT_FILTERS);
     for (const [key, select] of selects) select.value = state[key];
@@ -95,8 +97,8 @@ export function renderFilterBar(initial: FilterState, onChange: (filters: Filter
       count.innerHTML = '';
       const strong = document.createElement('b');
       strong.textContent = String(shown);
-      count.append(document.createTextNode('显示 '), strong, document.createTextNode(` / ${total}`));
-      if (total > shown) count.append(document.createTextNode(` · 隐藏 ${total - shown}`));
+      count.append(document.createTextNode(`${t('filterShowing')} `), strong, document.createTextNode(` / ${total}`));
+      if (total > shown) count.append(document.createTextNode(` · ${t('filterHiddenCount', total - shown)}`));
     },
   };
 }

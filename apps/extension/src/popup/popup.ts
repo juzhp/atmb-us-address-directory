@@ -1,6 +1,7 @@
 import type { AddressSource } from '@atmb/shared';
 
 import { clearHidden, readHidden } from '../shared/hidden.js';
+import { t, type MessageKey } from '../shared/i18n.js';
 import { platformForUrl, referralUrlFor } from '../shared/referral.js';
 import { readSettings, writeSettings } from '../shared/settings.js';
 import type { CacheStats, LookupMessage, ReferralReply, Settings } from '../shared/types.js';
@@ -49,7 +50,7 @@ async function referOnEnable(platform: AddressSource) {
       ? { type: 'referral', platform, tabId: tab.id, returnUrl: tab.url ?? null }
       : { type: 'referral', platform, newTab: true },
   );
-  setStatus(reply.done || reply.started || reply.pending ? '已开启。' : '已开启，打开平台页面时如未显示数据，请点击页面上的「点击启用」。');
+  setStatus(t(reply.done || reply.started || reply.pending ? 'popupStatusEnabled' : 'popupStatusEnabledPrompt'));
 }
 
 // 平台快捷入口走推荐链接：归因过期时交给后台开新标签页并记录归因，没过期就直接打开推荐链接
@@ -65,7 +66,19 @@ function bindPlatformLink(platform: AddressSource) {
   });
 }
 
+// popup.html 里带 data-i18n 的元素不写死文字，按浏览器界面语言填
+function localize() {
+  document.documentElement.lang = chrome.i18n.getUILanguage();
+  document.title = t('appName');
+  for (const element of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+    element.textContent = t(element.dataset.i18n as MessageKey);
+  }
+  // 中文界面打开 USPS 的中文版查询页
+  byId<HTMLAnchorElement>('nav-usps').href = t('popupLinkUspsUrl');
+}
+
 async function init() {
+  localize();
   byId('version').textContent = `v${chrome.runtime.getManifest().version}`;
   bindPlatformLink('anytimemailbox');
   bindPlatformLink('ipostal1');
@@ -80,7 +93,7 @@ async function init() {
         await referOnEnable(platform);
         return;
       }
-      setStatus('已保存，页面上的数据条会立即生效。');
+      setStatus(t('popupStatusSaved'));
     });
   }
 
@@ -91,16 +104,16 @@ async function init() {
     if (tab?.id) {
       await chrome.tabs.reload(tab.id);
     }
-    setStatus('缓存已清除，当前页面已刷新。');
+    setStatus(t('popupStatusCacheCleared'));
   });
 
   const refreshHidden = async () => {
-    byId('hidden-count').textContent = `${Object.keys(await readHidden()).length} 个`;
+    byId('hidden-count').textContent = t('popupHiddenCountValue', Object.keys(await readHidden()).length);
   };
   byId('clear-hidden').addEventListener('click', async () => {
     await clearHidden();
     await refreshHidden();
-    setStatus('隐藏记录已清空，列表会恢复显示这些地址。');
+    setStatus(t('popupStatusHiddenCleared'));
   });
 
   await refreshHidden();

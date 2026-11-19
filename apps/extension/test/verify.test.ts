@@ -9,6 +9,10 @@ import {
   smartyResultFromCandidate,
   uspsResultFromPage,
 } from '../src/shared/verify.ts';
+import { useLocale } from './helpers/fake-i18n.ts';
+
+// 断言里的文案是简体中文
+useLocale('zh_CN');
 
 const SMARTY_PAGE_TEXT = `Results:
 Found 1 valid address

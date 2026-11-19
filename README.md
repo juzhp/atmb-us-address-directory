@@ -177,6 +177,8 @@ pm2 restart ecosystem.config.cjs --update-env
 
 展开的数据条里还有「Smarty 实时查询」和「USPS 实时查询」：前者在后台标签页打开 Smarty 官网的地址验证演示页，像人一样填好地址、点 View Results，读到页面结果后带回卡片；后者在新标签页打开 USPS ZIP 查询页，同样自动填好地址并点 Find，页面出结果后带回卡片并切回原页面，查询标签页默认保留，可在弹窗里打开「实时查询后自动关闭查询页」（走的是页面自己的表单，不直接调接口；USPS 没有反应时可在该页手动点 Find，结果照样带回）。
 
+界面支持 English（默认）、简体中文和繁體中文，跟随浏览器的显示语言；文字都在 `apps/extension/_locales/<语言>/messages.json`，新增一种语言只需要加一个目录，`test/i18n.test.ts` 会检查各语言的键是否齐全。
+
 构建并加载：
 
 ```bash

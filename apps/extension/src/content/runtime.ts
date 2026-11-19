@@ -2,6 +2,7 @@ import type { AddressSource } from '@atmb/shared';
 
 import { ADDRESS_TAIL_PATTERN, extractAddressText, extractZip } from '../shared/extract.js';
 import { isHiddenByFilters, renderFilterBar, type FilterBar } from '../shared/filter-bar.js';
+import { t } from '../shared/i18n.js';
 import { hiddenKey, onHiddenChanged, readHidden, writeHidden, type HiddenMap } from '../shared/hidden.js';
 import { isPlatformEnabled, isReferralFresh } from '../shared/referral.js';
 import { onReferralChanged, onSettingsChanged, readFilters, readReferral, readSettings, writeFilters } from '../shared/settings.js';
@@ -108,7 +109,7 @@ button:hover { border-color: #68b7c6; color: #006a7b; }
   button.type = 'button';
   const dot = document.createElement('span');
   dot.className = 'dot';
-  button.append(dot, document.createTextNode('点击启用 usaddres 数据'));
+  button.append(dot, document.createTextNode(t('enablePrompt')));
   button.addEventListener('click', onClick);
   shadow.append(style, button);
   return host;
@@ -192,12 +193,12 @@ export async function startContentScript(adapter: SiteAdapter) {
         resolve(result);
       };
       const timer = setTimeout(
-        () => settle({ ok: false, error: provider === 'smarty' ? 'Smarty 查询超时，请稍后重试' : '等待超时，请重新点击 USPS 实时查询' }),
+        () => settle({ ok: false, error: t(provider === 'smarty' ? 'errSmartyTimeout' : 'errUspsTimeout') }),
         VERIFY_TIMEOUT_MS[provider],
       );
       pendingVerify.set(requestId, settle);
       void sendMessage<VerifyStartReply>({ type: 'verify', provider, address, requestId }).then((reply) => {
-        if (!reply.started) settle({ ok: false, error: reply.error ?? '无法打开查询页面' });
+        if (!reply.started) settle({ ok: false, error: reply.error ?? t('errOpenLookupPage') });
       });
     });
   }
@@ -249,7 +250,7 @@ export async function startContentScript(adapter: SiteAdapter) {
       for (const entry of scanned) entry.card.removeAttribute(CARD_ATTR);
       if (!warned) {
         warned = true;
-        console.warn('[usaddres] 查询失败：', reply.error);
+        console.warn('[usaddres] lookup failed:', reply.error);
       }
       return;
     }

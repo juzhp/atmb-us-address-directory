@@ -1,5 +1,6 @@
 import { EXTENSION_LOOKUP_MAX_ITEMS, type AddressSource } from '@atmb/shared';
 
+import { t } from './shared/i18n.js';
 import { isPlatformHost, isReferralFresh, referralUrlFor } from './shared/referral.js';
 import { readReferral, readSettings, writeReferral } from './shared/settings.js';
 import { smartyDemoUrl, USPS_LOOKUP_URL, type VerifyResult } from './shared/verify.js';
@@ -231,7 +232,7 @@ async function readVerifyJobs(): Promise<VerifyJobs> {
 
 async function startVerify(message: Extract<LookupMessage, { type: 'verify' }>, originTabId: number | undefined): Promise<VerifyStartReply> {
   if (originTabId === undefined) {
-    return { error: '无法确定发起查询的标签页' };
+    return { error: t('errNoOriginTab') };
   }
   const isSmarty = message.provider === 'smarty';
   // 两边都由页面脚本自动填写并查询；USPS 对后台标签页更敏感，放到前台，出结果后再切回原页面
@@ -241,7 +242,7 @@ async function startVerify(message: Extract<LookupMessage, { type: 'verify' }>, 
     openerTabId: originTabId,
   });
   if (tab.id === undefined) {
-    return { error: '无法打开查询页面' };
+    return { error: t('errOpenLookupPage') };
   }
   const jobs = await readVerifyJobs();
   jobs[String(tab.id)] = { provider: message.provider, address: message.address, originTabId, requestId: message.requestId };
@@ -286,7 +287,7 @@ async function finishVerify(tabId: number | undefined, result: VerifyResult, tab
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  void finishVerify(tabId, { ok: false, error: '查询页面已关闭' }, false);
+  void finishVerify(tabId, { ok: false, error: t('errLookupTabClosed') }, false);
 });
 
 chrome.runtime.onMessage.addListener((message: LookupMessage, sender, sendResponse) => {

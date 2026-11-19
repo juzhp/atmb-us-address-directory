@@ -7,6 +7,8 @@ import {
   type ExtensionVerifyTone,
 } from '@atmb/shared';
 
+import { t, type MessageKey } from './i18n.js';
+
 // 实时查询：在用户自己的浏览器里打开 Smarty 演示页 / USPS 查询页，读取页面给出的结果带回数据卡片。
 // 结果类型与网站共用（usaddres.com 页面也通过扩展发起同样的查询），定义在 @atmb/shared
 export type VerifyProvider = ExtensionVerifyProvider;
@@ -74,16 +76,17 @@ function flagField(label: string, value: string | undefined, goodValue: string):
 }
 
 // DPV 代码单看字母不好懂，带上含义
-const DPV_MEANINGS: Record<string, string> = {
-  Y: 'Y 已确认',
-  S: 'S 单元号不符',
-  D: 'D 缺单元号',
-  N: 'N 未确认',
+const DPV_MEANINGS: Record<string, MessageKey> = {
+  Y: 'dpvY',
+  S: 'dpvS',
+  D: 'dpvD',
+  N: 'dpvN',
 };
 
 function dpvField(label: string, value: string | undefined): VerifyField {
   const field = flagField(label, value, 'Y');
-  return value ? { ...field, value: DPV_MEANINGS[value] ?? value } : field;
+  const meaning = value ? DPV_MEANINGS[value] : undefined;
+  return meaning ? { ...field, value: t(meaning) } : field;
 }
 
 export function smartyResultFromCandidate(candidate: SmartyCandidate): VerifyResult {
@@ -95,8 +98,8 @@ export function smartyResultFromCandidate(candidate: SmartyCandidate): VerifyRes
     fields: [
       rdi ? { label: 'RDI', value: rdi, tone: rdi === 'Residential' ? 'good' : 'warn' } : { label: 'RDI', value: '—', tone: 'muted' },
       flagField('CMRA', analysis.dpv_cmra, 'N'),
-      dpvField('DPV 匹配', analysis.dpv_match_code),
-      flagField('空置', analysis.dpv_vacant, 'N'),
+      dpvField(t('fieldDpvMatch'), analysis.dpv_match_code),
+      flagField(t('fieldVacant'), analysis.dpv_vacant, 'N'),
     ],
   };
 }
@@ -112,11 +115,11 @@ function uspsValue(details: string[], index: number) {
 export function uspsResultFromPage(addressLines: string[], details: string[], resultCount: number): VerifyResult {
   const fields: VerifyField[] = [
     flagField('CMRA', uspsValue(details, USPS_DETAIL_INDEX.cmra), 'N'),
-    dpvField('DPV 确认', uspsValue(details, USPS_DETAIL_INDEX.dpvConfirmation)),
+    dpvField(t('fieldDpvConfirmation'), uspsValue(details, USPS_DETAIL_INDEX.dpvConfirmation)),
   ];
   const county = uspsValue(details, USPS_DETAIL_INDEX.county);
-  if (county) fields.push({ label: '县', value: county, tone: 'info' });
-  if (resultCount > 1) fields.push({ label: '结果', value: `共 ${resultCount} 条，取第一条`, tone: 'info' });
+  if (county) fields.push({ label: t('fieldCounty'), value: county, tone: 'info' });
+  if (resultCount > 1) fields.push({ label: t('fieldResults'), value: t('fieldResultsValue', resultCount), tone: 'info' });
 
   return {
     ok: true,
