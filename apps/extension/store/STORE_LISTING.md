@@ -17,7 +17,7 @@ Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套
 | 短名称（工具栏等窄处显示） | usaddres |
 | 简短说明 | 按语言不同，见下表（上限 132 字符；英文那条正好 132，改动时注意别超） |
 | 版本 | 1.2.0 |
-| 语言 | English（默认）、中文（简体）、中文（繁體）。商店后台的语言不是手选的，由包里的 `default_locale: en` 和 `_locales/<语言>/messages.json` 决定；名称、短名称、简短说明以及扩展界面上的全部文字都从这些文件读，`manifest.json` 里只保留 `__MSG_…__` 占位。没覆盖到的语言一律显示英文 |
+| 语言 | 中文（简体，默认）、English、中文（繁體）。商店后台的语言不是手选的，由包里的 `default_locale: zh_CN` 和 `_locales/<语言>/messages.json` 决定；名称、短名称、简短说明以及扩展界面上的全部文字都从这些文件读，`manifest.json` 里只保留 `__MSG_…__` 占位。没覆盖到的语言（如德语、西班牙语）一律显示简体中文 |
 | Chrome 类别 | 工具（Tools） |
 | Edge 类别 | Productivity |
 | 官方网址 | https://usaddres.com/ |
@@ -29,13 +29,13 @@ Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套
 
 | 语言 | 名称 | 简短说明 |
 | --- | --- | --- |
-| English（`en`，默认） | ATMB / iPostal1 US Residential Address Checker - usaddres | See RDI, CMRA, USPS CMRA, Capital One pre-check and blacklist flags on Anytime Mailbox (ATMB) & iPostal1 US addresses as you browse. |
-| 中文（简体，`zh_CN`） | ATMB / iPostal1 美国住宅地址筛选 - usaddres | 选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。 |
+| English（`en`） | ATMB / iPostal1 US Residential Address Checker - usaddres | See RDI, CMRA, USPS CMRA, Capital One pre-check and blacklist flags on Anytime Mailbox (ATMB) & iPostal1 US addresses as you browse. |
+| 中文（简体，`zh_CN`，默认） | ATMB / iPostal1 美国住宅地址筛选 - usaddres | 选 Anytime Mailbox(ATMB) / iPostal1 美国地址时，直接显示 RDI、CMRA、USPS CMRA、C1 预审与黑名单，快速筛出美国真实住宅地址。 |
 | 中文（繁體，`zh_TW`） | ATMB / iPostal1 美國住宅地址篩選 - usaddres | 選 Anytime Mailbox(ATMB) / iPostal1 美國地址時，直接顯示 RDI、CMRA、USPS CMRA、C1 預審與黑名單，快速篩出美國真實住宅地址。 |
 
 改名称或简短说明：改对应语言的 `messages.json`，重新打包上传即可，后台会自动带出。`test/i18n.test.ts` 会检查三种语言的键是否一致、长度是否超限。
 
-## 2. 详细说明（简体中文，贴到商店「说明」的中文（简体）一栏）
+## 2. 详细说明（简体中文，默认语言，贴到商店「说明」的中文（简体）一栏）
 
 ```text
 在 Anytime Mailbox 和 iPostal1 上挑美国地址时，直接在页面上看到每个地址的关键信息，不用再来回切换查询。
@@ -67,7 +67,7 @@ Chrome Web Store 与 Microsoft Edge Add-ons 共用同一个安装包和同一套
 本扩展由 usaddres.com 提供，是第三方工具，与 Anytime Mailbox、iPostal1、Smarty、USPS、Capital One 均无隶属关系。所有数据仅供辅助判断，最终结果以各平台和金融机构的实际审核为准。
 ```
 
-## 3. Detailed description (English，默认语言，贴到 English 一栏)
+## 3. Detailed description (English，贴到 English 一栏)
 
 ```text
 See the key facts about every US mailbox address right on the page while you browse Anytime Mailbox and iPostal1.
@@ -270,8 +270,8 @@ The extension is a third-party helper by usaddres.com and is not affiliated with
 | Properties | Website URL | https://usaddres.com/ |
 | Properties | Support contact | juzhpcom@gmail.com |
 | Properties | Mature content | 否 |
-| Store listings（English，默认） | Description | 第 3 节 |
-| Store listings（中文简体） | Description | 第 2 节 |
+| Store listings（中文简体，默认） | Description | 第 2 节 |
+| Store listings（English） | Description | 第 3 节 |
 | Store listings（中文繁體） | Description | 第 3.1 节 |
 | Store listings | Extension Store logo | `store-logo-300x300.png` |
 | Store listings | Small promotional tile | 各语言目录下的 `promo-small-440x280.png` |
@@ -290,8 +290,8 @@ The extension is a third-party helper by usaddres.com and is not affiliated with
 - **审核时长**：Chrome 通常 1–3 个工作日，带 `tabs` 和多站点内容脚本的扩展可能进入更长的人工审核；Edge 通常 1–7 个工作日。
 - **发版**：以后每次更新把 `manifest.json` 和 `package.json` 的版本号一起加一，再跑 `npm run package`。
 - **v1.1.0 变更**：新增只在 `usaddres.com` 上运行的桥接内容脚本（`content/usaddres.js`），让网站地址列表里的「Smarty / USPS 实时查询」能借扩展完成；没有新增权限（usaddres.com 本来就在 host_permissions 里）。网站上的实时查询要等这个版本在商店发布后才能用。
-- **v1.2.0 变更（多语言）**：界面文字全部改为从 `_locales` 读取，新增 English 与中文（繁體），默认语言从简体中文改为英文；功能和权限都没有变化。提交后两个后台会多出语言入口：
-  - **Chrome Web Store**：上传新包后，「商品详情」页顶部的语言下拉里会出现 English、中文（简体）、中文（繁體）。逐个切换，把第 3 / 2 / 3.1 节的详细说明贴进去；原来填在中文下的说明会保留在中文（简体）里。默认语言变成 English 后，English 一栏的说明是必填的。宣传图和截图可以先用全局那一套，再按语言补上传。
+- **v1.2.0 变更（多语言）**：界面文字全部改为从 `_locales` 读取，新增 English 与中文（繁體），默认语言仍是简体中文；功能和权限都没有变化。提交后两个后台会多出语言入口：
+  - **Chrome Web Store**：上传新包后，「商品详情」页顶部的语言下拉里会出现 English、中文（简体）、中文（繁體）。逐个切换，把第 3 / 2 / 3.1 节的详细说明贴进去；默认语言没变，原来填在中文（简体）下的说明、图片都原样保留，只需要补 English 和中文（繁體）两栏。宣传图和截图可以先用全局那一套，再按语言补上传。
   - **Edge Add-ons**：上传新包后在「Store listings」里添加 English 和中文（繁體）两个语言，各填说明、搜索词和图片；Edge 要求每个语言都填完才能提交。
   - 界面语言跟随浏览器的显示语言，不是跟随网页语言；用户无法在扩展里手动切换。
   - 黑名单原因是用户提交的中文原文，不翻译；「在 usaddres.com 查看」跳到的网站也是中文。英文和繁体的说明里已如实写明。

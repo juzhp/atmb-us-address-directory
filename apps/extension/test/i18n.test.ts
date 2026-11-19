@@ -22,7 +22,7 @@ const placeholders = (message: string) => [...new Set(message.match(/\$\d/g) ?? 
 
 test('every locale has the same keys and placeholders as the default locale', () => {
   assert.deepEqual(locales.sort(), ['en', 'zh_CN', 'zh_TW']);
-  assert.equal(manifest.default_locale, 'en');
+  assert.equal(manifest.default_locale, 'zh_CN');
   for (const locale of locales) {
     const messages = loadMessages(locale);
     assert.deepEqual(Object.keys(messages), Object.keys(base), locale);

@@ -4,7 +4,7 @@
   "short_name": "__MSG_extShortName__",
   "version": "1.2.0",
   "description": "__MSG_extDesc__",
-  "default_locale": "en",
+  "default_locale": "zh_CN",
   "homepage_url": "https://usaddres.com/",
   "minimum_chrome_version": "120",
   "permissions": [
