@@ -166,10 +166,10 @@ This is a third-party tool by usaddres.com. It is not affiliated with Anytime Ma
 | 语言 | 小宣传图 / 大宣传图 | 截图 4（弹窗） | 截图 1–3（真实页面） |
 | --- | --- | --- | --- |
 | 中文（简体） | `store/assets/` | `store/screenshots/04-popup.png` | `store/screenshots/01`–`03` |
-| English | `store/assets/en/` | `store/screenshots/en/04-popup.png` | **还没有**，暂时沿用简体中文的三张 |
+| English | `store/assets/en/` | `store/screenshots/en/04-popup.png` | `store/screenshots/en/01`、`02` 已有；**03（iPostal1）还没有**，暂时沿用简体中文那张 |
 | 中文（繁體） | `store/assets/zh_TW/` | `store/screenshots/zh_TW/04-popup.png` | 沿用简体中文的三张即可 |
 
-英文截图 1–3 要在英文界面的浏览器里重截：Chrome 设置里把显示语言改成 English（或用 `chrome.exe --lang=en-US` 启动一个单独的用户目录），装上 1.2.0 后打开同样的三个页面截 1280×800。没截之前英文商店页会显示中文界面的截图，不影响提交。
+英文的截图 1、2 是用英文界面的浏览器加载 1.2.0 后，在 Anytime Mailbox 阿拉巴马州列表页上实拍的（截图 2 是真实的 Smarty 实时查询结果）。截图 3 没能自动截：iPostal1 的地址选择页有 Cloudflare 的人机验证，自动化浏览器进不去，需要在自己的浏览器里手动截——Chrome 设置里把显示语言改成 English（或用 `chrome.exe --lang=en-US` 启动一个单独的用户目录），装上 1.2.0，打开 iPostal1 地址选择页选好城市，展开第一张卡，窗口内容区调到 1280×800 后截图，存为 `store/screenshots/en/03-ipostal1-list.png`。没补之前英文商店页的这一张用中文界面的即可，不影响提交。
 
 弹窗展示图的原图是对应语言界面的 2 倍截图：`store/raw/popup.png`（简体）、`popup.en.png`、`popup.zh_TW.png`；弹窗有改动时重新截这三张再跑脚本。
 
